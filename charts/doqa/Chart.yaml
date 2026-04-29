@@ -1,0 +1,21 @@
+apiVersion: v2
+name: doqa
+description: DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
+type: application
+version: 0.1.0
+appVersion: "4.0.0-box"
+kubeVersion: ">=1.32.0-0"
+home: https://doqa.app
+sources:
+  - https://github.com/batonogov/helm-charts
+  - https://docs.doqa.app
+keywords:
+  - doqa
+  - tcms
+  - testing
+  - test-management
+  - qa
+maintainers:
+  - name: batonogov
+    url: https://github.com/batonogov
+icon: https://doqa.app/favicon.ico

@@ -1,0 +1,49 @@
+# batonogov helm charts
+
+Helm chart catalog. Charts published to GitHub Pages via [chart-releaser-action](https://github.com/helm/chart-releaser-action) on every push to `main`.
+
+## Usage
+
+```bash
+helm repo add batonogov https://batonogov.github.io/helm-charts
+helm repo update
+helm search repo batonogov
+```
+
+## Charts
+
+| Name | Description |
+|---|---|
+| [doqa](charts/doqa) | DoQA Test Case Management System (TCMS) self-hosted |
+
+## Repository conventions
+
+- Each chart lives in its own directory under `charts/<name>/`.
+- Each chart is versioned independently per semver. Release tags are prefixed with the chart name, e.g. `doqa-0.1.0`.
+- `charts/<name>/README.md` is generated from `values.yaml` + `README.md.gotmpl` by [helm-docs](https://github.com/norwoodj/helm-docs). CI fails if it gets out of sync.
+- Helm v3.14+ or Helm v4 is supported.
+
+## Local development
+
+```bash
+brew install helm helm-docs chart-testing kind
+# regenerate chart README from values.yaml
+helm-docs --chart-search-root charts
+# lint a chart locally
+ct lint --config .github/ct.yaml --target-branch main
+# render templates
+helm template my-release charts/doqa -f charts/doqa/ci/test-values.yaml
+```
+
+## CI
+
+- `lint-test.yaml` (PR to `main`): runs `ct lint` + verifies `helm-docs` output is committed.
+- `release.yaml` (push to `main`): publishes new chart versions to the `gh-pages` branch with [chart-releaser-action](https://github.com/helm/chart-releaser-action).
+
+## Contributing
+
+Open a pull request against `main`. Bump the `version:` in `Chart.yaml` of any chart you change — `chart-releaser-action` only publishes versions that haven't been released yet.
+
+## License
+
+See [LICENSE](LICENSE).

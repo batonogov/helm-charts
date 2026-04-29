@@ -1,0 +1,103 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "doqa.fullname" . }}-autotest-parser
+  labels:
+    {{- include "doqa.labels" . | nindent 4 }}
+    app.kubernetes.io/component: autotest-parser
+spec:
+  replicas: {{ .Values.autotestParser.replicas }}
+  selector:
+    matchLabels:
+      {{- include "doqa.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: autotest-parser
+  template:
+    metadata:
+      annotations:
+        checksum/env: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.extraAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "doqa.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: autotest-parser
+    spec:
+      serviceAccountName: {{ include "doqa.serviceAccountName" . }}
+      {{- include "doqa.imagePullSecrets" . | nindent 6 }}
+      {{- include "doqa.podSecurityContext" . | nindent 6 }}
+      containers:
+      - name: autotest-parser
+        image: {{ include "doqa.image" (dict "img" .Values.autotestParser.image "root" .) | quote }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        {{- include "doqa.containerSecurityContext" . | nindent 8 }}
+        ports:
+        - name: http
+          containerPort: 8000
+          protocol: TCP
+        env:
+        - name: QUEUE
+          value: "autotest"
+        - name: STUB_AUTH
+          value: "true"
+        - name: PREFIX_ROOT_PATH
+          value: "/"
+        - name: DEBUG
+          value: {{ .Values.debug | quote }}
+        - name: DEBUGPY_ENABLED
+          value: "false"
+        - name: DEBUGPY_WAIT_FOR_CLIENT
+          value: "false"
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "doqa.secret.app" . }}
+              key: jwt-secret
+        - name: RABBITMQ_HOST
+          value: {{ include "doqa.rabbitmq.host" . | quote }}
+        - name: RABBITMQ_PORT
+          value: {{ .Values.rabbitmq.port | quote }}
+        - name: RABBITMQ_USER
+          value: {{ .Values.rabbitmq.username | quote }}
+        - name: RABBITMQ_VIRTUAL_HOST
+          value: {{ .Values.rabbitmq.virtualHost | quote }}
+        - name: RABBITMQ_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "doqa.secret.rabbitmq" . }}
+              key: password
+        livenessProbe:
+          tcpSocket:
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+        resources:
+          {{- toYaml .Values.autotestParser.resources | nindent 10 }}
+      {{- with .Values.autotestParser.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.autotestParser.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.autotestParser.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "doqa.fullname" . }}-autotest-parser
+  labels:
+    {{- include "doqa.labels" . | nindent 4 }}
+    app.kubernetes.io/component: autotest-parser
+spec:
+  {{- include "doqa.componentService" (dict "ctx" . "component" "autotest-parser" "name" "http" "port" 8000) | nindent 2 }}

@@ -1,0 +1,90 @@
+{{ template "chart.header" . }}
+
+{{ template "chart.deprecationWarning" . }}
+
+{{ template "chart.description" . }}
+
+{{ template "chart.versionBadge" . }}{{ template "chart.typeBadge" . }}{{ template "chart.appVersionBadge" . }}
+
+{{ template "chart.homepageLine" . }}
+
+> **Licensing**: DoQA box-versions require a vendor license key to activate
+> (super-user creation is gated). This chart deploys the stack but does not
+> bypass licensing — request a key from <https://doqa.app>.
+
+## TL;DR
+
+```bash
+helm repo add batonogov https://batonogov.github.io/helm-charts
+helm install doqa batonogov/doqa -n doqa --create-namespace \
+  --set appUrl=doqa.example.com \
+  --set ingress.className=traefik \
+  --set ingress.annotations."cert-manager\.io/cluster-issuer"=letsencrypt
+```
+
+## Prerequisites
+
+- Kubernetes 1.32+
+- Helm 3.14+ (Helm 4 supported)
+- An Ingress controller routable from the public DNS pointing to `appUrl`
+- For TLS: cert-manager with a working ClusterIssuer (or a pre-provisioned TLS secret)
+- For PostgreSQL via CNPG (default): the
+  [CloudNativePG](https://cloudnative-pg.io/) operator already installed in
+  the cluster (typically in `cnpg-system`)
+- Storage class supporting `ReadWriteOnce` PVCs
+
+The DoQA application images live at `registry.control.doqa.app` and pull
+anonymously — no `imagePullSecrets` are required by default.
+
+## Architecture
+
+Components mirror the vendor docker-compose for v4.0.0:
+
+- `backend` (php-fpm Laravel API), `queue` (`queue:work`), `cron` (`schedule:work`)
+- `frontend` (Nuxt SPA)
+- `autotest-parser`, `autotest-result-parser` (RabbitMQ-driven)
+- `statistic`, `notification` (+ Celery worker), `telegram-bot` (optional)
+- `websocket` (Soketi, Pusher protocol)
+- `nginx` (internal router) → exposed via Ingress
+
+Stateful dependencies are provisioned by the chart by default and can be
+swapped to external services with `<component>.create=false`:
+
+| Component | Default | External alternative |
+|---|---|---|
+| PostgreSQL | CNPG `Cluster` (1 instance) | `postgresql.cnpg.create=false` + `postgresql.host` |
+| Redis | In-tree Deployment + PVC | `redis.create=false` + `redis.host` |
+| RabbitMQ | In-tree Deployment + PVC | `rabbitmq.create=false` + `rabbitmq.host` |
+| MinIO | In-tree Deployment + PVC + bucket-init Job | `minio.create=false` + `minio.endpoint` |
+
+## Secrets
+
+By default the chart **generates** application secrets (`secrets.create=true`)
+with stable values via `lookup` — they survive `helm upgrade`. Set
+`secrets.create=false` to plug in pre-existing secrets:
+
+| Secret | Keys |
+|---|---|
+| `<release>-app-secrets` | `app-key`, `jwt-secret` |
+| `<release>-api-keys` | `statistic-api-key`, `notification-api-key` |
+| `<release>-pusher-secret` | `app-secret` |
+| `<release>-rabbitmq-secret` | `password`, `erlang-cookie` |
+| `<release>-minio-secrets` | `access-key`, `secret-key` |
+
+The mail and LDAP passwords are always user-provided through `secrets.mail`
+and `secrets.ldap`.
+
+{{ template "chart.requirementsSection" . }}
+
+{{ template "chart.valuesSection" . }}
+
+## Upgrading
+
+This chart targets DoQA 4.0.0+. There is no automatic migration path from
+3.x deployments — vendor changed the queue broker from Redis to RabbitMQ
+between 3.7 and 4.0. Plan a stepwise migration if you are coming from a
+3.x install.
+
+{{ template "chart.maintainersSection" . }}
+
+{{ template "chart.sourcesSection" . }}

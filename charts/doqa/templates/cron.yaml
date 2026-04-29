@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "doqa.fullname" . }}-cron
+  labels:
+    {{- include "doqa.labels" . | nindent 4 }}
+    app.kubernetes.io/component: cron
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "doqa.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: cron
+  template:
+    metadata:
+      annotations:
+        checksum/env: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.extraAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "doqa.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: cron
+    spec:
+      serviceAccountName: {{ include "doqa.serviceAccountName" . }}
+      {{- include "doqa.imagePullSecrets" . | nindent 6 }}
+      {{- include "doqa.podSecurityContext" . | nindent 6 }}
+      containers:
+      - name: cron
+        image: {{ include "doqa.image" (dict "img" .Values.backend.image "root" .) | quote }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        {{- include "doqa.containerSecurityContext" . | nindent 8 }}
+        command: ["php", "artisan", "schedule:work"]
+        envFrom:
+          {{- include "doqa.backendEnvFrom" . | nindent 10 }}
+        env:
+          {{- include "doqa.backendSecretEnv" . | nindent 10 }}
+        resources:
+          {{- toYaml .Values.cron.resources | nindent 10 }}
+      {{- with .Values.cron.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.cron.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.cron.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

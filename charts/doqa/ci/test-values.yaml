@@ -1,0 +1,43 @@
+# Values for installing doqa chart into a fresh `doqa-test` ns of the Tacita kubeadm cluster.
+# Pinned to that environment: traefik ingress, letsencrypt HTTP-01, longhorn storage.
+
+appUrl: "doqa.batonogov.ru"
+useSsl: true
+
+ingress:
+  enabled: true
+  className: traefik
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+    traefik.ingress.kubernetes.io/router.middlewares: "traefik-redirect-https@kubernetescrd"
+  tls:
+    enabled: true
+
+postgresql:
+  cnpg:
+    create: true
+    instances: 1
+    storage:
+      size: 4Gi
+      storageClass: longhorn
+
+redis:
+  create: true
+  storage:
+    size: 1Gi
+    storageClass: longhorn
+
+rabbitmq:
+  create: true
+  storage:
+    size: 1Gi
+    storageClass: longhorn
+
+minio:
+  create: true
+  storage:
+    size: 4Gi
+    storageClass: longhorn
+
+secrets:
+  create: true

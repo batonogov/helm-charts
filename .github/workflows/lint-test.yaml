@@ -1,0 +1,47 @@
+name: lint-test
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: helm/chart-testing-action@v2.7.0
+
+      - name: ct list-changed
+        id: list-changed
+        run: |
+          changed=$(ct list-changed --config .github/ct.yaml)
+          if [[ -n "$changed" ]]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: ct lint
+        if: steps.list-changed.outputs.changed == 'true'
+        run: ct lint --config .github/ct.yaml
+
+      - name: helm-docs check
+        if: steps.list-changed.outputs.changed == 'true'
+        run: |
+          go install github.com/norwoodj/helm-docs/cmd/helm-docs@v1.14.2
+          $HOME/go/bin/helm-docs --chart-search-root charts
+          if ! git diff --quiet -- 'charts/**/README.md'; then
+            echo "::error::helm-docs is out of sync with values.yaml. Run helm-docs locally and commit the regenerated README.md."
+            git diff -- 'charts/**/README.md'
+            exit 1
+          fi

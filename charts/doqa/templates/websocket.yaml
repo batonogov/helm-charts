@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "doqa.fullname" . }}-websocket
+  labels:
+    {{- include "doqa.labels" . | nindent 4 }}
+    app.kubernetes.io/component: websocket
+spec:
+  replicas: {{ .Values.websocket.replicas }}
+  selector:
+    matchLabels:
+      {{- include "doqa.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: websocket
+  template:
+    metadata:
+      labels:
+        {{- include "doqa.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: websocket
+      {{- with .Values.extraAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "doqa.serviceAccountName" . }}
+      {{- include "doqa.imagePullSecrets" . | nindent 6 }}
+      {{- include "doqa.podSecurityContext" . | nindent 6 }}
+      containers:
+      - name: websocket
+        image: {{ include "doqa.image" (dict "img" .Values.websocket.image "root" .) | quote }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        {{- include "doqa.containerSecurityContext" . | nindent 8 }}
+        ports:
+        - name: ws
+          containerPort: {{ .Values.pusher.port }}
+          protocol: TCP
+        env:
+        - name: SOKETI_APP_MANAGER_DRIVER
+          value: array
+        - name: SOKETI_DEBUG
+          value: {{ ternary "1" "0" .Values.debug | quote }}
+        - name: SOKETI_DEFAULT_APP_ID
+          value: {{ .Values.pusher.appId | quote }}
+        - name: SOKETI_DEFAULT_APP_KEY
+          value: {{ .Values.pusher.appKey | quote }}
+        - name: SOKETI_DEFAULT_APP_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "doqa.secret.pusher" . }}
+              key: app-secret
+        livenessProbe:
+          tcpSocket:
+            port: ws
+          initialDelaySeconds: 15
+          periodSeconds: 30
+        readinessProbe:
+          tcpSocket:
+            port: ws
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          {{- toYaml .Values.websocket.resources | nindent 10 }}
+      {{- with .Values.websocket.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.websocket.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.websocket.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "doqa.fullname" . }}-websocket
+  labels:
+    {{- include "doqa.labels" . | nindent 4 }}
+    app.kubernetes.io/component: websocket
+spec:
+  {{- include "doqa.componentService" (dict "ctx" . "component" "websocket" "name" "ws" "port" (.Values.pusher.port | int)) | nindent 2 }}

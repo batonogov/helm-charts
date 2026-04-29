@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "doqa.fullname" . }}-env
+  labels:
+    {{- include "doqa.labels" . | nindent 4 }}
+  {{- with .Values.extraAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+data:
+  APP_URL: {{ .Values.appUrl | quote }}
+  APP_FRONTEND_URL: {{ include "doqa.frontendUrl" . | quote }}
+  USE_SSL: {{ .Values.useSsl | quote }}
+
+  DB_HOST: {{ include "doqa.postgresql.host" . | quote }}
+  DB_PORT: {{ .Values.postgresql.port | quote }}
+  DB_DATABASE: {{ .Values.postgresql.database | quote }}
+  DB_USERNAME: {{ .Values.postgresql.username | quote }}
+
+  REDIS_HOST: {{ include "doqa.redis.host" . | quote }}
+  REDIS_PORT: {{ .Values.redis.port | quote }}
+  REDIS_DB: {{ .Values.redis.db | quote }}
+
+  RABBITMQ_HOST: {{ include "doqa.rabbitmq.host" . | quote }}
+  RABBITMQ_PORT: {{ .Values.rabbitmq.port | quote }}
+  RABBITMQ_USER: {{ .Values.rabbitmq.username | quote }}
+  RABBITMQ_VIRTUAL_HOST: {{ .Values.rabbitmq.virtualHost | quote }}
+
+  MINIO_ENDPOINT: {{ include "doqa.minio.endpoint" . | quote }}
+  MINIO_BUCKET: {{ .Values.minio.bucket | quote }}
+  MINIO_REGION: {{ .Values.minio.region | quote }}
+  MINIO_BUCKET_URL: {{ include "doqa.bucketUrl" . | quote }}
+
+  MAIL_MAILER: {{ .Values.mail.mailer | quote }}
+  MAIL_HOST: {{ .Values.mail.host | quote }}
+  MAIL_PORT: {{ .Values.mail.port | quote }}
+  MAIL_USERNAME: {{ .Values.mail.username | quote }}
+  MAIL_ENCRYPTION: {{ .Values.mail.encryption | quote }}
+  MAIL_FROM_ADDRESS: {{ .Values.mail.fromAddress | quote }}
+  MAIL_FROM_NAME: {{ .Values.mail.fromName | quote }}
+  MAIL_ISSUE: {{ .Values.mailIssue | quote }}
+
+  BROADCAST_DRIVER: pusher
+  PUSHER_APP_HOST: {{ printf "%s-websocket" (include "doqa.fullname" .) | quote }}
+  PUSHER_APP_ID: {{ .Values.pusher.appId | quote }}
+  PUSHER_APP_KEY: {{ .Values.pusher.appKey | quote }}
+  PUSHER_APP_PORT: {{ .Values.pusher.port | quote }}
+
+  STATISTIC_ENDPOINT: {{ printf "http://%s-statistic:3000/" (include "doqa.fullname" .) | quote }}
+  NOTIFICATION_ENDPOINT: {{ printf "http://%s-notification:3000/" (include "doqa.fullname" .) | quote }}
+
+  BOT_NAME: {{ .Values.telegramBot.botName | quote }}
+
+  SERVER_PORT: "80"
+  SERVER_SSL_PORT: "443"
+
+  LDAP_ENABLED: {{ .Values.ldap.enabled | quote }}
+  {{- if .Values.ldap.enabled }}
+  LDAP_HOST: {{ .Values.ldap.host | quote }}
+  LDAP_PORT: {{ .Values.ldap.port | quote }}
+  LDAP_USERNAME: {{ .Values.ldap.username | quote }}
+  LDAP_BASE_DN: {{ .Values.ldap.baseDn | quote }}
+  {{- if .Values.ldap.encryption }}
+  LDAP_ENCRYPTION: {{ .Values.ldap.encryption | quote }}
+  {{- end }}
+  LDAP_SASL: {{ .Values.ldap.sasl | quote }}
+  {{- end }}
