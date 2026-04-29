@@ -4,3 +4,9 @@ chart-dirs:
 chart-repos: []
 helm-extra-args: --timeout 600s
 validate-maintainers: false
+# Don't force a Chart.yaml version bump on every PR. Bump is required only when
+# a change is user-visible (templates/values/Chart.yaml `appVersion` shift) —
+# enforce by review, not by `ct`. Without this flag any tweak under
+# charts/<name>/ (including ci/, comments) triggers a "needs version bump" lint
+# error.
+check-version-increment: false

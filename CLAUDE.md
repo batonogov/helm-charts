@@ -29,7 +29,9 @@ There are no unit tests — validation is `helm lint` + `ct lint` + `helm-docs` 
 
 ## Release flow
 
-A push to `main` triggers `.github/workflows/release.yaml` → `chart-releaser-action` packages every chart whose `version:` in `Chart.yaml` is not yet released, creates a GitHub Release per chart (tag format `<chart>-<version>`, e.g. `doqa-0.1.0`), and updates `gh-pages/index.yaml`. Charts with an unchanged version are skipped. **Always bump `version:` in the chart's `Chart.yaml` when shipping changes** — without a bump, `chart-releaser-action` reuses the existing release and the change never goes out.
+A push to `main` triggers `.github/workflows/release.yaml` → `chart-releaser-action` packages every chart whose `version:` in `Chart.yaml` is not yet released, creates a GitHub Release per chart (tag format `<chart>-<version>`, e.g. `doqa-0.1.0`), and updates `gh-pages/index.yaml`. Charts with an unchanged version are skipped.
+
+**Bump `version:` in the chart's `Chart.yaml` when shipping a user-visible change** (templates, default values, `appVersion`, image tags, README content). Don't bump for `ci/test-values.yaml` tweaks, comment-only edits, or repo-level files — that just churns release versions without giving users anything new. `ct.yaml` has `check-version-increment: false` for exactly this reason — bump is enforced by review, not by `ct`.
 
 The `gh-pages` branch must exist before the first release (one-time bootstrap). GitHub Pages settings must point to `gh-pages` / root.
 
