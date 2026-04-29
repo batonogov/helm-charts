@@ -21,7 +21,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - uses: helm/chart-testing-action@v2.7.0
+      - uses: helm/chart-testing-action@v2.8.0
 
       - name: ct list-changed
         id: list-changed
