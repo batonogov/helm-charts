@@ -1,0 +1,21 @@
+{{- if .Values.postgresql.cnpg.create }}
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ include "doqa.fullname" . }}-cnpg
+  labels:
+    {{- include "doqa.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgresql
+spec:
+  imageName: {{ .Values.postgresql.cnpg.imageName | quote }}
+  instances: {{ .Values.postgresql.cnpg.instances }}
+  storage:
+    size: {{ .Values.postgresql.cnpg.storage.size | quote }}
+    {{- with .Values.postgresql.cnpg.storage.storageClass }}
+    storageClass: {{ . | quote }}
+    {{- end }}
+  bootstrap:
+    initdb:
+      database: {{ .Values.postgresql.database | quote }}
+      owner: {{ .Values.postgresql.username | quote }}
+{{- end }}

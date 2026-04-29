@@ -1,0 +1,156 @@
+{{- if .Values.minio.create }}
+{{- $fullName := include "doqa.fullname" . -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $fullName }}-minio
+  labels:
+    {{- include "doqa.labels" . | nindent 4 }}
+    app.kubernetes.io/component: minio
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.minio.storage.size | quote }}
+  {{- with .Values.minio.storage.storageClass }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullName }}-minio
+  labels:
+    {{- include "doqa.labels" . | nindent 4 }}
+    app.kubernetes.io/component: minio
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "doqa.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: minio
+  template:
+    metadata:
+      labels:
+        {{- include "doqa.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: minio
+    spec:
+      serviceAccountName: {{ include "doqa.serviceAccountName" . }}
+      {{- include "doqa.imagePullSecrets" . | nindent 6 }}
+      {{- include "doqa.podSecurityContext" . | nindent 6 }}
+      containers:
+      - name: minio
+        image: "{{ .Values.minio.image.repository }}:{{ .Values.minio.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        {{- include "doqa.containerSecurityContext" . | nindent 8 }}
+        args: ["server", "/data", "--console-address", ":9001"]
+        ports:
+        - name: api
+          containerPort: 9000
+        - name: console
+          containerPort: 9001
+        env:
+        - name: MINIO_ROOT_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "doqa.secret.minio" . }}
+              key: access-key
+        - name: MINIO_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "doqa.secret.minio" . }}
+              key: secret-key
+        - name: MINIO_REGION
+          value: {{ .Values.minio.region | quote }}
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        livenessProbe:
+          httpGet:
+            path: /minio/health/live
+            port: api
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /minio/health/ready
+            port: api
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        resources:
+          {{- toYaml .Values.minio.resources | nindent 10 }}
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: {{ $fullName }}-minio
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullName }}-minio
+  labels:
+    {{- include "doqa.labels" . | nindent 4 }}
+    app.kubernetes.io/component: minio
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "doqa.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: minio
+  ports:
+    - name: api
+      port: 9000
+      targetPort: api
+    - name: console
+      port: 9001
+      targetPort: console
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $fullName }}-minio-bucket-init
+  labels:
+    {{- include "doqa.labels" . | nindent 4 }}
+    app.kubernetes.io/component: minio-init
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 6
+  template:
+    metadata:
+      labels:
+        {{- include "doqa.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: minio-init
+    spec:
+      restartPolicy: OnFailure
+      {{- include "doqa.imagePullSecrets" . | nindent 6 }}
+      containers:
+      - name: mc
+        image: "{{ .Values.minio.client.image.repository }}:{{ .Values.minio.client.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        env:
+        - name: KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "doqa.secret.minio" . }}
+              key: access-key
+        - name: SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "doqa.secret.minio" . }}
+              key: secret-key
+        - name: MC_HOST_doqa
+          value: "http://$(KEY):$(SECRET)@{{ $fullName }}-minio:9000"
+        command:
+        - sh
+        - -c
+        - |
+          set -e
+          until mc alias list doqa >/dev/null 2>&1; do echo "waiting for minio..."; sleep 2; done
+          mc mb --ignore-existing doqa/{{ .Values.minio.bucket }}
+          mc anonymous set public doqa/{{ .Values.minio.bucket }}
+{{- end }}

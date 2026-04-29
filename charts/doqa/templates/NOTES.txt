@@ -1,0 +1,32 @@
+DoQA {{ .Chart.AppVersion }} has been deployed.
+
+Release: {{ .Release.Name }}
+Namespace: {{ .Release.Namespace }}
+
+URL: {{ ternary "https" "http" .Values.useSsl }}://{{ .Values.appUrl }}/
+
+{{- if not .Values.secrets.create }}
+
+Required external secrets (must already exist in namespace `{{ .Release.Namespace }}`):
+  {{ include "doqa.secret.app" . }}      keys: app-key, jwt-secret
+  {{ include "doqa.secret.minio" . }}    keys: access-key, secret-key
+  {{ include "doqa.secret.apiKeys" . }}  keys: statistic-api-key, notification-api-key
+  {{ include "doqa.secret.pusher" . }}   keys: app-secret
+  {{ include "doqa.secret.rabbitmq" . }} keys: password, erlang-cookie
+{{- if .Values.secrets.mail }}
+  {{ .Values.secrets.mail }}             key:  password
+{{- end }}
+{{- if and .Values.ldap.enabled .Values.secrets.ldap }}
+  {{ .Values.secrets.ldap }}             key:  password
+{{- end }}
+{{- if and (not .Values.postgresql.cnpg.create) .Values.postgresql.passwordSecret.name }}
+  {{ .Values.postgresql.passwordSecret.name }} key: {{ .Values.postgresql.passwordSecret.key }}
+{{- end }}
+{{- end }}
+
+NOTE: DoQA box-versions require a vendor license key to activate (super-user creation
+is gated). The chart deploys the stack but does not bypass licensing — request a key
+from https://doqa.app.
+
+Verify pods:
+  kubectl -n {{ .Release.Namespace }} get pods -l app.kubernetes.io/instance={{ .Release.Name }}

@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "doqa.fullname" . }}-statistic
+  labels:
+    {{- include "doqa.labels" . | nindent 4 }}
+    app.kubernetes.io/component: statistic
+spec:
+  replicas: {{ .Values.statistic.replicas }}
+  selector:
+    matchLabels:
+      {{- include "doqa.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: statistic
+  template:
+    metadata:
+      labels:
+        {{- include "doqa.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: statistic
+      {{- with .Values.extraAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "doqa.serviceAccountName" . }}
+      {{- include "doqa.imagePullSecrets" . | nindent 6 }}
+      {{- include "doqa.podSecurityContext" . | nindent 6 }}
+      containers:
+      - name: statistic
+        image: {{ include "doqa.image" (dict "img" .Values.statistic.image "root" .) | quote }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        {{- include "doqa.containerSecurityContext" . | nindent 8 }}
+        ports:
+        - name: http
+          containerPort: 3000
+          protocol: TCP
+        command:
+        - bash
+        - -c
+        - gunicorn -b 0.0.0.0:3000 asgi:create_app -n app -k asgi_config.asgi_worker.TaskUvicornWorker -w 2
+        env:
+        - name: DB_CONNECTION
+          value: pgsql
+        - name: DB_HOST
+          value: {{ include "doqa.postgresql.host" . | quote }}
+        - name: DB_PORT
+          value: {{ .Values.postgresql.port | quote }}
+        - name: DB_DATABASE
+          value: {{ .Values.postgresql.database | quote }}
+        - name: DB_USERNAME
+          value: {{ .Values.postgresql.username | quote }}
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "doqa.postgresql.passwordSecretName" . }}
+              key: {{ include "doqa.postgresql.passwordSecretKey" . }}
+        - name: DEBUG
+          value: {{ .Values.debug | quote }}
+        - name: STUB_AUTH
+          value: "False"
+        - name: PREFIX_ROOT_PATH
+          value: "/"
+        - name: API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "doqa.secret.apiKeys" . }}
+              key: statistic-api-key
+        livenessProbe:
+          tcpSocket:
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          tcpSocket:
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        resources:
+          {{- toYaml .Values.statistic.resources | nindent 10 }}
+      {{- with .Values.statistic.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.statistic.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.statistic.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "doqa.fullname" . }}-statistic
+  labels:
+    {{- include "doqa.labels" . | nindent 4 }}
+    app.kubernetes.io/component: statistic
+spec:
+  {{- include "doqa.componentService" (dict "ctx" . "component" "statistic" "name" "http" "port" 3000) | nindent 2 }}

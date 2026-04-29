@@ -1,0 +1,97 @@
+{{- $fullName := include "doqa.fullname" . -}}
+{{- $minioEndpoint := include "doqa.minio.endpoint" . | trimSuffix "/" -}}
+{{- $minioHost := $minioEndpoint | trimPrefix "https://" | trimPrefix "http://" -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $fullName }}-nginx
+  labels:
+    {{- include "doqa.labels" . | nindent 4 }}
+    app.kubernetes.io/component: nginx
+data:
+  default.conf: |
+    server {
+        listen 80;
+        server_name _;
+        client_max_body_size {{ .Values.nginx.clientMaxBodySize }};
+        server_tokens off;
+
+        location / {
+            proxy_http_version                  1.1;
+            proxy_set_header Host               $http_host;
+            proxy_set_header X-Real-IP          $remote_addr;
+            proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto  $scheme;
+            proxy_pass                          http://{{ $fullName }}-frontend:8080;
+        }
+
+        location /api {
+            proxy_http_version                  1.1;
+            proxy_set_header Host               $http_host;
+            proxy_set_header X-Real-IP          $remote_addr;
+            proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto  $scheme;
+            proxy_pass                          http://{{ $fullName }}-backend:8080;
+        }
+
+        location /api/autotests/report {
+            proxy_http_version                  1.1;
+            proxy_set_header Host               $http_host;
+            proxy_set_header X-Real-IP          $remote_addr;
+            proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto  $scheme;
+            proxy_pass                          http://{{ $fullName }}-autotest-parser:8000;
+        }
+
+        location /api/autotests/allure-report-item {
+            proxy_http_version                  1.1;
+            proxy_set_header Host               $http_host;
+            proxy_set_header X-Real-IP          $remote_addr;
+            proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto  $scheme;
+            proxy_pass                          http://{{ $fullName }}-autotest-parser:8000;
+        }
+
+        location /api/autotests/junit-report-item {
+            proxy_http_version                  1.1;
+            proxy_set_header Host               $http_host;
+            proxy_set_header X-Real-IP          $remote_addr;
+            proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto  $scheme;
+            proxy_pass                          http://{{ $fullName }}-autotest-parser:8000;
+        }
+
+        location /api/autotests/report-inner {
+            proxy_http_version                  1.1;
+            proxy_set_header Host               $http_host;
+            proxy_set_header X-Real-IP          $remote_addr;
+            proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto  $scheme;
+            proxy_pass                          http://{{ $fullName }}-autotest-parser:8000;
+        }
+
+        location /doqa {
+            proxy_http_version                  1.1;
+            proxy_set_header Host               {{ $minioHost }};
+            proxy_set_header X-Real-IP          $remote_addr;
+            proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto  $scheme;
+            proxy_ssl_verify                    off;
+            proxy_ssl_session_reuse             on;
+            proxy_pass                          {{ $minioEndpoint }};
+        }
+
+        location ^~ /app/web-socket {
+            proxy_http_version                  1.1;
+            proxy_set_header Upgrade            $http_upgrade;
+            proxy_set_header Connection         "Upgrade";
+            proxy_set_header Host               $host;
+            proxy_set_header X-Real-IP          $remote_addr;
+            proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto  $scheme;
+            proxy_pass                          http://{{ $fullName }}-websocket:{{ .Values.pusher.port }}/app/web-socket;
+        }
+
+        error_log  /dev/stderr;
+        access_log /dev/stdout;
+    }

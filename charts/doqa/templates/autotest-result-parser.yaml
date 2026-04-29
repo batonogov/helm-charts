@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "doqa.fullname" . }}-autotest-result-parser
+  labels:
+    {{- include "doqa.labels" . | nindent 4 }}
+    app.kubernetes.io/component: autotest-result-parser
+spec:
+  replicas: {{ .Values.autotestResultParser.replicas }}
+  selector:
+    matchLabels:
+      {{- include "doqa.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: autotest-result-parser
+  template:
+    metadata:
+      annotations:
+        checksum/env: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.extraAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "doqa.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: autotest-result-parser
+    spec:
+      serviceAccountName: {{ include "doqa.serviceAccountName" . }}
+      {{- include "doqa.imagePullSecrets" . | nindent 6 }}
+      {{- include "doqa.podSecurityContext" . | nindent 6 }}
+      containers:
+      - name: autotest-result-parser
+        image: {{ include "doqa.image" (dict "img" .Values.autotestResultParser.image "root" .) | quote }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        {{- include "doqa.containerSecurityContext" . | nindent 8 }}
+        envFrom:
+          {{- include "doqa.backendEnvFrom" . | nindent 10 }}
+        env:
+        - name: DB_NAME
+          value: {{ .Values.postgresql.database | quote }}
+        - name: IS_BOX
+          value: "true"
+        - name: QUEUE
+          value: "autotest"
+          {{- include "doqa.backendSecretEnv" . | nindent 8 }}
+        resources:
+          {{- toYaml .Values.autotestResultParser.resources | nindent 10 }}
+      {{- with .Values.autotestResultParser.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.autotestResultParser.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.autotestResultParser.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
