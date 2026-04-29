@@ -29,5 +29,10 @@ jobs:
         with:
           charts_dir: charts
           mark_as_latest: true
+          # Don't fail if a chart's version is already released. Without this,
+          # any push to main that doesn't bump a chart version (docs-only PRs,
+          # CI tweaks, README updates) breaks the pipeline with 422
+          # "tag_name already_exists" from the GitHub Releases API.
+          skip_existing: true
         env:
           CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
