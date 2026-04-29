@@ -117,7 +117,7 @@ metadata:
   annotations:
     helm.sh/hook: post-install,post-upgrade
     helm.sh/hook-weight: "0"
-    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded,hook-failed
 spec:
   backoffLimit: 6
   template:
@@ -143,14 +143,15 @@ spec:
             secretKeyRef:
               name: {{ include "doqa.secret.minio" . }}
               key: secret-key
-        - name: MC_HOST_doqa
-          value: "http://$(KEY):$(SECRET)@{{ $fullName }}-minio:9000"
         command:
         - sh
         - -c
         - |
           set -e
-          until mc alias list doqa >/dev/null 2>&1; do echo "waiting for minio..."; sleep 2; done
+          until mc alias set doqa "http://{{ $fullName }}-minio:9000" "$KEY" "$SECRET" >/dev/null 2>&1; do
+            echo "waiting for minio..."
+            sleep 2
+          done
           mc mb --ignore-existing doqa/{{ .Values.minio.bucket }}
           mc anonymous set public doqa/{{ .Values.minio.bucket }}
 {{- end }}

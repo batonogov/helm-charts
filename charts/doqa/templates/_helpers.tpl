@@ -171,26 +171,72 @@ MinIO endpoint (URL with scheme). In-tree MinIO uses cluster-local Service:9000.
 {{- end -}}
 {{- end -}}
 
-{{/* ===== Secret name helpers ===== */}}
+{{/* ===== Secret name helpers =====
+Resolution rules per secret:
+  - if `secrets.<name>` is set, use it (external).
+  - else if chart generates this secret (`secrets.create=true` AND, for infra
+    secrets, the corresponding `<infra>.create=true`), default to `<release>-<name>`.
+  - otherwise fail with `required` so the user gets a clear error instead of a
+    pod CrashLoop on a missing Secret reference.
+*/}}
 
 {{- define "doqa.secret.app" -}}
-{{- default (printf "%s-app-secrets" (include "doqa.fullname" .)) .Values.secrets.app -}}
+{{- if .Values.secrets.app -}}
+{{- .Values.secrets.app -}}
+{{- else if not .Values.secrets.create -}}
+{{- required "secrets.app must be set when secrets.create=false (existing Secret with keys app-key, jwt-secret)" "" -}}
+{{- else -}}
+{{- printf "%s-app-secrets" (include "doqa.fullname" .) -}}
+{{- end -}}
 {{- end -}}
 
 {{- define "doqa.secret.apiKeys" -}}
-{{- default (printf "%s-api-keys" (include "doqa.fullname" .)) .Values.secrets.apiKeys -}}
+{{- if .Values.secrets.apiKeys -}}
+{{- .Values.secrets.apiKeys -}}
+{{- else if not .Values.secrets.create -}}
+{{- required "secrets.apiKeys must be set when secrets.create=false (existing Secret with keys statistic-api-key, notification-api-key)" "" -}}
+{{- else -}}
+{{- printf "%s-api-keys" (include "doqa.fullname" .) -}}
+{{- end -}}
 {{- end -}}
 
 {{- define "doqa.secret.pusher" -}}
-{{- default (printf "%s-pusher-secret" (include "doqa.fullname" .)) .Values.secrets.pusher -}}
+{{- if .Values.secrets.pusher -}}
+{{- .Values.secrets.pusher -}}
+{{- else if not .Values.secrets.create -}}
+{{- required "secrets.pusher must be set when secrets.create=false (existing Secret with key app-secret)" "" -}}
+{{- else -}}
+{{- printf "%s-pusher-secret" (include "doqa.fullname" .) -}}
+{{- end -}}
 {{- end -}}
 
+{{/*
+RabbitMQ secret. Chart generates it only when `rabbitmq.create=true` AND
+`secrets.create=true` — for an external broker the chart cannot know its
+password, so the user must provide the secret name.
+*/}}
 {{- define "doqa.secret.rabbitmq" -}}
-{{- default (printf "%s-rabbitmq-secret" (include "doqa.fullname" .)) .Values.secrets.rabbitmq -}}
+{{- if .Values.secrets.rabbitmq -}}
+{{- .Values.secrets.rabbitmq -}}
+{{- else if or (not .Values.secrets.create) (not .Values.rabbitmq.create) -}}
+{{- required "secrets.rabbitmq must be set when rabbitmq.create=false or secrets.create=false (existing Secret with keys password, erlang-cookie)" "" -}}
+{{- else -}}
+{{- printf "%s-rabbitmq-secret" (include "doqa.fullname" .) -}}
+{{- end -}}
 {{- end -}}
 
+{{/*
+MinIO secret. Same logic as RabbitMQ: chart cannot generate creds for an
+external object store.
+*/}}
 {{- define "doqa.secret.minio" -}}
-{{- default (printf "%s-minio-secrets" (include "doqa.fullname" .)) .Values.secrets.minio -}}
+{{- if .Values.secrets.minio -}}
+{{- .Values.secrets.minio -}}
+{{- else if or (not .Values.secrets.create) (not .Values.minio.create) -}}
+{{- required "secrets.minio must be set when minio.create=false or secrets.create=false (existing Secret with keys access-key, secret-key)" "" -}}
+{{- else -}}
+{{- printf "%s-minio-secrets" (include "doqa.fullname" .) -}}
+{{- end -}}
 {{- end -}}
 
 {{/*
