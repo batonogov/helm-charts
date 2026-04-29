@@ -1,7 +1,9 @@
-# Values for installing doqa chart into a fresh `doqa-test` ns of the Tacita kubeadm cluster.
-# Pinned to that environment: traefik ingress, letsencrypt HTTP-01, longhorn storage.
+# Reference values used to verify the chart in a kubeadm cluster with traefik
+# ingress, longhorn storage and cert-manager (letsencrypt HTTP-01). Adjust
+# `appUrl`, `ingress.className`, `cert-manager.io/cluster-issuer`, and storage
+# classes for your environment before running `helm install`.
 
-appUrl: "doqa.batonogov.ru"
+appUrl: "doqa.example.com"
 useSsl: true
 
 ingress:
