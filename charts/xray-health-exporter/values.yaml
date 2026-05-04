@@ -9,7 +9,7 @@ replicaCount: 2
 image:
   # -- Image repository.
   repository: ghcr.io/batonogov/xray-health-exporter
-  # -- Image tag. Defaults to chart appVersion when empty.
+  # -- Image tag. Defaults to `v<chart appVersion>` when empty (upstream publishes v-prefixed tags to ghcr.io).
   tag: ""
   # -- Image pull policy.
   pullPolicy: IfNotPresent

@@ -62,8 +62,13 @@ true
 {{- end -}}
 {{- end }}
 
+{{/*
+Image tag. Upstream publishes v-prefixed tags (`v1.2.0`) to ghcr.io while
+Chart.yaml `appVersion` follows Helm convention (no prefix), so the fallback
+prepends `v` to keep `helm install` working out of the box.
+*/}}
 {{- define "xray-health-exporter.imageTag" -}}
-{{- default .Chart.AppVersion .Values.image.tag }}
+{{- default (printf "v%s" .Chart.AppVersion) .Values.image.tag }}
 {{- end }}
 
 {{/*
