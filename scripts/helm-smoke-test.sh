@@ -7,6 +7,7 @@ if ! command -v helm >/dev/null 2>&1; then
 fi
 
 charts=("$@")
+kube_version="${HELM_SMOKE_KUBE_VERSION:-1.32.0}"
 if [[ ${#charts[@]} -eq 0 ]]; then
   charts=()
   while IFS= read -r chart; do
@@ -42,7 +43,7 @@ for chart in "${charts[@]}"; do
   helm lint "$chart" "${value_args[@]}"
 
   echo "==> helm template $chart"
-  helm template "$release" "$chart" "${value_args[@]}" --debug > "$rendered"
+  helm template "$release" "$chart" "${value_args[@]}" --kube-version "$kube_version" --debug > "$rendered"
 
   echo "==> helm package $chart"
   helm package "$chart" --destination "$tmp_dir" >/dev/null
