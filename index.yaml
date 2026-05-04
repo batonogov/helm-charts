@@ -29,6 +29,30 @@ entries:
   xray-health-exporter:
   - apiVersion: v2
     appVersion: 1.2.0
+    created: "2026-05-04T15:36:30.938155784Z"
+    description: Prometheus exporter for Xray-core tunnel health
+    digest: 07ed56a1d41037e8e2e0b74256426a5558b69e0e35898e0884e9d23ace76d34e
+    home: https://github.com/batonogov/xray-health-exporter
+    keywords:
+    - xray
+    - prometheus
+    - exporter
+    - monitoring
+    - vless
+    kubeVersion: '>=1.32.0-0'
+    maintainers:
+    - name: batonogov
+      url: https://github.com/batonogov
+    name: xray-health-exporter
+    sources:
+    - https://github.com/batonogov/helm-charts
+    - https://github.com/batonogov/xray-health-exporter
+    type: application
+    urls:
+    - https://github.com/batonogov/helm-charts/releases/download/xray-health-exporter-0.1.1/xray-health-exporter-0.1.1.tgz
+    version: 0.1.1
+  - apiVersion: v2
+    appVersion: 1.2.0
     created: "2026-05-04T15:11:31.4205716Z"
     description: Prometheus exporter for Xray-core tunnel health
     digest: 33ba333cbcfdd4562c9c3383a1c7da7073b029df7b48dced95cdfc548b80a090
@@ -51,4 +75,4 @@ entries:
     urls:
     - https://github.com/batonogov/helm-charts/releases/download/xray-health-exporter-0.1.0/xray-health-exporter-0.1.0.tgz
     version: 0.1.0
-generated: "2026-05-04T15:11:31.420583432Z"
+generated: "2026-05-04T15:36:30.938168187Z"
