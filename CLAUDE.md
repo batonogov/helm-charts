@@ -18,10 +18,6 @@ helm lint charts/doqa
 helm template my-release charts/doqa
 helm template my-release charts/doqa -f charts/doqa/ci/test-values.yaml
 
-# Run local smoke tests for all charts, or pass one or more chart paths.
-bash scripts/helm-smoke-test.sh
-bash scripts/helm-smoke-test.sh charts/doqa charts/xray-health-exporter
-
 # Regenerate a chart's README.md from values.yaml + README.md.gotmpl.
 # CI fails on PRs if the regenerated README differs from what's committed.
 helm-docs --chart-search-root charts
@@ -30,7 +26,7 @@ helm-docs --chart-search-root charts
 ct lint --config .github/ct.yaml --target-branch main
 ```
 
-There are no unit tests — validation is `ct lint` with chart version increment checks, explicit Helm smoke tests (`helm lint`, `helm template` with `ci/test-values.yaml`, `helm package`), and a `helm-docs` sync check on PRs. End-to-end installation is verified manually against a real cluster. `renovate.json` lets Renovate open automated PRs when the upstream exporter publishes a newer GHCR image tag.
+There are no unit tests — validation is `ct lint` with chart version increment checks and a `helm-docs` sync check on PRs. End-to-end installation is verified manually against a real cluster. `renovate.json` lets Renovate open automated PRs when the upstream exporter publishes a newer GHCR image tag.
 
 ## Release flow
 
