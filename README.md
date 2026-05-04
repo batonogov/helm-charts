@@ -44,6 +44,7 @@ helm template my-release charts/doqa -f charts/doqa/ci/test-values.yaml
 
 - `lint-test.yaml` (PR to `main` or manual run): detects changed charts, verifies required chart version bumps, runs `ct lint`, runs `bash scripts/helm-smoke-test.sh` for explicit lint/render/package coverage, and verifies generated `helm-docs` output is committed.
 - `release.yaml` (push to `main`): publishes new chart versions to the `gh-pages` branch with [chart-releaser-action](https://github.com/helm/chart-releaser-action). Release jobs are serialized per branch to avoid concurrent index updates.
+- `renovate.json`: configures Renovate to update `xray-health-exporter` from GHCR image tags, bump the chart patch `version`, and keep generated README badges aligned. Enable the Renovate GitHub App for this repository to run it.
 
 ## Contributing
 

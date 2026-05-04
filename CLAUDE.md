@@ -33,7 +33,7 @@ helm-docs --chart-search-root charts
 ct lint --config .github/ct.yaml --target-branch main
 ```
 
-There are no unit tests — validation is the custom chart version bump check, `ct lint`, explicit Helm smoke tests (`helm lint`, `helm template` with `ci/test-values.yaml`, `helm package`), and a `helm-docs` sync check on PRs. End-to-end installation is verified manually against a real cluster.
+There are no unit tests — validation is the custom chart version bump check, `ct lint`, explicit Helm smoke tests (`helm lint`, `helm template` with `ci/test-values.yaml`, `helm package`), and a `helm-docs` sync check on PRs. End-to-end installation is verified manually against a real cluster. `renovate.json` lets Renovate open automated PRs when the upstream exporter publishes a newer GHCR image tag.
 
 ## Release flow
 
