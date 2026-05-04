@@ -4,11 +4,10 @@ Service: {{ include "xray-health-exporter.fullname" . }}.{{ .Release.Namespace }
 Metrics endpoint: http://{{ include "xray-health-exporter.fullname" . }}:{{ .Values.service.port }}/metrics
 Health endpoint:  http://{{ include "xray-health-exporter.fullname" . }}:{{ .Values.service.port }}/health
 
-{{- if and (gt (int .Values.replicaCount) 1) (not .Values.leaderElection.enabled) }}
+{{- if eq (include "xray-health-exporter.leaderElectionEnabled" .) "true" }}
 
-WARNING: replicaCount={{ .Values.replicaCount }} but leaderElection.enabled=false.
-Prometheus will scrape every pod independently and tunnel metrics will be duplicated.
-Set leaderElection.enabled=true to keep a single active publisher.
+Leader election is active (replicaCount={{ .Values.replicaCount }}). Only the leader publishes
+xray_tunnel_* metrics; followers respond to /health and emit xray_exporter_leader=0.
 {{- end }}
 
 {{- if not .Values.metrics.serviceMonitor.enabled }}

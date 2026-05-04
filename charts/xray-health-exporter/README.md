@@ -26,11 +26,12 @@ helm install xray batonogov/xray-health-exporter -n monitoring --create-namespac
 
 ## High availability
 
-With `replicaCount > 1` enable `leaderElection.enabled` (the default) so only
-one pod publishes `xray_tunnel_*` series. Followers continue to serve
-`/health` and a single `xray_exporter_leader=0` metric so a Service can still
-load-balance and the Prometheus Operator can keep scraping every pod without
-duplicated tunnel metrics.
+The chart force-enables Kubernetes leader election whenever `replicaCount > 1`,
+regardless of `leaderElection.enabled`. Only the leader publishes
+`xray_tunnel_*` series; followers continue to serve `/health` and a single
+`xray_exporter_leader=0` metric so a Service can still load-balance and the
+Prometheus Operator can keep scraping every pod without duplicated tunnel
+metrics.
 
 Failover timing matches the upstream defaults: ~5s on graceful leader exit,
 ~30s on hard pod loss.
@@ -76,8 +77,8 @@ Kubernetes: `>=1.32.0-0`
 |-----|------|---------|-------------|
 | affinity | object | `{}` | Affinity rules for the pod. |
 | config.defaults | object | `{"check_interval":"30s","check_timeout":"30s","check_url":"https://www.google.com"}` | Global tunnel-check defaults applied when an entry omits the field. |
-| config.subscriptions | list | `[]` | Subscription URLs that auto-discover tunnels. See upstream README for schema. |
-| config.tunnels | list | `[]` | Static tunnels. Each entry needs either `url` (VLESS) or `xray_config_file`. |
+| config.subscriptions | list | `[]` | Subscription URLs that auto-discover tunnels. See upstream README for schema. WARNING: subscription URLs typically embed access tokens — they are rendered into a plain ConfigMap. Use `existingConfigSecret` to source `config.yaml` from a Secret instead. |
+| config.tunnels | list | `[]` | Static tunnels. Each entry needs either `url` (VLESS) or `xray_config_file`. At least one tunnel or one subscription is required (or set `existingConfigSecret`); otherwise the exporter refuses to start. |
 | env.DEBUG | string | `"false"` | Verbose exporter logging. |
 | env.XRAY_LOG_LEVEL | string | `"warning"` | Xray-core log level (`debug`/`info`/`warning`/`error`). |
 | existingConfigSecret | string | `""` | Mount an existing Secret containing `config.yaml` instead of rendering one from `.Values.config`. |
@@ -87,7 +88,7 @@ Kubernetes: `>=1.32.0-0`
 | image.pullSecrets | list | `[]` | Image pull secrets (list of `{name: <secret>}`). |
 | image.repository | string | `"ghcr.io/batonogov/xray-health-exporter"` | Image repository. |
 | image.tag | string | `""` | Image tag. Defaults to chart appVersion when empty. |
-| leaderElection.enabled | bool | `true` | Enable Kubernetes leader election so only one replica publishes `xray_tunnel_*`. Required when `replicaCount > 1`. |
+| leaderElection.enabled | bool | `true` | Enable Kubernetes leader election so only one replica publishes `xray_tunnel_*`. Forced on whenever `replicaCount > 1`, regardless of this flag. |
 | leaderElection.leaseName | string | `""` | Lease object name. Defaults to the release fullname. |
 | leaderElection.rbac.create | bool | `true` | Create the Role + RoleBinding granting access to `coordination.k8s.io/leases`. |
 | metrics.prometheusRule.annotations | object | `{}` | Extra annotations. |
@@ -109,7 +110,7 @@ Kubernetes: `>=1.32.0-0`
 | podAnnotations | object | `{}` | Annotations applied to every Deployment pod. |
 | podLabels | object | `{}` | Extra labels applied to every Deployment pod. |
 | podSecurityContext | object | `{"fsGroup":10001,"runAsGroup":10001,"runAsNonRoot":true,"runAsUser":10001}` | Pod-level security context (non-root, matches upstream UID 10001). |
-| replicaCount | int | `2` | Number of replicas. With >1 enable `leaderElection.enabled` to avoid duplicate metrics. |
+| replicaCount | int | `2` | Number of replicas. Values >1 force-enable `leaderElection.enabled` so only one pod publishes tunnel metrics. |
 | resources | object | `{}` | Container resource requests/limits. |
 | securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true}` | Container-level security context (read-only rootfs, no privilege escalation). |
 | service.annotations | object | `{}` | Annotations applied to the Service. |

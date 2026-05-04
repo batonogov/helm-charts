@@ -1,3 +1,4 @@
+{{- include "xray-health-exporter.validateConfig" . -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -25,6 +26,7 @@ spec:
         {{- end }}
     spec:
       serviceAccountName: {{ include "xray-health-exporter.serviceAccountName" . }}
+      automountServiceAccountToken: {{ eq (include "xray-health-exporter.leaderElectionEnabled" .) "true" }}
       {{- with .Values.image.pullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -54,7 +56,7 @@ spec:
             - name: {{ $k }}
               value: {{ $v | quote }}
             {{- end }}
-            {{- if .Values.leaderElection.enabled }}
+            {{- if eq (include "xray-health-exporter.leaderElectionEnabled" .) "true" }}
             - name: LEADER_ELECTION
               value: "true"
             - name: LEADER_ELECTION_NAME

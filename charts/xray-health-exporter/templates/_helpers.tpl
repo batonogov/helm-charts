@@ -51,6 +51,27 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- default (include "xray-health-exporter.fullname" .) .Values.leaderElection.leaseName }}
 {{- end }}
 
+{{/*
+Leader election is forced on whenever replicaCount > 1, so multi-replica
+deployments cannot accidentally publish duplicate xray_tunnel_* metrics.
+Returns "true" or "" so callers can use `eq ... "true"`.
+*/}}
+{{- define "xray-health-exporter.leaderElectionEnabled" -}}
+{{- if or .Values.leaderElection.enabled (gt (int .Values.replicaCount) 1) -}}
+true
+{{- end -}}
+{{- end }}
+
 {{- define "xray-health-exporter.imageTag" -}}
 {{- default .Chart.AppVersion .Values.image.tag }}
+{{- end }}
+
+{{/*
+Fail fast when the chart cannot produce a working config: no static tunnels,
+no subscriptions, and no externally-managed Secret.
+*/}}
+{{- define "xray-health-exporter.validateConfig" -}}
+{{- if and (not .Values.existingConfigSecret) (empty .Values.config.tunnels) (empty .Values.config.subscriptions) -}}
+{{- fail "xray-health-exporter: provide at least one entry in .Values.config.tunnels or .Values.config.subscriptions, or set .Values.existingConfigSecret. The exporter refuses to start otherwise." -}}
+{{- end -}}
 {{- end }}

@@ -28,11 +28,12 @@ helm install xray batonogov/xray-health-exporter -n monitoring --create-namespac
 
 ## High availability
 
-With `replicaCount > 1` enable `leaderElection.enabled` (the default) so only
-one pod publishes `xray_tunnel_*` series. Followers continue to serve
-`/health` and a single `xray_exporter_leader=0` metric so a Service can still
-load-balance and the Prometheus Operator can keep scraping every pod without
-duplicated tunnel metrics.
+The chart force-enables Kubernetes leader election whenever `replicaCount > 1`,
+regardless of `leaderElection.enabled`. Only the leader publishes
+`xray_tunnel_*` series; followers continue to serve `/health` and a single
+`xray_exporter_leader=0` metric so a Service can still load-balance and the
+Prometheus Operator can keep scraping every pod without duplicated tunnel
+metrics.
 
 Failover timing matches the upstream defaults: ~5s on graceful leader exit,
 ~30s on hard pod loss.

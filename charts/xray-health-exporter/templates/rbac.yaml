@@ -1,4 +1,4 @@
-{{- if and .Values.leaderElection.enabled .Values.leaderElection.rbac.create -}}
+{{- if and (eq (include "xray-health-exporter.leaderElectionEnabled" .) "true") .Values.leaderElection.rbac.create -}}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:

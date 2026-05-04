@@ -3,7 +3,7 @@ nameOverride: ""
 # -- Fully override the generated release name.
 fullnameOverride: ""
 
-# -- Number of replicas. With >1 enable `leaderElection.enabled` to avoid duplicate metrics.
+# -- Number of replicas. Values >1 force-enable `leaderElection.enabled` so only one pod publishes tunnel metrics.
 replicaCount: 2
 
 image:
@@ -58,7 +58,7 @@ env:
   DEBUG: "false"
 
 leaderElection:
-  # -- Enable Kubernetes leader election so only one replica publishes `xray_tunnel_*`. Required when `replicaCount > 1`.
+  # -- Enable Kubernetes leader election so only one replica publishes `xray_tunnel_*`. Forced on whenever `replicaCount > 1`, regardless of this flag.
   enabled: true
   # -- Lease object name. Defaults to the release fullname.
   leaseName: ""
@@ -89,9 +89,9 @@ config:
     check_url: https://www.google.com
     check_interval: 30s
     check_timeout: 30s
-  # -- Subscription URLs that auto-discover tunnels. See upstream README for schema.
+  # -- Subscription URLs that auto-discover tunnels. See upstream README for schema. WARNING: subscription URLs typically embed access tokens — they are rendered into a plain ConfigMap. Use `existingConfigSecret` to source `config.yaml` from a Secret instead.
   subscriptions: []
-  # -- Static tunnels. Each entry needs either `url` (VLESS) or `xray_config_file`.
+  # -- Static tunnels. Each entry needs either `url` (VLESS) or `xray_config_file`. At least one tunnel or one subscription is required (or set `existingConfigSecret`); otherwise the exporter refuses to start.
   tunnels: []
 
 # -- Mount an existing Secret containing `config.yaml` instead of rendering one from `.Values.config`.
