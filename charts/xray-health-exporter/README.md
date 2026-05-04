@@ -2,7 +2,7 @@
 
 Prometheus exporter for Xray-core tunnel health
 
-![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.2.0](https://img.shields.io/badge/AppVersion-1.2.0-informational?style=flat-square)
+![Version: 0.1.1](https://img.shields.io/badge/Version-0.1.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.2.0](https://img.shields.io/badge/AppVersion-1.2.0-informational?style=flat-square)
 
 **Homepage:** <https://github.com/batonogov/xray-health-exporter>
 
@@ -87,7 +87,7 @@ Kubernetes: `>=1.32.0-0`
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy. |
 | image.pullSecrets | list | `[]` | Image pull secrets (list of `{name: <secret>}`). |
 | image.repository | string | `"ghcr.io/batonogov/xray-health-exporter"` | Image repository. |
-| image.tag | string | `""` | Image tag. Defaults to chart appVersion when empty. |
+| image.tag | string | `""` | Image tag. Defaults to `v<chart appVersion>` when empty (upstream publishes v-prefixed tags to ghcr.io). |
 | leaderElection.enabled | bool | `true` | Enable Kubernetes leader election so only one replica publishes `xray_tunnel_*`. Forced on whenever `replicaCount > 1`, regardless of this flag. |
 | leaderElection.leaseName | string | `""` | Lease object name. Defaults to the release fullname. |
 | leaderElection.rbac.create | bool | `true` | Create the Role + RoleBinding granting access to `coordination.k8s.io/leases`. |
