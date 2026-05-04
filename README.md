@@ -15,6 +15,7 @@ helm search repo batonogov
 | Name | Description |
 |---|---|
 | [doqa](charts/doqa) | DoQA Test Case Management System (TCMS) self-hosted |
+| [xray-health-exporter](charts/xray-health-exporter) | Prometheus exporter for Xray-core tunnel health |
 
 ## Repository conventions
 
