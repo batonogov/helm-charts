@@ -74,14 +74,11 @@ semver_core_gt() {
   return 1
 }
 
-is_release_affecting_chart_file() {
+is_chart_version_neutral_file() {
   local rel="$1"
 
   case "$rel" in
-    Chart.yaml | values.yaml | values.schema.json | README.md | README.md.gotmpl | .helmignore)
-      return 0
-      ;;
-    templates/* | crds/* | files/*)
+    ci/*)
       return 0
       ;;
     *)
@@ -121,7 +118,7 @@ while IFS= read -r file; do
   chart="charts/${BASH_REMATCH[1]}"
   rel="${BASH_REMATCH[2]}"
 
-  if is_release_affecting_chart_file "$rel"; then
+  if ! is_chart_version_neutral_file "$rel"; then
     add_unique_chart "$chart"
   fi
 done <<< "$changed_files"
