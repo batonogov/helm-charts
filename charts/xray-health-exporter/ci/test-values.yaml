@@ -1,0 +1,28 @@
+# Values used by `ct lint`/`ct install` and verified manually against a real cluster.
+replicaCount: 1
+
+leaderElection:
+  enabled: false
+
+config:
+  defaults:
+    check_url: https://www.google.com
+    check_interval: 30s
+    check_timeout: 30s
+  tunnels:
+    - name: ci-placeholder
+      url: "vless://00000000-0000-0000-0000-000000000000@example.com:443?type=tcp&security=reality&pbk=ci&sni=google.com"
+
+metrics:
+  serviceMonitor:
+    enabled: false
+  prometheusRule:
+    enabled: false
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi

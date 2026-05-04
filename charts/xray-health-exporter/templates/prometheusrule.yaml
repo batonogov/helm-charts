@@ -1,0 +1,47 @@
+{{- if .Values.metrics.prometheusRule.enabled -}}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "xray-health-exporter.fullname" . }}
+  labels:
+    {{- include "xray-health-exporter.labels" . | nindent 4 }}
+    {{- with .Values.metrics.prometheusRule.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with .Values.metrics.prometheusRule.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  groups:
+    - name: xray-health-exporter
+      rules:
+        {{- if .Values.metrics.prometheusRule.rules }}
+        {{- toYaml .Values.metrics.prometheusRule.rules | nindent 8 }}
+        {{- else }}
+        - alert: XrayTunnelDown
+          expr: xray_tunnel_up == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Xray tunnel {{`{{ $labels.name }}`}} is down"
+            description: "Tunnel {{`{{ $labels.name }}`}} ({{`{{ $labels.server }}`}}) has been unreachable for over 5 minutes."
+        - alert: XrayHighLatency
+          expr: xray_tunnel_latency_seconds > 2
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High latency on Xray tunnel {{`{{ $labels.name }}`}}"
+            description: "Tunnel {{`{{ $labels.name }}`}} latency is {{`{{ $value }}`}}s (threshold 2s)."
+        - alert: XrayNoRecentCheck
+          expr: (time() - xray_tunnel_last_success_timestamp) > 300
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Xray tunnel {{`{{ $labels.name }}`}} has no recent successful check"
+            description: "No successful check for tunnel {{`{{ $labels.name }}`}} in {{`{{ $value }}`}}s."
+        {{- end }}
+{{- end }}
