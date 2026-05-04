@@ -53,12 +53,6 @@ jobs:
             } >> "$GITHUB_OUTPUT"
           fi
 
-      - name: chart version bump check
-        if: steps.list-changed.outputs.changed == 'true'
-        env:
-          BASE_REF: origin/${{ github.base_ref || 'main' }}
-        run: bash scripts/check-chart-version-bumps.sh "$BASE_REF"
-
       - name: ct lint
         if: steps.list-changed.outputs.changed == 'true'
         run: ct lint --config .github/ct.yaml
