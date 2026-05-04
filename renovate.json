@@ -24,13 +24,25 @@
           "bumpType": "patch"
         },
         {
-          "name": "Bump xray-health-exporter README chart badge",
+          "name": "Bump xray-health-exporter README chart badge alt text",
+          "filePatterns": ["{{packageFileDir}}/README.md"],
+          "matchStrings": ["!\\[Version: (?<version>\\d+\\.\\d+\\.\\d+)\\]"],
+          "bumpType": "patch"
+        },
+        {
+          "name": "Bump xray-health-exporter README chart badge URL",
           "filePatterns": ["{{packageFileDir}}/README.md"],
           "matchStrings": ["Version-(?<version>\\d+\\.\\d+\\.\\d+)-informational"],
           "bumpType": "patch"
         },
         {
-          "name": "Sync xray-health-exporter README appVersion badge",
+          "name": "Sync xray-health-exporter README appVersion badge alt text",
+          "filePatterns": ["{{packageFileDir}}/README.md"],
+          "matchStrings": ["!\\[AppVersion: (?<version>\\d+\\.\\d+\\.\\d+)\\]"],
+          "bumpType": "sync"
+        },
+        {
+          "name": "Sync xray-health-exporter README appVersion badge URL",
           "filePatterns": ["{{packageFileDir}}/README.md"],
           "matchStrings": ["AppVersion-(?<version>\\d+\\.\\d+\\.\\d+)-informational"],
           "bumpType": "sync"
