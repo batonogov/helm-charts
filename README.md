@@ -30,6 +30,10 @@ helm search repo batonogov
 brew install helm helm-docs chart-testing kind
 # regenerate chart README from values.yaml
 helm-docs --chart-search-root charts
+# run local chart smoke tests (lint, render with ci/test-values.yaml, package)
+bash scripts/helm-smoke-test.sh
+# verify release-affecting chart edits bumped Chart.yaml version
+bash scripts/check-chart-version-bumps.sh origin/main
 # lint a chart locally
 ct lint --config .github/ct.yaml --target-branch main
 # render templates
@@ -38,12 +42,12 @@ helm template my-release charts/doqa -f charts/doqa/ci/test-values.yaml
 
 ## CI
 
-- `lint-test.yaml` (PR to `main`): runs `ct lint` + verifies `helm-docs` output is committed.
-- `release.yaml` (push to `main`): publishes new chart versions to the `gh-pages` branch with [chart-releaser-action](https://github.com/helm/chart-releaser-action).
+- `lint-test.yaml` (PR to `main` or manual run): detects changed charts, verifies required chart version bumps, runs `ct lint`, runs `bash scripts/helm-smoke-test.sh` for explicit lint/render/package coverage, and verifies generated `helm-docs` output is committed.
+- `release.yaml` (push to `main`): publishes new chart versions to the `gh-pages` branch with [chart-releaser-action](https://github.com/helm/chart-releaser-action). Release jobs are serialized per branch to avoid concurrent index updates.
 
 ## Contributing
 
-Open a pull request against `main`. Bump the `version:` in `Chart.yaml` of any chart you change — `chart-releaser-action` only publishes versions that haven't been released yet.
+Open a pull request against `main`. Bump the `version:` in `Chart.yaml` of any chart with release-affecting changes — CI enforces this for templates, values, chart metadata, packaged files, and generated chart README changes. `chart-releaser-action` only publishes versions that haven't been released yet.
 
 ## License
 

@@ -2,7 +2,7 @@ apiVersion: v2
 name: xray-health-exporter
 description: Prometheus exporter for Xray-core tunnel health
 type: application
-version: 0.1.1
+version: 0.1.2
 appVersion: "1.2.0"
 kubeVersion: ">=1.32.0-0"
 home: https://github.com/batonogov/xray-health-exporter
