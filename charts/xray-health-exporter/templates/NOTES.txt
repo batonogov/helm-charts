@@ -1,0 +1,17 @@
+{{ include "xray-health-exporter.fullname" . }} is up.
+
+Service: {{ include "xray-health-exporter.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}
+Metrics endpoint: http://{{ include "xray-health-exporter.fullname" . }}:{{ .Values.service.port }}/metrics
+Health endpoint:  http://{{ include "xray-health-exporter.fullname" . }}:{{ .Values.service.port }}/health
+
+{{- if eq (include "xray-health-exporter.leaderElectionEnabled" .) "true" }}
+
+Leader election is active (replicaCount={{ .Values.replicaCount }}). Only the leader publishes
+xray_tunnel_* metrics; followers respond to /health and emit xray_exporter_leader=0.
+{{- end }}
+
+{{- if not .Values.metrics.serviceMonitor.enabled }}
+
+ServiceMonitor is disabled. Enable it with --set metrics.serviceMonitor.enabled=true
+to register the exporter with the Prometheus Operator.
+{{- end }}

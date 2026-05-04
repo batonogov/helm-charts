@@ -1,0 +1,132 @@
+# -- Override the chart name (used in resource naming).
+nameOverride: ""
+# -- Fully override the generated release name.
+fullnameOverride: ""
+
+# -- Number of replicas. Values >1 force-enable `leaderElection.enabled` so only one pod publishes tunnel metrics.
+replicaCount: 2
+
+image:
+  # -- Image repository.
+  repository: ghcr.io/batonogov/xray-health-exporter
+  # -- Image tag. Defaults to chart appVersion when empty.
+  tag: ""
+  # -- Image pull policy.
+  pullPolicy: IfNotPresent
+  # -- Image pull secrets (list of `{name: <secret>}`).
+  pullSecrets: []
+
+# -- Annotations applied to every Deployment pod.
+podAnnotations: {}
+# -- Extra labels applied to every Deployment pod.
+podLabels: {}
+
+# -- Pod-level security context (non-root, matches upstream UID 10001).
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+
+# -- Container-level security context (read-only rootfs, no privilege escalation).
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# -- Container resource requests/limits.
+resources: {}
+# -- nodeSelector for the pod.
+nodeSelector: {}
+# -- Tolerations for the pod.
+tolerations: []
+# -- Affinity rules for the pod.
+affinity: {}
+# -- topologySpreadConstraints for the pod.
+topologySpreadConstraints: []
+
+# -- Extra environment variables (list of `{name, value}` or `{name, valueFrom}`).
+extraEnv: []
+
+# Built-in environment variables consumed by the exporter binary.
+env:
+  # -- Xray-core log level (`debug`/`info`/`warning`/`error`).
+  XRAY_LOG_LEVEL: warning
+  # -- Verbose exporter logging.
+  DEBUG: "false"
+
+leaderElection:
+  # -- Enable Kubernetes leader election so only one replica publishes `xray_tunnel_*`. Forced on whenever `replicaCount > 1`, regardless of this flag.
+  enabled: true
+  # -- Lease object name. Defaults to the release fullname.
+  leaseName: ""
+  rbac:
+    # -- Create the Role + RoleBinding granting access to `coordination.k8s.io/leases`.
+    create: true
+
+serviceAccount:
+  # -- Create a dedicated ServiceAccount for the Deployment.
+  create: true
+  # -- ServiceAccount name. Defaults to release fullname when empty.
+  name: ""
+  # -- Annotations applied to the ServiceAccount.
+  annotations: {}
+
+service:
+  # -- Service type.
+  type: ClusterIP
+  # -- Service port.
+  port: 9273
+  # -- Annotations applied to the Service.
+  annotations: {}
+
+# Exporter YAML config (rendered into a ConfigMap and mounted at /app/config.yaml).
+config:
+  # -- Global tunnel-check defaults applied when an entry omits the field.
+  defaults:
+    check_url: https://www.google.com
+    check_interval: 30s
+    check_timeout: 30s
+  # -- Subscription URLs that auto-discover tunnels. See upstream README for schema. WARNING: subscription URLs typically embed access tokens — they are rendered into a plain ConfigMap. Use `existingConfigSecret` to source `config.yaml` from a Secret instead.
+  subscriptions: []
+  # -- Static tunnels. Each entry needs either `url` (VLESS) or `xray_config_file`. At least one tunnel or one subscription is required (or set `existingConfigSecret`); otherwise the exporter refuses to start.
+  tunnels: []
+
+# -- Mount an existing Secret containing `config.yaml` instead of rendering one from `.Values.config`.
+existingConfigSecret: ""
+
+metrics:
+  serviceMonitor:
+    # -- Create a Prometheus Operator `ServiceMonitor` for the exporter.
+    enabled: false
+    # -- Scrape interval.
+    interval: 30s
+    # -- Scrape timeout.
+    scrapeTimeout: 10s
+    # -- Extra labels (e.g. `release: kube-prometheus-stack`).
+    labels: {}
+    # -- Extra annotations on the ServiceMonitor.
+    annotations: {}
+    # -- Optional metric relabelings.
+    metricRelabelings: []
+    # -- Optional relabelings.
+    relabelings: []
+  prometheusRule:
+    # -- Create a Prometheus Operator `PrometheusRule` with default tunnel alerts.
+    enabled: false
+    # -- Extra labels on the PrometheusRule (e.g. `release: kube-prometheus-stack`).
+    labels: {}
+    # -- Extra annotations.
+    annotations: {}
+    # -- Override the default rule list. When empty the chart ships sensible defaults (`XrayTunnelDown`, `XrayHighLatency`, `XrayNoRecentCheck`).
+    rules: []
+
+networkPolicy:
+  # -- Create a NetworkPolicy. By default allows all egress and Prometheus-style ingress to the metrics port.
+  enabled: false
+  # -- Extra ingress rules. When unset, the chart allows ingress from any pod with label `app.kubernetes.io/name: prometheus`.
+  ingress: []
+  # -- Extra egress rules. When unset, allows all egress.
+  egress: []

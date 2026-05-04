@@ -1,0 +1,27 @@
+{{- if and (eq (include "xray-health-exporter.leaderElectionEnabled" .) "true") .Values.leaderElection.rbac.create -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "xray-health-exporter.fullname" . }}
+  labels:
+    {{- include "xray-health-exporter.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "create", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "xray-health-exporter.fullname" . }}
+  labels:
+    {{- include "xray-health-exporter.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "xray-health-exporter.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "xray-health-exporter.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

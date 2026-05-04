@@ -1,0 +1,11 @@
+{{- if not .Values.existingConfigSecret -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "xray-health-exporter.fullname" . }}
+  labels:
+    {{- include "xray-health-exporter.labels" . | nindent 4 }}
+data:
+  config.yaml: |
+    {{- toYaml .Values.config | nindent 4 }}
+{{- end }}

@@ -1,0 +1,78 @@
+{{ template "chart.header" . }}
+
+{{ template "chart.deprecationWarning" . }}
+
+{{ template "chart.description" . }}
+
+{{ template "chart.versionBadge" . }}{{ template "chart.typeBadge" . }}{{ template "chart.appVersionBadge" . }}
+
+{{ template "chart.homepageLine" . }}
+
+## TL;DR
+
+```bash
+helm repo add batonogov https://batonogov.github.io/helm-charts
+helm install xray batonogov/xray-health-exporter -n monitoring --create-namespace \
+  --set-file config.tunnels=tunnels.yaml
+```
+
+## Prerequisites
+
+- Kubernetes 1.32+
+- Helm 3.14+
+- For `ServiceMonitor`/`PrometheusRule`: the
+  [Prometheus Operator](https://github.com/prometheus-operator/prometheus-operator)
+  CRDs installed in the cluster
+- For `replicaCount > 1`: leader election (default) requires a Role granting
+  access to `coordination.k8s.io/leases` — created automatically by the chart
+
+## High availability
+
+The chart force-enables Kubernetes leader election whenever `replicaCount > 1`,
+regardless of `leaderElection.enabled`. Only the leader publishes
+`xray_tunnel_*` series; followers continue to serve `/health` and a single
+`xray_exporter_leader=0` metric so a Service can still load-balance and the
+Prometheus Operator can keep scraping every pod without duplicated tunnel
+metrics.
+
+Failover timing matches the upstream defaults: ~5s on graceful leader exit,
+~30s on hard pod loss.
+
+## Configuration
+
+The exporter is driven by a YAML file. Set `.Values.config` to render a
+ConfigMap, or point `existingConfigSecret` at a Secret you manage out of
+band (recommended when subscription URLs contain tokens).
+
+```yaml
+config:
+  defaults:
+    check_url: https://www.google.com
+    check_interval: 30s
+    check_timeout: 30s
+  subscriptions:
+    - url: https://provider.example.com/subscribe?token=xxx
+      update_interval: 1h
+  tunnels:
+    - name: edge-1
+      url: "vless://uuid@host1:443?type=tcp&security=reality&pbk=...&sni=google.com"
+```
+
+See [upstream docs](https://github.com/batonogov/xray-health-exporter#конфигурация)
+for the full schema.
+
+## Prometheus integration
+
+Set `metrics.serviceMonitor.enabled=true` to register the exporter with the
+Prometheus Operator. Set `metrics.prometheusRule.enabled=true` to ship the
+default tunnel alerts (`XrayTunnelDown`, `XrayHighLatency`,
+`XrayNoRecentCheck`); override `metrics.prometheusRule.rules` to provide your
+own list.
+
+{{ template "chart.requirementsSection" . }}
+
+{{ template "chart.valuesSection" . }}
+
+{{ template "chart.maintainersSection" . }}
+
+{{ template "chart.sourcesSection" . }}
