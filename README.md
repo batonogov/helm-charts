@@ -38,12 +38,13 @@ helm template my-release charts/doqa -f charts/doqa/ci/test-values.yaml
 
 ## CI
 
-- `lint-test.yaml` (PR to `main`): runs `ct lint` + verifies `helm-docs` output is committed.
-- `release.yaml` (push to `main`): publishes new chart versions to the `gh-pages` branch with [chart-releaser-action](https://github.com/helm/chart-releaser-action).
+- `lint-test.yaml` (PR to `main` or manual run): detects changed charts, runs `ct lint` with chart version increment checks, and verifies generated `helm-docs` output is committed.
+- `release.yaml` (push to `main`): publishes new chart versions to the `gh-pages` branch with [chart-releaser-action](https://github.com/helm/chart-releaser-action). Release jobs are serialized per branch to avoid concurrent index updates.
+- `renovate.json`: configures Renovate to update `xray-health-exporter` from GHCR image tags, bump the chart patch `version`, and keep generated README badges aligned. Enable the Renovate GitHub App for this repository to run it.
 
 ## Contributing
 
-Open a pull request against `main`. Bump the `version:` in `Chart.yaml` of any chart you change — `chart-releaser-action` only publishes versions that haven't been released yet.
+Open a pull request against `main`. Bump the `version:` in `Chart.yaml` of any chart with release-affecting changes — CI enforces this for templates, values, chart metadata, packaged files, and generated chart README changes. `chart-releaser-action` only publishes versions that haven't been released yet.
 
 ## License
 

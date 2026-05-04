@@ -1,0 +1,53 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "enabledManagers": ["custom.regex"],
+  "labels": ["dependencies", "xray-health-exporter"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^charts/xray-health-exporter/Chart\\.yaml$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>[a-zA-Z0-9-._]+) depName=(?<depName>[^\\s]+)(?: extractVersion=(?<extractVersion>[^\\s]+))?(?: versioning=(?<versioning>[^\\s]+))?\\s+appVersion:\\s*\"?(?<currentValue>[^\"\\s]+)\"?"
+      ]
+    }
+  ],
+  "packageRules": [
+    {
+      "matchManagers": ["custom.regex"],
+      "matchPackageNames": ["ghcr.io/batonogov/xray-health-exporter"],
+      "commitMessageTopic": "xray-health-exporter",
+      "bumpVersions": [
+        {
+          "name": "Bump xray-health-exporter chart version",
+          "filePatterns": ["{{packageFileDir}}/Chart.yaml"],
+          "matchStrings": ["version:\\s*\"?(?<version>\\d+\\.\\d+\\.\\d+)\"?"],
+          "bumpType": "patch"
+        },
+        {
+          "name": "Bump xray-health-exporter README chart badge alt text",
+          "filePatterns": ["{{packageFileDir}}/README.md"],
+          "matchStrings": ["!\\[Version: (?<version>\\d+\\.\\d+\\.\\d+)\\]"],
+          "bumpType": "patch"
+        },
+        {
+          "name": "Bump xray-health-exporter README chart badge URL",
+          "filePatterns": ["{{packageFileDir}}/README.md"],
+          "matchStrings": ["Version-(?<version>\\d+\\.\\d+\\.\\d+)-informational"],
+          "bumpType": "patch"
+        },
+        {
+          "name": "Sync xray-health-exporter README appVersion badge alt text",
+          "filePatterns": ["{{packageFileDir}}/README.md"],
+          "matchStrings": ["!\\[AppVersion: (?<version>\\d+\\.\\d+\\.\\d+)\\]"],
+          "bumpType": "sync"
+        },
+        {
+          "name": "Sync xray-health-exporter README appVersion badge URL",
+          "filePatterns": ["{{packageFileDir}}/README.md"],
+          "matchStrings": ["AppVersion-(?<version>\\d+\\.\\d+\\.\\d+)-informational"],
+          "bumpType": "sync"
+        }
+      ]
+    }
+  ]
+}

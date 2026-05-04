@@ -8,6 +8,7 @@ A monorepo of Helm charts published as a public Helm repository on GitHub Pages.
 
 Currently shipped charts:
 - `charts/doqa` — DoQA Test Case Management System (TCMS), self-hosted on Kubernetes 1.32+. Targets `appVersion 4.0.0-box`.
+- `charts/xray-health-exporter` — Prometheus exporter for Xray-core tunnel health. Targets `appVersion 1.2.0`.
 
 ## Common commands
 
@@ -25,13 +26,13 @@ helm-docs --chart-search-root charts
 ct lint --config .github/ct.yaml --target-branch main
 ```
 
-There are no unit tests — validation is `helm lint` + `ct lint` + `helm-docs` sync check on PRs. End-to-end installation is verified manually against a real cluster.
+There are no unit tests — validation is `ct lint` with chart version increment checks and a `helm-docs` sync check on PRs. End-to-end installation is verified manually against a real cluster. `renovate.json` lets Renovate open automated PRs when the upstream exporter publishes a newer GHCR image tag.
 
 ## Release flow
 
 A push to `main` triggers `.github/workflows/release.yaml` → `chart-releaser-action` packages every chart whose `version:` in `Chart.yaml` is not yet released, creates a GitHub Release per chart (tag format `<chart>-<version>`, e.g. `doqa-0.1.0`), and updates `gh-pages/index.yaml`. Charts with an unchanged version are skipped.
 
-**Bump `version:` in the chart's `Chart.yaml` when shipping a user-visible change** (templates, default values, `appVersion`, image tags, README content). Don't bump for `ci/test-values.yaml` tweaks, comment-only edits, or repo-level files — that just churns release versions without giving users anything new. `ct.yaml` has `check-version-increment: false` for exactly this reason — bump is enforced by review, not by `ct`.
+**Bump `version:` in the chart's `Chart.yaml` when changing files under that chart directory.** `ct lint` enforces this through `check-version-increment: true`. Don't bump for repo-level files outside `charts/<name>/`.
 
 The `gh-pages` branch must exist before the first release (one-time bootstrap). GitHub Pages settings must point to `gh-pages` / root.
 
