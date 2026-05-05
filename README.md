@@ -47,10 +47,6 @@ pre-commit run --all-files
 
 ## Pre-commit hooks
 
-The pre-commit hooks catch whitespace/EOF/line-ending issues, YAML/JSON/TOML
-syntax errors, merge conflict markers, stale generated chart README files, and
-basic Helm render/lint failures before a PR reaches CI.
-
 Run all hooks manually before pushing:
 
 ```bash
