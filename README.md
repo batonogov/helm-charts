@@ -1,6 +1,9 @@
 # batonogov helm charts
 
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/batonogov)](https://artifacthub.io/packages/search?repo=batonogov)
+[![lint-test](https://github.com/batonogov/helm-charts/actions/workflows/lint-test.yaml/badge.svg)](https://github.com/batonogov/helm-charts/actions/workflows/lint-test.yaml)
+[![release](https://github.com/batonogov/helm-charts/actions/workflows/release.yaml/badge.svg)](https://github.com/batonogov/helm-charts/actions/workflows/release.yaml)
+[![License](https://img.shields.io/github/license/batonogov/helm-charts)](LICENSE)
 
 Helm chart catalog. Charts published to GitHub Pages via [chart-releaser-action](https://github.com/helm/chart-releaser-action) on every push to `main`.
 
