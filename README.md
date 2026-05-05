@@ -45,6 +45,27 @@ helm template my-release charts/doqa -f charts/doqa/ci/test-values.yaml
 pre-commit run --all-files
 ```
 
+## Pre-commit hooks
+
+Install hooks once to run checks automatically on commit:
+
+```bash
+pre-commit install
+```
+
+Run all hooks manually before pushing:
+
+```bash
+pre-commit run --all-files
+```
+
+Update pinned remote hook versions periodically:
+
+```bash
+pre-commit autoupdate
+pre-commit run --all-files
+```
+
 ## CI
 
 - `lint-test.yaml` (PR to `main` or manual run): detects changed charts, runs `ct lint` with chart version increment checks, and verifies generated `helm-docs` output is committed.
