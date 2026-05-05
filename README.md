@@ -45,6 +45,25 @@ helm template my-release charts/doqa -f charts/doqa/ci/test-values.yaml
 pre-commit run --all-files
 ```
 
+## Pre-commit hooks
+
+The pre-commit hooks catch whitespace/EOF/line-ending issues, YAML/JSON/TOML
+syntax errors, merge conflict markers, stale generated chart README files, and
+basic Helm render/lint failures before a PR reaches CI.
+
+Run all hooks manually before pushing:
+
+```bash
+pre-commit run --all-files
+```
+
+Update pinned remote hook versions periodically:
+
+```bash
+pre-commit autoupdate
+pre-commit run --all-files
+```
+
 ## CI
 
 - `lint-test.yaml` (PR to `main` or manual run): detects changed charts, runs `ct lint` with chart version increment checks, and verifies generated `helm-docs` output is committed.
