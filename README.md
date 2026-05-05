@@ -47,6 +47,12 @@ pre-commit run --all-files
 
 ## Pre-commit hooks
 
+Install hooks once to run checks automatically on commit:
+
+```bash
+pre-commit install
+```
+
 Run all hooks manually before pushing:
 
 ```bash
