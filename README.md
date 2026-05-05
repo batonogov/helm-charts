@@ -32,13 +32,17 @@ helm search repo batonogov
 ## Local development
 
 ```bash
-brew install helm helm-docs chart-testing kind
+brew install helm helm-docs chart-testing kind pre-commit
+# install local git hooks
+pre-commit install
 # regenerate chart README from values.yaml
 helm-docs --chart-search-root charts
 # lint a chart locally
 ct lint --config .github/ct.yaml --target-branch main
 # render templates
 helm template my-release charts/doqa -f charts/doqa/ci/test-values.yaml
+# run the same local checks as the git hooks
+pre-commit run --all-files
 ```
 
 ## CI

@@ -1,0 +1,21 @@
+repos:
+  - repo: local
+    hooks:
+      - id: helm-docs
+        name: helm-docs
+        entry: scripts/check-helm-docs.sh
+        language: script
+        pass_filenames: false
+        files: ^charts/.*
+      - id: helm-lint
+        name: helm lint
+        entry: scripts/helm-lint-all.sh
+        language: script
+        pass_filenames: false
+        files: ^charts/.*
+      - id: helm-template
+        name: helm template
+        entry: scripts/helm-template-all.sh
+        language: script
+        pass_filenames: false
+        files: ^charts/.*
