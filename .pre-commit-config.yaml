@@ -1,4 +1,21 @@
 repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^\.claude/
+      - id: end-of-file-fixer
+        exclude: ^\.claude/
+      - id: check-yaml
+        exclude: ^(\.claude/|charts/[^/]+/templates/)
+      - id: check-json
+        exclude: ^\.claude/
+      - id: check-toml
+        exclude: ^\.claude/
+      - id: check-merge-conflict
+      - id: mixed-line-ending
+        args: [--fix=lf]
+        exclude: ^\.claude/
   - repo: local
     hooks:
       - id: helm-docs
