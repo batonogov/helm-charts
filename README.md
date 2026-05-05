@@ -1,5 +1,7 @@
 # batonogov helm charts
 
+[![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/batonogov)](https://artifacthub.io/packages/search?repo=batonogov)
+
 Helm chart catalog. Charts published to GitHub Pages via [chart-releaser-action](https://github.com/helm/chart-releaser-action) on every push to `main`.
 
 ## Usage
