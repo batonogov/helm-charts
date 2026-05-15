@@ -68,6 +68,9 @@ spec:
         volumeMounts:
         - name: data
           mountPath: /data
+        {{- range $.Values.extraVolumeMounts }}
+        - {{ toYaml . | nindent 10 }}
+{{- end }}
         livenessProbe:
           httpGet:
             path: /minio/health/live
@@ -86,6 +89,9 @@ spec:
       - name: data
         persistentVolumeClaim:
           claimName: {{ $fullName }}-minio
+      {{- range $.Values.extraVolumes }}
+      - {{ toYaml . | nindent 8 }}
+{{- end }}
 ---
 apiVersion: v1
 kind: Service

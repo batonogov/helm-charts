@@ -2,7 +2,7 @@
 
 DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
 
-![Version: 0.1.1](https://img.shields.io/badge/Version-0.1.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.0.0-box](https://img.shields.io/badge/AppVersion-4.0.0--box-informational?style=flat-square)
+![Version: 0.1.2](https://img.shields.io/badge/Version-0.1.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.0.0-box](https://img.shields.io/badge/AppVersion-4.0.0--box-informational?style=flat-square)
 
 **Homepage:** <https://doqa.app>
 
@@ -111,6 +111,8 @@ Kubernetes: `>=1.32.0-0`
 | debug | bool | `false` | Enable verbose debug logging |
 | extraAnnotations | object | `{}` | Extra annotations added to every resource |
 | extraLabels | object | `{}` | Extra labels added to every resource |
+| extraVolumeMounts | list | `[]` | Extra volume mounts to add to all containers |
+| extraVolumes | list | `[]` | Extra volumes to add to all Deployments |
 | frontend.affinity | object | `{}` |  |
 | frontend.image.repository | string | `"doqa/doqa-frontend"` | Frontend image repository (relative to image.registry) |
 | frontend.image.tag | string | `"4.0.2-box"` | Frontend image tag |

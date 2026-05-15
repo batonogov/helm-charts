@@ -36,6 +36,12 @@ spec:
           {{- include "doqa.backendEnvFrom" . | nindent 10 }}
         env:
           {{- include "doqa.backendSecretEnv" . | nindent 10 }}
+        {{- with .Values.extraVolumeMounts }}
+        volumeMounts:
+{{- range . }}
+          - {{ toYaml . | nindent 12 }}
+{{- end }}
+        {{- end }}
       {{- end }}
       containers:
       - name: backend
@@ -64,6 +70,18 @@ spec:
           timeoutSeconds: 5
         resources:
           {{- toYaml .Values.backend.resources | nindent 10 }}
+        {{- with .Values.extraVolumeMounts }}
+        volumeMounts:
+{{- range . }}
+          - {{ toYaml . | nindent 12 }}
+{{- end }}
+        {{- end }}
+      {{- with .Values.extraVolumes }}
+      volumes:
+{{- range . }}
+        - {{ toYaml . | nindent 10 }}
+{{- end }}
+      {{- end }}
       {{- with .Values.backend.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

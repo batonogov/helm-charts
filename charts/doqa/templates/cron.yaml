@@ -39,6 +39,18 @@ spec:
           {{- include "doqa.backendSecretEnv" . | nindent 10 }}
         resources:
           {{- toYaml .Values.cron.resources | nindent 10 }}
+        {{- with .Values.extraVolumeMounts }}
+        volumeMounts:
+{{- range . }}
+          - {{ toYaml . | nindent 12 }}
+{{- end }}
+        {{- end }}
+      {{- with .Values.extraVolumes }}
+      volumes:
+{{- range . }}
+        - {{ toYaml . | nindent 10 }}
+{{- end }}
+      {{- end }}
       {{- with .Values.cron.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

@@ -51,6 +51,18 @@ spec:
           periodSeconds: 10
         resources:
           {{- toYaml .Values.notification.resources | nindent 10 }}
+        {{- with .Values.extraVolumeMounts }}
+        volumeMounts:
+{{- range . }}
+          - {{ toYaml . | nindent 12 }}
+{{- end }}
+        {{- end }}
+      {{- with .Values.extraVolumes }}
+      volumes:
+{{- range . }}
+        - {{ toYaml . | nindent 10 }}
+{{- end }}
+      {{- end }}
       {{- with .Values.notification.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -113,3 +125,15 @@ spec:
           {{- include "doqa.notificationEnv" . | nindent 8 }}
         resources:
           {{- toYaml .Values.notification.worker.resources | nindent 10 }}
+        {{- with $.Values.extraVolumeMounts }}
+        volumeMounts:
+{{- range . }}
+          - {{ toYaml . | nindent 12 }}
+{{- end }}
+        {{- end }}
+      {{- with $.Values.extraVolumes }}
+      volumes:
+{{- range . }}
+        - {{ toYaml . | nindent 10 }}
+{{- end }}
+      {{- end }}

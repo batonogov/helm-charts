@@ -402,3 +402,7 @@ securityContext: {}
 extraLabels: {}
 # -- Extra annotations added to every resource
 extraAnnotations: {}
+# -- Extra volumes to add to all Deployments
+extraVolumes: []
+# -- Extra volume mounts to add to all containers
+extraVolumeMounts: []
