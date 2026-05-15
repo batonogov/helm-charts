@@ -49,15 +49,15 @@ spec:
           timeoutSeconds: 5
         resources:
           {{- toYaml .Values.frontend.resources | nindent 10 }}
-      {{- with .Values.frontend.nodeSelector }}
+      {{- with (or .Values.frontend.nodeSelector .Values.nodeSelector) }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.frontend.affinity }}
+      {{- with (or .Values.frontend.affinity .Values.affinity) }}
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.frontend.tolerations }}
+      {{- with (or .Values.frontend.tolerations .Values.tolerations) }}
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}

@@ -3,6 +3,13 @@ nameOverride: ""
 # -- Override the full name of resources
 fullnameOverride: ""
 
+# -- Default node selector applied to all components. Per-component values override this.
+nodeSelector: {}
+# -- Default affinity applied to all components. Per-component values override this.
+affinity: {}
+# -- Default tolerations applied to all components. Per-component values override this.
+tolerations: []
+
 # -- DoQA application URL (host without protocol, e.g. "doqa.example.com")
 appUrl: "doqa.example.com"
 # -- Frontend URL (defaults to appUrl when empty)
@@ -85,6 +92,12 @@ redis:
     storageClass: ""
   # -- Container resources
   resources: {}
+  # -- Node selector for Redis pods. Overrides global nodeSelector
+  nodeSelector: {}
+  # -- Affinity for Redis pods. Overrides global affinity
+  affinity: {}
+  # -- Tolerations for Redis pods. Overrides global tolerations
+  tolerations: []
   # -- External Redis host (used only when create=false)
   host: ""
   # -- Redis port
@@ -125,6 +138,12 @@ rabbitmq:
     storageClass: ""
   # -- Container resources
   resources: {}
+  # -- Node selector for RabbitMQ pods. Overrides global nodeSelector
+  nodeSelector: {}
+  # -- Affinity for RabbitMQ pods. Overrides global affinity
+  affinity: {}
+  # -- Tolerations for RabbitMQ pods. Overrides global tolerations
+  tolerations: []
   # -- External RabbitMQ host (used only when create=false)
   host: ""
   # -- AMQP port
@@ -155,6 +174,12 @@ minio:
     storageClass: ""
   # -- Container resources
   resources: {}
+  # -- Node selector for MinIO pods. Overrides global nodeSelector
+  nodeSelector: {}
+  # -- Affinity for MinIO pods. Overrides global affinity
+  affinity: {}
+  # -- Tolerations for MinIO pods. Overrides global tolerations
+  tolerations: []
   # -- External MinIO/S3 endpoint (used only when create=false). For in-tree MinIO chart computes internal URL automatically
   endpoint: ""
   # -- Bucket name

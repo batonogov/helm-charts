@@ -59,15 +59,15 @@ spec:
       - name: config
         configMap:
           name: {{ $fullName }}-nginx
-      {{- with .Values.nginx.nodeSelector }}
+      {{- with (or .Values.nginx.nodeSelector .Values.nodeSelector) }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.nginx.affinity }}
+      {{- with (or .Values.nginx.affinity .Values.affinity) }}
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.nginx.tolerations }}
+      {{- with (or .Values.nginx.tolerations .Values.tolerations) }}
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}

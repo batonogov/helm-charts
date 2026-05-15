@@ -51,15 +51,15 @@ spec:
           periodSeconds: 10
         resources:
           {{- toYaml .Values.notification.resources | nindent 10 }}
-      {{- with .Values.notification.nodeSelector }}
+      {{- with (or .Values.notification.nodeSelector .Values.nodeSelector) }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.notification.affinity }}
+      {{- with (or .Values.notification.affinity .Values.affinity) }}
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.notification.tolerations }}
+      {{- with (or .Values.notification.tolerations .Values.tolerations) }}
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
@@ -113,3 +113,15 @@ spec:
           {{- include "doqa.notificationEnv" . | nindent 8 }}
         resources:
           {{- toYaml .Values.notification.worker.resources | nindent 10 }}
+      {{- with (or .Values.notification.nodeSelector .Values.nodeSelector) }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with (or .Values.notification.affinity .Values.affinity) }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with (or .Values.notification.tolerations .Values.tolerations) }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

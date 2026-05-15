@@ -37,15 +37,15 @@ spec:
           {{- include "doqa.backendSecretEnv" . | nindent 10 }}
         resources:
           {{- toYaml .Values.queue.resources | nindent 10 }}
-      {{- with .Values.queue.nodeSelector }}
+      {{- with (or .Values.queue.nodeSelector .Values.nodeSelector) }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.queue.affinity }}
+      {{- with (or .Values.queue.affinity .Values.affinity) }}
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.queue.tolerations }}
+      {{- with (or .Values.queue.tolerations .Values.tolerations) }}
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}

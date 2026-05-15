@@ -2,7 +2,7 @@
 
 DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
 
-![Version: 0.1.1](https://img.shields.io/badge/Version-0.1.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.0.0-box](https://img.shields.io/badge/AppVersion-4.0.0--box-informational?style=flat-square)
+![Version: 0.1.2](https://img.shields.io/badge/Version-0.1.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.0.0-box](https://img.shields.io/badge/AppVersion-4.0.0--box-informational?style=flat-square)
 
 **Homepage:** <https://doqa.app>
 
@@ -80,6 +80,7 @@ Kubernetes: `>=1.32.0-0`
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
+| affinity | object | `{}` | Default affinity applied to all components. Per-component values override this. |
 | appFrontendUrl | string | `""` | Frontend URL (defaults to appUrl when empty) |
 | appUrl | string | `"doqa.example.com"` | DoQA application URL (host without protocol, e.g. "doqa.example.com") |
 | autotestParser.affinity | object | `{}` |  |
@@ -142,6 +143,7 @@ Kubernetes: `>=1.32.0-0`
 | mail.port | int | `587` | SMTP port |
 | mail.username | string | `""` | SMTP user |
 | mailIssue | string | `"support@doqa.app"` | Issue/support email exposed to backend (`MAIL_ISSUE`) |
+| minio.affinity | object | `{}` | Affinity for MinIO pods. Overrides global affinity |
 | minio.bucket | string | `"doqa"` | Bucket name |
 | minio.bucketUrl | string | `""` | Public bucket URL (defaults to "<scheme>://<appUrl>/<bucket>" when empty, served via internal nginx) |
 | minio.client.image.repository | string | `"quay.io/minio/mc"` | mc client image (used by bucket-init Job) |
@@ -150,10 +152,12 @@ Kubernetes: `>=1.32.0-0`
 | minio.endpoint | string | `""` | External MinIO/S3 endpoint (used only when create=false). For in-tree MinIO chart computes internal URL automatically |
 | minio.image.repository | string | `"quay.io/minio/minio"` | MinIO image |
 | minio.image.tag | string | `"RELEASE.2025-04-22T22-12-26Z"` | MinIO tag |
+| minio.nodeSelector | object | `{}` | Node selector for MinIO pods. Overrides global nodeSelector |
 | minio.region | string | `"ru-1"` | Region |
 | minio.resources | object | `{}` | Container resources |
 | minio.storage.size | string | `"4Gi"` | PVC size for MinIO |
 | minio.storage.storageClass | string | `""` | StorageClass for MinIO PVC |
+| minio.tolerations | list | `[]` | Tolerations for MinIO pods. Overrides global tolerations |
 | nameOverride | string | `""` | Override the chart name part of resource names |
 | nginx.affinity | object | `{}` |  |
 | nginx.clientMaxBodySize | string | `"150M"` | Maximum upload size |
@@ -163,6 +167,7 @@ Kubernetes: `>=1.32.0-0`
 | nginx.replicas | int | `2` | Replica count |
 | nginx.resources | object | `{}` | Container resources |
 | nginx.tolerations | list | `[]` |  |
+| nodeSelector | object | `{}` | Default node selector applied to all components. Per-component values override this. |
 | notification.affinity | object | `{}` |  |
 | notification.image.repository | string | `"doqa/doqa-notify"` | Notification image repository |
 | notification.image.tag | string | `"1.0.15-box"` | Notification image tag |
@@ -193,21 +198,26 @@ Kubernetes: `>=1.32.0-0`
 | queue.replicas | int | `1` | Queue worker replica count |
 | queue.resources | object | `{}` | Container resources |
 | queue.tolerations | list | `[]` |  |
+| rabbitmq.affinity | object | `{}` | Affinity for RabbitMQ pods. Overrides global affinity |
 | rabbitmq.create | bool | `true` | Provision an in-tree RabbitMQ Deployment+PVC |
 | rabbitmq.host | string | `""` | External RabbitMQ host (used only when create=false) |
 | rabbitmq.image.repository | string | `"docker.io/rabbitmq"` | RabbitMQ image |
 | rabbitmq.image.tag | string | `"4-management-alpine"` | RabbitMQ tag (management variant for built-in UI) |
+| rabbitmq.nodeSelector | object | `{}` | Node selector for RabbitMQ pods. Overrides global nodeSelector |
 | rabbitmq.port | int | `5672` | AMQP port |
 | rabbitmq.resources | object | `{}` | Container resources |
 | rabbitmq.storage.size | string | `"1Gi"` | PVC size for RabbitMQ |
 | rabbitmq.storage.storageClass | string | `""` | StorageClass for RabbitMQ PVC |
+| rabbitmq.tolerations | list | `[]` | Tolerations for RabbitMQ pods. Overrides global tolerations |
 | rabbitmq.username | string | `"admin"` | RabbitMQ user |
 | rabbitmq.virtualHost | string | `"/"` | RabbitMQ virtual host |
+| redis.affinity | object | `{}` | Affinity for Redis pods. Overrides global affinity |
 | redis.create | bool | `true` | Provision an in-tree Redis Deployment+PVC. Single replica, no HA |
 | redis.db | int | `0` | Logical Redis DB for backend cache/queues |
 | redis.host | string | `""` | External Redis host (used only when create=false) |
 | redis.image.repository | string | `"docker.io/redis"` | Redis image |
 | redis.image.tag | string | `"7-alpine"` | Redis tag |
+| redis.nodeSelector | object | `{}` | Node selector for Redis pods. Overrides global nodeSelector |
 | redis.notification.db | string | `"doqa"` | Notification logical DB (vendor uses string "doqa") |
 | redis.notification.host | string | `""` | Notification Redis host (defaults to redis host when empty) |
 | redis.notification.passwordSecret.key | string | `"password"` | Key inside the password secret |
@@ -219,6 +229,7 @@ Kubernetes: `>=1.32.0-0`
 | redis.resources | object | `{}` | Container resources |
 | redis.storage.size | string | `"1Gi"` | PVC size for Redis |
 | redis.storage.storageClass | string | `""` | StorageClass for Redis PVC |
+| redis.tolerations | list | `[]` | Tolerations for Redis pods. Overrides global tolerations |
 | secrets.apiKeys | string | `""` | Existing secret with keys `statistic-api-key`, `notification-api-key`. Default <release>-api-keys |
 | secrets.app | string | `""` | Existing secret with keys `app-key`, `jwt-secret`. Default <release>-app-secrets |
 | secrets.create | bool | `true` | Generate chart-managed secrets with random values |
@@ -247,6 +258,7 @@ Kubernetes: `>=1.32.0-0`
 | telegramBot.resources | object | `{}` | Container resources |
 | telegramBot.tokenSecret | string | `""` | Existing secret with key `token` for the Telegram bot token |
 | telegramBot.tolerations | list | `[]` |  |
+| tolerations | list | `[]` | Default tolerations applied to all components. Per-component values override this. |
 | useSsl | bool | `true` | Whether the public URL is HTTPS. Affects USE_SSL env and bucket URL protocol |
 | websocket.affinity | object | `{}` |  |
 | websocket.image.repository | string | `"service/soketi"` | Soketi image repository (defaults to vendor mirror, override to `quay.io/soketi/soketi`) |

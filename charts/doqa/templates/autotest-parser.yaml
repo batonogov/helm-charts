@@ -79,15 +79,15 @@ spec:
           timeoutSeconds: 5
         resources:
           {{- toYaml .Values.autotestParser.resources | nindent 10 }}
-      {{- with .Values.autotestParser.nodeSelector }}
+      {{- with (or .Values.autotestParser.nodeSelector .Values.nodeSelector) }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.autotestParser.affinity }}
+      {{- with (or .Values.autotestParser.affinity .Values.affinity) }}
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.autotestParser.tolerations }}
+      {{- with (or .Values.autotestParser.tolerations .Values.tolerations) }}
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}

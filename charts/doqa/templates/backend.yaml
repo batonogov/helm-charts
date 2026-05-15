@@ -64,15 +64,15 @@ spec:
           timeoutSeconds: 5
         resources:
           {{- toYaml .Values.backend.resources | nindent 10 }}
-      {{- with .Values.backend.nodeSelector }}
+      {{- with (or .Values.backend.nodeSelector .Values.nodeSelector) }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.backend.affinity }}
+      {{- with (or .Values.backend.affinity .Values.affinity) }}
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.backend.tolerations }}
+      {{- with (or .Values.backend.tolerations .Values.tolerations) }}
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}

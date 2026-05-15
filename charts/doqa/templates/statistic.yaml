@@ -76,15 +76,15 @@ spec:
           periodSeconds: 10
         resources:
           {{- toYaml .Values.statistic.resources | nindent 10 }}
-      {{- with .Values.statistic.nodeSelector }}
+      {{- with (or .Values.statistic.nodeSelector .Values.nodeSelector) }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.statistic.affinity }}
+      {{- with (or .Values.statistic.affinity .Values.affinity) }}
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.statistic.tolerations }}
+      {{- with (or .Values.statistic.tolerations .Values.tolerations) }}
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}

@@ -59,15 +59,15 @@ spec:
           periodSeconds: 10
         resources:
           {{- toYaml .Values.websocket.resources | nindent 10 }}
-      {{- with .Values.websocket.nodeSelector }}
+      {{- with (or .Values.websocket.nodeSelector .Values.nodeSelector) }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.websocket.affinity }}
+      {{- with (or .Values.websocket.affinity .Values.affinity) }}
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.websocket.tolerations }}
+      {{- with (or .Values.websocket.tolerations .Values.tolerations) }}
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}

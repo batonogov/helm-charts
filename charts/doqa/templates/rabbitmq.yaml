@@ -85,6 +85,18 @@ spec:
       - name: data
         persistentVolumeClaim:
           claimName: {{ $fullName }}-rabbitmq
+      {{- with (or .Values.rabbitmq.nodeSelector .Values.nodeSelector) }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with (or .Values.rabbitmq.affinity .Values.affinity) }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with (or .Values.rabbitmq.tolerations .Values.tolerations) }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
 ---
 apiVersion: v1
 kind: Service
