@@ -398,6 +398,19 @@ podSecurityContext: {}
 # -- Container-level securityContext
 securityContext: {}
 
+podDisruptionBudget:
+  # -- Create PodDisruptionBudget resources for multi-replica components
+  enabled: false
+  backend:
+    # -- Minimum number of backend pods that must remain available during disruptions
+    minAvailable: 1
+  frontend:
+    # -- Minimum number of frontend pods that must remain available during disruptions
+    minAvailable: 1
+  queue:
+    # -- Minimum number of queue pods that must remain available during disruptions
+    minAvailable: 1
+
 # -- Extra labels added to every resource
 extraLabels: {}
 # -- Extra annotations added to every resource
