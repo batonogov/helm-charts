@@ -563,21 +563,19 @@ serviceAccount:
 
 # Default security context applied to all Deployments. Each component can override
 # via its own `podSecurityContext` / `containerSecurityContext` keys.
+# Example hardening:
+#   defaultSecurityContext:
+#     pod:
+#       runAsNonRoot: true
+#       fsGroup: 1000
+#     container:
+#       allowPrivilegeEscalation: false
+#       readOnlyRootFilesystem: false
+#       capabilities:
+#         drop: ["ALL"]
 defaultSecurityContext:
-  pod:
-    # -- Run all pods as non-root
-    runAsNonRoot: false
-    # -- Filesystem group for volume access
-    fsGroup: 1000
-  container:
-    # -- Prevent privilege escalation
-    allowPrivilegeEscalation: false
-    # -- Mount root filesystem read-only
-    readOnlyRootFilesystem: false
-    # -- Drop all Linux capabilities
-    capabilities:
-      drop:
-        - ALL
+  pod: {}
+  container: {}
 
 serviceMonitor:
   # -- Create a Prometheus Operator ServiceMonitor for the backend Service

@@ -120,11 +120,8 @@ Kubernetes: `>=1.32.0-0`
 | cron.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
 | cron.tolerations | list | `[]` |  |
 | debug | bool | `false` | Enable verbose debug logging |
-| defaultSecurityContext.container.allowPrivilegeEscalation | bool | `false` | Prevent privilege escalation |
-| defaultSecurityContext.container.capabilities | object | `{"drop":["ALL"]}` | Drop all Linux capabilities |
-| defaultSecurityContext.container.readOnlyRootFilesystem | bool | `false` | Mount root filesystem read-only |
-| defaultSecurityContext.pod.fsGroup | int | `1000` | Filesystem group for volume access |
-| defaultSecurityContext.pod.runAsNonRoot | bool | `false` | Run all pods as non-root |
+| defaultSecurityContext.container | object | `{}` |  |
+| defaultSecurityContext.pod | object | `{}` |  |
 | extraAnnotations | object | `{}` | Extra annotations added to every resource |
 | extraLabels | object | `{}` | Extra labels added to every resource |
 | extraVolumeMounts | list | `[]` | Extra volume mounts to add to all containers |
