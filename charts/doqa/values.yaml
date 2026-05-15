@@ -402,3 +402,5 @@ securityContext: {}
 extraLabels: {}
 # -- Extra annotations added to every resource
 extraAnnotations: {}
+# -- Extra annotations to add to all pod templates. Per-component overrides are not supported — use this single map.
+podAnnotations: {}

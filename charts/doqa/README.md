@@ -2,7 +2,7 @@
 
 DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
 
-![Version: 0.1.1](https://img.shields.io/badge/Version-0.1.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.0.0-box](https://img.shields.io/badge/AppVersion-4.0.0--box-informational?style=flat-square)
+![Version: 0.1.2](https://img.shields.io/badge/Version-0.1.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.0.0-box](https://img.shields.io/badge/AppVersion-4.0.0--box-informational?style=flat-square)
 
 **Homepage:** <https://doqa.app>
 
@@ -173,6 +173,7 @@ Kubernetes: `>=1.32.0-0`
 | notification.worker.concurrency | int | `8` | Celery `--concurrency` value |
 | notification.worker.replicas | int | `1` | Celery worker replica count |
 | notification.worker.resources | object | `{}` | Worker container resources |
+| podAnnotations | object | `{}` | Extra annotations to add to all pod templates. Per-component overrides are not supported — use this single map. |
 | podSecurityContext | object | `{}` | Pod-level securityContext applied to every Pod |
 | postgresql.cnpg.create | bool | `true` | Provision a new CNPG `Cluster` resource. Requires CNPG operator in cluster |
 | postgresql.cnpg.imageName | string | `"ghcr.io/cloudnative-pg/postgresql:17"` | CNPG postgres image |
