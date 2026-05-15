@@ -101,6 +101,8 @@ metrics:
   serviceMonitor:
     # -- Create a Prometheus Operator `ServiceMonitor` for the exporter.
     enabled: false
+    # -- Namespace for the ServiceMonitor. Defaults to the release namespace.
+    namespace: ""
     # -- Scrape interval.
     interval: 30s
     # -- Scrape timeout.

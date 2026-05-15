@@ -2,7 +2,7 @@
 
 Prometheus exporter for Xray-core tunnel health
 
-![Version: 0.1.5](https://img.shields.io/badge/Version-0.1.5-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.2.3](https://img.shields.io/badge/AppVersion-1.2.3-informational?style=flat-square)
+![Version: 0.1.6](https://img.shields.io/badge/Version-0.1.6-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.2.3](https://img.shields.io/badge/AppVersion-1.2.3-informational?style=flat-square)
 
 **Homepage:** <https://github.com/batonogov/xray-health-exporter>
 
@@ -100,6 +100,7 @@ Kubernetes: `>=1.32.0-0`
 | metrics.serviceMonitor.interval | string | `"30s"` | Scrape interval. |
 | metrics.serviceMonitor.labels | object | `{}` | Extra labels (e.g. `release: kube-prometheus-stack`). |
 | metrics.serviceMonitor.metricRelabelings | list | `[]` | Optional metric relabelings. |
+| metrics.serviceMonitor.namespace | string | `""` | Namespace for the ServiceMonitor. Defaults to the release namespace. |
 | metrics.serviceMonitor.relabelings | list | `[]` | Optional relabelings. |
 | metrics.serviceMonitor.scrapeTimeout | string | `"10s"` | Scrape timeout. |
 | nameOverride | string | `""` | Override the chart name (used in resource naming). |
