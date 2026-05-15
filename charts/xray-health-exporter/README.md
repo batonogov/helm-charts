@@ -2,7 +2,7 @@
 
 Prometheus exporter for Xray-core tunnel health
 
-![Version: 0.1.5](https://img.shields.io/badge/Version-0.1.5-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.2.3](https://img.shields.io/badge/AppVersion-1.2.3-informational?style=flat-square)
+![Version: 0.1.6](https://img.shields.io/badge/Version-0.1.6-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.2.3](https://img.shields.io/badge/AppVersion-1.2.3-informational?style=flat-square)
 
 **Homepage:** <https://github.com/batonogov/xray-health-exporter>
 
@@ -108,6 +108,9 @@ Kubernetes: `>=1.32.0-0`
 | networkPolicy.ingress | list | `[]` | Extra ingress rules. When unset, the chart allows ingress from any pod with label `app.kubernetes.io/name: prometheus`. |
 | nodeSelector | object | `{}` | nodeSelector for the pod. |
 | podAnnotations | object | `{}` | Annotations applied to every Deployment pod. |
+| podDisruptionBudget.enabled | bool | `false` | Create a PodDisruptionBudget. |
+| podDisruptionBudget.maxUnavailable | string | `nil` | Maximum number of pods that can be unavailable during disruptions. Takes precedence over `minAvailable` when set. |
+| podDisruptionBudget.minAvailable | int | `1` | Minimum number of pods that must be available during disruptions. |
 | podLabels | object | `{}` | Extra labels applied to every Deployment pod. |
 | podSecurityContext | object | `{"fsGroup":10001,"runAsGroup":10001,"runAsNonRoot":true,"runAsUser":10001}` | Pod-level security context (non-root, matches upstream UID 10001). |
 | replicaCount | int | `2` | Number of replicas. Values >1 force-enable `leaderElection.enabled` so only one pod publishes tunnel metrics. |

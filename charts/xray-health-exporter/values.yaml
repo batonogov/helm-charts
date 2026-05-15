@@ -130,3 +130,11 @@ networkPolicy:
   ingress: []
   # -- Extra egress rules. When unset, allows all egress.
   egress: []
+
+podDisruptionBudget:
+  # -- Create a PodDisruptionBudget.
+  enabled: false
+  # -- Minimum number of pods that must be available during disruptions.
+  minAvailable: 1
+  # -- Maximum number of pods that can be unavailable during disruptions. Takes precedence over `minAvailable` when set.
+  maxUnavailable:
