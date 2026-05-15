@@ -398,6 +398,18 @@ podSecurityContext: {}
 # -- Container-level securityContext
 securityContext: {}
 
+serviceMonitor:
+  # -- Create a Prometheus Operator ServiceMonitor for the backend Service
+  enabled: false
+  # -- Scrape interval (Prometheus duration format, e.g. 30s, 1m)
+  interval: ""
+  # -- Scrape timeout (Prometheus duration format, e.g. 10s, 30s)
+  scrapeTimeout: ""
+  # -- Labels for Prometheus to select the ServiceMonitor
+  labels: {}
+  # -- Namespace to deploy the ServiceMonitor into (defaults to the release namespace when empty)
+  namespace: ""
+
 # -- Extra labels added to every resource
 extraLabels: {}
 # -- Extra annotations added to every resource

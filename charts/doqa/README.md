@@ -2,7 +2,7 @@
 
 DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
 
-![Version: 0.1.1](https://img.shields.io/badge/Version-0.1.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.0.0-box](https://img.shields.io/badge/AppVersion-4.0.0--box-informational?style=flat-square)
+![Version: 0.1.2](https://img.shields.io/badge/Version-0.1.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.0.0-box](https://img.shields.io/badge/AppVersion-4.0.0--box-informational?style=flat-square)
 
 **Homepage:** <https://doqa.app>
 
@@ -230,6 +230,11 @@ Kubernetes: `>=1.32.0-0`
 | securityContext | object | `{}` | Container-level securityContext |
 | serviceAccount.create | bool | `false` | Create a dedicated ServiceAccount |
 | serviceAccount.name | string | `""` | Existing ServiceAccount name when create=false |
+| serviceMonitor.enabled | bool | `false` | Create a Prometheus Operator ServiceMonitor for the backend Service |
+| serviceMonitor.interval | string | `""` | Scrape interval (Prometheus duration format, e.g. 30s, 1m) |
+| serviceMonitor.labels | object | `{}` | Labels for Prometheus to select the ServiceMonitor |
+| serviceMonitor.namespace | string | `""` | Namespace to deploy the ServiceMonitor into (defaults to the release namespace when empty) |
+| serviceMonitor.scrapeTimeout | string | `""` | Scrape timeout (Prometheus duration format, e.g. 10s, 30s) |
 | statistic.affinity | object | `{}` |  |
 | statistic.image.repository | string | `"doqa/doqa-statistic"` | Statistic image repository |
 | statistic.image.tag | string | `"2.0.1-box"` | Statistic image tag |
