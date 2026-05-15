@@ -374,6 +374,10 @@ nginx:
   tolerations: []
   affinity: {}
 
+networkPolicy:
+  # -- Enable NetworkPolicy resources. Creates a default-deny-ingress policy and explicit allow rules for all internal traffic paths
+  enabled: false
+
 ingress:
   # -- Create the Ingress resource
   enabled: true

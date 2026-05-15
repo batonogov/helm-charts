@@ -2,7 +2,7 @@
 
 DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
 
-![Version: 0.1.1](https://img.shields.io/badge/Version-0.1.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.0.0-box](https://img.shields.io/badge/AppVersion-4.0.0--box-informational?style=flat-square)
+![Version: 0.1.2](https://img.shields.io/badge/Version-0.1.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.0.0-box](https://img.shields.io/badge/AppVersion-4.0.0--box-informational?style=flat-square)
 
 **Homepage:** <https://doqa.app>
 
@@ -155,6 +155,7 @@ Kubernetes: `>=1.32.0-0`
 | minio.storage.size | string | `"4Gi"` | PVC size for MinIO |
 | minio.storage.storageClass | string | `""` | StorageClass for MinIO PVC |
 | nameOverride | string | `""` | Override the chart name part of resource names |
+| networkPolicy.enabled | bool | `false` | Enable NetworkPolicy resources. Creates a default-deny-ingress policy and explicit allow rules for all internal traffic paths |
 | nginx.affinity | object | `{}` |  |
 | nginx.clientMaxBodySize | string | `"150M"` | Maximum upload size |
 | nginx.image.repository | string | `"service/nginx"` | Nginx image repository (override to docker.io/nginx if no vendor mirror access) |
