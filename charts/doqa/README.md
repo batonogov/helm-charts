@@ -2,7 +2,7 @@
 
 DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
 
-![Version: 0.1.1](https://img.shields.io/badge/Version-0.1.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.0.0-box](https://img.shields.io/badge/AppVersion-4.0.0--box-informational?style=flat-square)
+![Version: 0.1.2](https://img.shields.io/badge/Version-0.1.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.0.0-box](https://img.shields.io/badge/AppVersion-4.0.0--box-informational?style=flat-square)
 
 **Homepage:** <https://doqa.app>
 
@@ -247,6 +247,9 @@ Kubernetes: `>=1.32.0-0`
 | telegramBot.resources | object | `{}` | Container resources |
 | telegramBot.tokenSecret | string | `""` | Existing secret with key `token` for the Telegram bot token |
 | telegramBot.tolerations | list | `[]` |  |
+| topologySpreadConstraints.backend | list | `[]` |  |
+| topologySpreadConstraints.frontend | list | `[]` |  |
+| topologySpreadConstraints.queue | list | `[]` |  |
 | useSsl | bool | `true` | Whether the public URL is HTTPS. Affects USE_SSL env and bucket URL protocol |
 | websocket.affinity | object | `{}` |  |
 | websocket.image.repository | string | `"service/soketi"` | Soketi image repository (defaults to vendor mirror, override to `quay.io/soketi/soketi`) |

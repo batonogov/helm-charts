@@ -221,6 +221,30 @@ backend:
   tolerations: []
   affinity: {}
 
+# Topology spread constraints for multi-replica Deployments
+topologySpreadConstraints:
+  backend: []
+  # - maxSkew: 1
+  #   topologyKey: kubernetes.io/hostname
+  #   whenUnsatisfiable: DoNotSchedule
+  #   labelSelector:
+  #     matchLabels:
+  #       app.kubernetes.io/component: backend
+  frontend: []
+  # - maxSkew: 1
+  #   topologyKey: kubernetes.io/hostname
+  #   whenUnsatisfiable: DoNotSchedule
+  #   labelSelector:
+  #     matchLabels:
+  #       app.kubernetes.io/component: frontend
+  queue: []
+  # - maxSkew: 1
+  #   topologyKey: kubernetes.io/hostname
+  #   whenUnsatisfiable: DoNotSchedule
+  #   labelSelector:
+  #     matchLabels:
+  #       app.kubernetes.io/component: queue
+
 # Queue worker (`queue:work --queue=high,default`)
 queue:
   # -- Queue worker replica count
