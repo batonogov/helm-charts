@@ -393,10 +393,23 @@ serviceAccount:
   # -- Existing ServiceAccount name when create=false
   name: ""
 
-# -- Pod-level securityContext applied to every Pod
-podSecurityContext: {}
-# -- Container-level securityContext
-securityContext: {}
+# Default security context applied to all Deployments. Each component can override
+# via its own `podSecurityContext` / `containerSecurityContext` keys.
+defaultSecurityContext:
+  pod:
+    # -- Run all pods as non-root
+    runAsNonRoot: false
+    # -- Filesystem group for volume access
+    fsGroup: 1000
+  container:
+    # -- Prevent privilege escalation
+    allowPrivilegeEscalation: false
+    # -- Mount root filesystem read-only
+    readOnlyRootFilesystem: false
+    # -- Drop all Linux capabilities
+    capabilities:
+      drop:
+        - ALL
 
 # -- Extra labels added to every resource
 extraLabels: {}

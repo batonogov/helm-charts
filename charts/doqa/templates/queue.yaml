@@ -24,12 +24,12 @@ spec:
     spec:
       serviceAccountName: {{ include "doqa.serviceAccountName" . }}
       {{- include "doqa.imagePullSecrets" . | nindent 6 }}
-      {{- include "doqa.podSecurityContext" . | nindent 6 }}
+      {{- include "doqa.podSecurityContext" (dict "component" .Values.queue "root" .) | nindent 6 }}
       containers:
       - name: queue
         image: {{ include "doqa.image" (dict "img" .Values.backend.image "root" .) | quote }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
-        {{- include "doqa.containerSecurityContext" . | nindent 8 }}
+        {{- include "doqa.containerSecurityContext" (dict "component" .Values.queue "root" .) | nindent 8 }}
         command: ["php", "artisan", "queue:work", "--queue=high,default"]
         envFrom:
           {{- include "doqa.backendEnvFrom" . | nindent 10 }}

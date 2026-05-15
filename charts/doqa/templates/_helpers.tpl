@@ -79,15 +79,29 @@ imagePullSecrets:
 {{- end }}
 {{- end }}
 
+{{/*
+Pod-level securityContext. Merges defaultSecurityContext.pod with component-specific overrides.
+Usage: {{ include "doqa.podSecurityContext" (dict "component" .Values.backend "root" .) }}
+*/}}
 {{- define "doqa.podSecurityContext" -}}
-{{- with .Values.podSecurityContext }}
+{{- $defaults := .root.Values.defaultSecurityContext.pod | default dict -}}
+{{- $overrides := .component.podSecurityContext | default dict -}}
+{{- $pod := merge $overrides $defaults -}}
+{{- with $pod }}
 securityContext:
 {{- toYaml . | nindent 2 }}
 {{- end }}
 {{- end }}
 
+{{/*
+Container-level securityContext. Merges defaultSecurityContext.container with component-specific overrides.
+Usage: {{ include "doqa.containerSecurityContext" (dict "component" .Values.backend "root" .) }}
+*/}}
 {{- define "doqa.containerSecurityContext" -}}
-{{- with .Values.securityContext }}
+{{- $defaults := .root.Values.defaultSecurityContext.container | default dict -}}
+{{- $overrides := .component.containerSecurityContext | default dict -}}
+{{- $container := merge $overrides $defaults -}}
+{{- with $container }}
 securityContext:
 {{- toYaml . | nindent 2 }}
 {{- end }}

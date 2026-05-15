@@ -26,12 +26,12 @@ spec:
     spec:
       serviceAccountName: {{ include "doqa.serviceAccountName" . }}
       {{- include "doqa.imagePullSecrets" . | nindent 6 }}
-      {{- include "doqa.podSecurityContext" . | nindent 6 }}
+      {{- include "doqa.podSecurityContext" (dict "component" .Values.cron "root" .) | nindent 6 }}
       containers:
       - name: cron
         image: {{ include "doqa.image" (dict "img" .Values.backend.image "root" .) | quote }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
-        {{- include "doqa.containerSecurityContext" . | nindent 8 }}
+        {{- include "doqa.containerSecurityContext" (dict "component" .Values.cron "root" .) | nindent 8 }}
         command: ["php", "artisan", "schedule:work"]
         envFrom:
           {{- include "doqa.backendEnvFrom" . | nindent 10 }}

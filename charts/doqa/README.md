@@ -2,7 +2,7 @@
 
 DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
 
-![Version: 0.1.1](https://img.shields.io/badge/Version-0.1.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.0.0-box](https://img.shields.io/badge/AppVersion-4.0.0--box-informational?style=flat-square)
+![Version: 0.2.0](https://img.shields.io/badge/Version-0.2.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.0.0-box](https://img.shields.io/badge/AppVersion-4.0.0--box-informational?style=flat-square)
 
 **Homepage:** <https://doqa.app>
 
@@ -109,6 +109,11 @@ Kubernetes: `>=1.32.0-0`
 | cron.resources | object | `{}` | Container resources |
 | cron.tolerations | list | `[]` |  |
 | debug | bool | `false` | Enable verbose debug logging |
+| defaultSecurityContext.container.allowPrivilegeEscalation | bool | `false` | Prevent privilege escalation |
+| defaultSecurityContext.container.capabilities | object | `{"drop":["ALL"]}` | Drop all Linux capabilities |
+| defaultSecurityContext.container.readOnlyRootFilesystem | bool | `false` | Mount root filesystem read-only |
+| defaultSecurityContext.pod.fsGroup | int | `1000` | Filesystem group for volume access |
+| defaultSecurityContext.pod.runAsNonRoot | bool | `false` | Run all pods as non-root |
 | extraAnnotations | object | `{}` | Extra annotations added to every resource |
 | extraLabels | object | `{}` | Extra labels added to every resource |
 | frontend.affinity | object | `{}` |  |
@@ -173,7 +178,6 @@ Kubernetes: `>=1.32.0-0`
 | notification.worker.concurrency | int | `8` | Celery `--concurrency` value |
 | notification.worker.replicas | int | `1` | Celery worker replica count |
 | notification.worker.resources | object | `{}` | Worker container resources |
-| podSecurityContext | object | `{}` | Pod-level securityContext applied to every Pod |
 | postgresql.cnpg.create | bool | `true` | Provision a new CNPG `Cluster` resource. Requires CNPG operator in cluster |
 | postgresql.cnpg.imageName | string | `"ghcr.io/cloudnative-pg/postgresql:17"` | CNPG postgres image |
 | postgresql.cnpg.instances | int | `1` | Number of CNPG instances |
@@ -227,7 +231,6 @@ Kubernetes: `>=1.32.0-0`
 | secrets.minio | string | `""` | Existing secret with keys `access-key`, `secret-key`. Default <release>-minio-secrets |
 | secrets.pusher | string | `""` | Existing secret with key `app-secret`. Default <release>-pusher-secret |
 | secrets.rabbitmq | string | `""` | Existing secret with keys `password`, `erlang-cookie`. Default <release>-rabbitmq-secret |
-| securityContext | object | `{}` | Container-level securityContext |
 | serviceAccount.create | bool | `false` | Create a dedicated ServiceAccount |
 | serviceAccount.name | string | `""` | Existing ServiceAccount name when create=false |
 | statistic.affinity | object | `{}` |  |

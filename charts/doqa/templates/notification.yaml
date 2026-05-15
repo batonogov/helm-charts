@@ -23,12 +23,12 @@ spec:
     spec:
       serviceAccountName: {{ include "doqa.serviceAccountName" . }}
       {{- include "doqa.imagePullSecrets" . | nindent 6 }}
-      {{- include "doqa.podSecurityContext" . | nindent 6 }}
+      {{- include "doqa.podSecurityContext" (dict "component" .Values.notification "root" .) | nindent 6 }}
       containers:
       - name: notification
         image: {{ include "doqa.image" (dict "img" .Values.notification.image "root" .) | quote }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
-        {{- include "doqa.containerSecurityContext" . | nindent 8 }}
+        {{- include "doqa.containerSecurityContext" (dict "component" .Values.notification "root" .) | nindent 8 }}
         ports:
         - name: http
           containerPort: 3000
@@ -99,12 +99,12 @@ spec:
     spec:
       serviceAccountName: {{ include "doqa.serviceAccountName" . }}
       {{- include "doqa.imagePullSecrets" . | nindent 6 }}
-      {{- include "doqa.podSecurityContext" . | nindent 6 }}
+      {{- include "doqa.podSecurityContext" (dict "component" .Values.notification "root" .) | nindent 6 }}
       containers:
       - name: notification-worker
         image: {{ include "doqa.image" (dict "img" .Values.notification.image "root" .) | quote }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
-        {{- include "doqa.containerSecurityContext" . | nindent 8 }}
+        {{- include "doqa.containerSecurityContext" (dict "component" .Values.notification "root" .) | nindent 8 }}
         command:
         - bash
         - -c
