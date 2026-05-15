@@ -2,7 +2,7 @@
 
 Prometheus exporter for Xray-core tunnel health
 
-![Version: 0.1.5](https://img.shields.io/badge/Version-0.1.5-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.2.3](https://img.shields.io/badge/AppVersion-1.2.3-informational?style=flat-square)
+![Version: 0.1.6](https://img.shields.io/badge/Version-0.1.6-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.2.3](https://img.shields.io/badge/AppVersion-1.2.3-informational?style=flat-square)
 
 **Homepage:** <https://github.com/batonogov/xray-health-exporter>
 
@@ -111,7 +111,7 @@ Kubernetes: `>=1.32.0-0`
 | podLabels | object | `{}` | Extra labels applied to every Deployment pod. |
 | podSecurityContext | object | `{"fsGroup":10001,"runAsGroup":10001,"runAsNonRoot":true,"runAsUser":10001}` | Pod-level security context (non-root, matches upstream UID 10001). |
 | replicaCount | int | `2` | Number of replicas. Values >1 force-enable `leaderElection.enabled` so only one pod publishes tunnel metrics. |
-| resources | object | `{}` | Container resource requests/limits. |
+| resources | object | `{"limits":{"cpu":"100m","memory":"128Mi"},"requests":{"cpu":"50m","memory":"64Mi"}}` | Resource requests and limits for the exporter container |
 | securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true}` | Container-level security context (read-only rootfs, no privilege escalation). |
 | service.annotations | object | `{}` | Annotations applied to the Service. |
 | service.port | int | `9273` | Service port. |

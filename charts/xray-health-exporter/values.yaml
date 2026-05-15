@@ -36,8 +36,14 @@ securityContext:
     drop:
       - ALL
 
-# -- Container resource requests/limits.
-resources: {}
+# -- Resource requests and limits for the exporter container
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 100m
+    memory: 128Mi
 # -- nodeSelector for the pod.
 nodeSelector: {}
 # -- Tolerations for the pod.
