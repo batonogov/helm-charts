@@ -6,7 +6,9 @@ metadata:
     {{- include "doqa.labels" . | nindent 4 }}
     app.kubernetes.io/component: backend
 spec:
+  {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.backend.replicas }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "doqa.selectorLabels" . | nindent 6 }}

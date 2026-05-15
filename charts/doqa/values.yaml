@@ -374,6 +374,31 @@ nginx:
   tolerations: []
   affinity: {}
 
+autoscaling:
+  # -- Enable HorizontalPodAutoscaler for backend, frontend, and queue Deployments. When enabled, the replicas field is removed from those Deployments (HPA manages replicas)
+  enabled: false
+  backend:
+    # -- Minimum replicas for backend HPA
+    minReplicas: 2
+    # -- Maximum replicas for backend HPA
+    maxReplicas: 5
+    # -- Target CPU utilization percentage for backend HPA
+    targetCPUUtilizationPercentage: 80
+  frontend:
+    # -- Minimum replicas for frontend HPA
+    minReplicas: 2
+    # -- Maximum replicas for frontend HPA
+    maxReplicas: 5
+    # -- Target CPU utilization percentage for frontend HPA
+    targetCPUUtilizationPercentage: 80
+  queue:
+    # -- Minimum replicas for queue HPA
+    minReplicas: 2
+    # -- Maximum replicas for queue HPA
+    maxReplicas: 5
+    # -- Target CPU utilization percentage for queue HPA
+    targetCPUUtilizationPercentage: 80
+
 ingress:
   # -- Create the Ingress resource
   enabled: true

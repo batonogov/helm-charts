@@ -2,7 +2,7 @@
 
 DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
 
-![Version: 0.1.1](https://img.shields.io/badge/Version-0.1.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.0.0-box](https://img.shields.io/badge/AppVersion-4.0.0--box-informational?style=flat-square)
+![Version: 0.1.2](https://img.shields.io/badge/Version-0.1.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.0.0-box](https://img.shields.io/badge/AppVersion-4.0.0--box-informational?style=flat-square)
 
 **Homepage:** <https://doqa.app>
 
@@ -82,6 +82,16 @@ Kubernetes: `>=1.32.0-0`
 |-----|------|---------|-------------|
 | appFrontendUrl | string | `""` | Frontend URL (defaults to appUrl when empty) |
 | appUrl | string | `"doqa.example.com"` | DoQA application URL (host without protocol, e.g. "doqa.example.com") |
+| autoscaling.backend.maxReplicas | int | `5` | Maximum replicas for backend HPA |
+| autoscaling.backend.minReplicas | int | `2` | Minimum replicas for backend HPA |
+| autoscaling.backend.targetCPUUtilizationPercentage | int | `80` | Target CPU utilization percentage for backend HPA |
+| autoscaling.enabled | bool | `false` | Enable HorizontalPodAutoscaler for backend, frontend, and queue Deployments. When enabled, the replicas field is removed from those Deployments (HPA manages replicas) |
+| autoscaling.frontend.maxReplicas | int | `5` | Maximum replicas for frontend HPA |
+| autoscaling.frontend.minReplicas | int | `2` | Minimum replicas for frontend HPA |
+| autoscaling.frontend.targetCPUUtilizationPercentage | int | `80` | Target CPU utilization percentage for frontend HPA |
+| autoscaling.queue.maxReplicas | int | `5` | Maximum replicas for queue HPA |
+| autoscaling.queue.minReplicas | int | `2` | Minimum replicas for queue HPA |
+| autoscaling.queue.targetCPUUtilizationPercentage | int | `80` | Target CPU utilization percentage for queue HPA |
 | autotestParser.affinity | object | `{}` |  |
 | autotestParser.image.repository | string | `"doqa/doqa-parsing-autotests"` | Autotest parser image repository |
 | autotestParser.image.tag | string | `"3.0.2-box"` | Autotest parser image tag |
