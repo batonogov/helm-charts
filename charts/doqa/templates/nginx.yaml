@@ -19,18 +19,21 @@ spec:
         {{- with .Values.extraAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       labels:
         {{- include "doqa.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: nginx
     spec:
       serviceAccountName: {{ include "doqa.serviceAccountName" . }}
       {{- include "doqa.imagePullSecrets" . | nindent 6 }}
-      {{- include "doqa.podSecurityContext" . | nindent 6 }}
+      {{- include "doqa.podSecurityContext" (dict "component" .Values.nginx "root" .) | nindent 6 }}
       containers:
       - name: nginx
         image: {{ include "doqa.image" (dict "img" .Values.nginx.image "root" .) | quote }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
-        {{- include "doqa.containerSecurityContext" . | nindent 8 }}
+        {{- include "doqa.containerSecurityContext" (dict "component" .Values.nginx "root" .) | nindent 8 }}
         ports:
         - name: http
           containerPort: 80
@@ -39,6 +42,9 @@ spec:
         - name: config
           mountPath: /etc/nginx/conf.d/default.conf
           subPath: default.conf
+        {{- range .Values.extraVolumeMounts }}
+        - {{ toYaml . | nindent 10 }}
+{{- end }}
         livenessProbe:
           httpGet:
             path: /
@@ -59,15 +65,18 @@ spec:
       - name: config
         configMap:
           name: {{ $fullName }}-nginx
-      {{- with .Values.nginx.nodeSelector }}
+      {{- range .Values.extraVolumes }}
+      - {{ toYaml . | nindent 8 }}
+{{- end }}
+      {{- with (or .Values.nginx.nodeSelector .Values.nodeSelector) }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.nginx.affinity }}
+      {{- with (or .Values.nginx.affinity .Values.affinity) }}
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.nginx.tolerations }}
+      {{- with (or .Values.nginx.tolerations .Values.tolerations) }}
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}

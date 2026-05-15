@@ -3,6 +3,13 @@ nameOverride: ""
 # -- Override the full name of resources
 fullnameOverride: ""
 
+# -- Default node selector applied to all components. Per-component values override this.
+nodeSelector: {}
+# -- Default affinity applied to all components. Per-component values override this.
+affinity: {}
+# -- Default tolerations applied to all components. Per-component values override this.
+tolerations: []
+
 # -- DoQA application URL (host without protocol, e.g. "doqa.example.com")
 appUrl: "doqa.example.com"
 # -- Frontend URL (defaults to appUrl when empty)
@@ -83,8 +90,20 @@ redis:
     size: 1Gi
     # -- StorageClass for Redis PVC
     storageClass: ""
-  # -- Container resources
-  resources: {}
+  # -- Resource requests and limits
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+  # -- Node selector for Redis pods. Overrides global nodeSelector
+  nodeSelector: {}
+  # -- Affinity for Redis pods. Overrides global affinity
+  affinity: {}
+  # -- Tolerations for Redis pods. Overrides global tolerations
+  tolerations: []
   # -- External Redis host (used only when create=false)
   host: ""
   # -- Redis port
@@ -123,8 +142,20 @@ rabbitmq:
     size: 1Gi
     # -- StorageClass for RabbitMQ PVC
     storageClass: ""
-  # -- Container resources
-  resources: {}
+  # -- Resource requests and limits
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+  # -- Node selector for RabbitMQ pods. Overrides global nodeSelector
+  nodeSelector: {}
+  # -- Affinity for RabbitMQ pods. Overrides global affinity
+  affinity: {}
+  # -- Tolerations for RabbitMQ pods. Overrides global tolerations
+  tolerations: []
   # -- External RabbitMQ host (used only when create=false)
   host: ""
   # -- AMQP port
@@ -153,8 +184,20 @@ minio:
     size: 4Gi
     # -- StorageClass for MinIO PVC
     storageClass: ""
-  # -- Container resources
-  resources: {}
+  # -- Resource requests and limits
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  # -- Node selector for MinIO pods. Overrides global nodeSelector
+  nodeSelector: {}
+  # -- Affinity for MinIO pods. Overrides global affinity
+  affinity: {}
+  # -- Tolerations for MinIO pods. Overrides global tolerations
+  tolerations: []
   # -- External MinIO/S3 endpoint (used only when create=false). For in-tree MinIO chart computes internal URL automatically
   endpoint: ""
   # -- Bucket name
@@ -215,26 +258,68 @@ backend:
   replicas: 2
   # -- Skip running `php artisan migrate --force` on rollout
   skipMigrate: false
-  # -- Container resources
-  resources: {}
+  # -- Resource requests and limits
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
   nodeSelector: {}
   tolerations: []
   affinity: {}
+
+# Topology spread constraints for multi-replica Deployments
+topologySpreadConstraints:
+  backend: []
+  # - maxSkew: 1
+  #   topologyKey: kubernetes.io/hostname
+  #   whenUnsatisfiable: DoNotSchedule
+  #   labelSelector:
+  #     matchLabels:
+  #       app.kubernetes.io/component: backend
+  frontend: []
+  # - maxSkew: 1
+  #   topologyKey: kubernetes.io/hostname
+  #   whenUnsatisfiable: DoNotSchedule
+  #   labelSelector:
+  #     matchLabels:
+  #       app.kubernetes.io/component: frontend
+  queue: []
+  # - maxSkew: 1
+  #   topologyKey: kubernetes.io/hostname
+  #   whenUnsatisfiable: DoNotSchedule
+  #   labelSelector:
+  #     matchLabels:
+  #       app.kubernetes.io/component: queue
 
 # Queue worker (`queue:work --queue=high,default`)
 queue:
   # -- Queue worker replica count
   replicas: 1
-  # -- Container resources
-  resources: {}
+  # -- Resource requests and limits
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
   nodeSelector: {}
   tolerations: []
   affinity: {}
 
 # Cron / scheduled jobs (`schedule:work`). Single replica is mandatory
 cron:
-  # -- Container resources
-  resources: {}
+  # -- Resource requests and limits
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -248,8 +333,14 @@ frontend:
     tag: 4.0.2-box
   # -- Frontend replica count
   replicas: 2
-  # -- Container resources
-  resources: {}
+  # -- Resource requests and limits
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -263,8 +354,14 @@ autotestParser:
     tag: 3.0.2-box
   # -- Autotest parser replica count
   replicas: 1
-  # -- Container resources
-  resources: {}
+  # -- Resource requests and limits
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -278,8 +375,14 @@ autotestResultParser:
     tag: 1.0.1-box
   # -- Result parser replica count
   replicas: 1
-  # -- Container resources
-  resources: {}
+  # -- Resource requests and limits
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -293,8 +396,14 @@ statistic:
     tag: 2.0.1-box
   # -- Replica count
   replicas: 1
-  # -- Container resources
-  resources: {}
+  # -- Resource requests and limits
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -308,8 +417,14 @@ notification:
     tag: 1.0.15-box
   # -- API replica count
   replicas: 1
-  # -- API container resources
-  resources: {}
+  # -- Resource requests and limits
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -318,8 +433,14 @@ notification:
     replicas: 1
     # -- Celery `--concurrency` value
     concurrency: 8
-    # -- Worker container resources
-    resources: {}
+    # -- Worker resource requests and limits
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
 
 # Telegram bot — optional companion service
 telegramBot:
@@ -336,8 +457,14 @@ telegramBot:
   tokenSecret: ""
   # -- Replica count
   replicas: 1
-  # -- Container resources
-  resources: {}
+  # -- Resource requests and limits
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -351,8 +478,14 @@ websocket:
     tag: 16-alpine
   # -- Replica count
   replicas: 1
-  # -- Container resources
-  resources: {}
+  # -- Resource requests and limits
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -368,8 +501,14 @@ nginx:
   replicas: 2
   # -- Maximum upload size
   clientMaxBodySize: 150M
-  # -- Container resources
-  resources: {}
+  # -- Resource requests and limits
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 50m
+      memory: 64Mi
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -387,18 +526,91 @@ ingress:
     # -- Existing TLS secret name (empty = <release>-tls)
     secretName: ""
 
+networkPolicy:
+  # -- Enable NetworkPolicy resources. Creates a default-deny-ingress policy and explicit allow rules for all internal traffic paths
+  enabled: false
+
+autoscaling:
+  # -- Enable HorizontalPodAutoscaler for backend, frontend, and queue Deployments. When enabled, the replicas field is removed from those Deployments (HPA manages replicas)
+  enabled: false
+  backend:
+    # -- Minimum replicas for backend HPA
+    minReplicas: 2
+    # -- Maximum replicas for backend HPA
+    maxReplicas: 5
+    # -- Target CPU utilization percentage for backend HPA
+    targetCPUUtilizationPercentage: 80
+  frontend:
+    # -- Minimum replicas for frontend HPA
+    minReplicas: 2
+    # -- Maximum replicas for frontend HPA
+    maxReplicas: 5
+    # -- Target CPU utilization percentage for frontend HPA
+    targetCPUUtilizationPercentage: 80
+  queue:
+    # -- Minimum replicas for queue HPA
+    minReplicas: 2
+    # -- Maximum replicas for queue HPA
+    maxReplicas: 5
+    # -- Target CPU utilization percentage for queue HPA
+    targetCPUUtilizationPercentage: 80
+
 serviceAccount:
   # -- Create a dedicated ServiceAccount
   create: false
   # -- Existing ServiceAccount name when create=false
   name: ""
 
-# -- Pod-level securityContext applied to every Pod
-podSecurityContext: {}
-# -- Container-level securityContext
-securityContext: {}
+# Default security context applied to all Deployments. Each component can override
+# via its own `podSecurityContext` / `containerSecurityContext` keys.
+defaultSecurityContext:
+  pod:
+    # -- Run all pods as non-root
+    runAsNonRoot: false
+    # -- Filesystem group for volume access
+    fsGroup: 1000
+  container:
+    # -- Prevent privilege escalation
+    allowPrivilegeEscalation: false
+    # -- Mount root filesystem read-only
+    readOnlyRootFilesystem: false
+    # -- Drop all Linux capabilities
+    capabilities:
+      drop:
+        - ALL
+
+serviceMonitor:
+  # -- Create a Prometheus Operator ServiceMonitor for the backend Service
+  enabled: false
+  # -- Scrape interval (Prometheus duration format, e.g. 30s, 1m)
+  interval: ""
+  # -- Scrape timeout (Prometheus duration format, e.g. 10s, 30s)
+  scrapeTimeout: ""
+  # -- Labels for Prometheus to select the ServiceMonitor
+  labels: {}
+  # -- Namespace to deploy the ServiceMonitor into (defaults to the release namespace when empty)
+  namespace: ""
+
+podDisruptionBudget:
+  # -- Create PodDisruptionBudget resources for multi-replica components
+  enabled: false
+  backend:
+    # -- Minimum number of backend pods that must remain available during disruptions
+    minAvailable: 1
+  frontend:
+    # -- Minimum number of frontend pods that must remain available during disruptions
+    minAvailable: 1
+  queue:
+    # -- Minimum number of queue pods that must remain available during disruptions
+    minAvailable: 1
 
 # -- Extra labels added to every resource
 extraLabels: {}
 # -- Extra annotations added to every resource
 extraAnnotations: {}
+# -- Extra annotations to add to all pod templates. Per-component overrides are not supported — use this single map.
+podAnnotations: {}
+# -- Extra volumes to add to all Deployments
+extraVolumes: []
+# -- Extra volume mounts to add to all containers
+extraVolumeMounts: []

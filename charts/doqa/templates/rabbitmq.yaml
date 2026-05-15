@@ -37,15 +37,19 @@ spec:
       labels:
         {{- include "doqa.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: rabbitmq
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
       serviceAccountName: {{ include "doqa.serviceAccountName" . }}
       {{- include "doqa.imagePullSecrets" . | nindent 6 }}
-      {{- include "doqa.podSecurityContext" . | nindent 6 }}
+      {{- include "doqa.podSecurityContext" (dict "component" .Values.rabbitmq "root" .) | nindent 6 }}
       containers:
       - name: rabbitmq
         image: "{{ .Values.rabbitmq.image.repository }}:{{ .Values.rabbitmq.image.tag }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
-        {{- include "doqa.containerSecurityContext" . | nindent 8 }}
+        {{- include "doqa.containerSecurityContext" (dict "component" .Values.rabbitmq "root" .) | nindent 8 }}
         ports:
         - name: amqp
           containerPort: 5672
@@ -69,6 +73,9 @@ spec:
         volumeMounts:
         - name: data
           mountPath: /var/lib/rabbitmq
+        {{- range $.Values.extraVolumeMounts }}
+        - {{ toYaml . | nindent 10 }}
+{{- end }}
         livenessProbe:
           tcpSocket:
             port: amqp
@@ -85,6 +92,21 @@ spec:
       - name: data
         persistentVolumeClaim:
           claimName: {{ $fullName }}-rabbitmq
+      {{- range $.Values.extraVolumes }}
+      - {{ toYaml . | nindent 8 }}
+{{- end }}
+      {{- with (or .Values.rabbitmq.nodeSelector .Values.nodeSelector) }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with (or .Values.rabbitmq.affinity .Values.affinity) }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with (or .Values.rabbitmq.tolerations .Values.tolerations) }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
 ---
 apiVersion: v1
 kind: Service

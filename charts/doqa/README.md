@@ -2,7 +2,7 @@
 
 DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
 
-![Version: 0.1.1](https://img.shields.io/badge/Version-0.1.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.0.0-box](https://img.shields.io/badge/AppVersion-4.0.0--box-informational?style=flat-square)
+![Version: 0.2.0](https://img.shields.io/badge/Version-0.2.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.0.0-box](https://img.shields.io/badge/AppVersion-4.0.0--box-informational?style=flat-square)
 
 **Homepage:** <https://doqa.app>
 
@@ -80,43 +80,61 @@ Kubernetes: `>=1.32.0-0`
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
+| affinity | object | `{}` | Default affinity applied to all components. Per-component values override this. |
 | appFrontendUrl | string | `""` | Frontend URL (defaults to appUrl when empty) |
 | appUrl | string | `"doqa.example.com"` | DoQA application URL (host without protocol, e.g. "doqa.example.com") |
+| autoscaling.backend.maxReplicas | int | `5` | Maximum replicas for backend HPA |
+| autoscaling.backend.minReplicas | int | `2` | Minimum replicas for backend HPA |
+| autoscaling.backend.targetCPUUtilizationPercentage | int | `80` | Target CPU utilization percentage for backend HPA |
+| autoscaling.enabled | bool | `false` | Enable HorizontalPodAutoscaler for backend, frontend, and queue Deployments. When enabled, the replicas field is removed from those Deployments (HPA manages replicas) |
+| autoscaling.frontend.maxReplicas | int | `5` | Maximum replicas for frontend HPA |
+| autoscaling.frontend.minReplicas | int | `2` | Minimum replicas for frontend HPA |
+| autoscaling.frontend.targetCPUUtilizationPercentage | int | `80` | Target CPU utilization percentage for frontend HPA |
+| autoscaling.queue.maxReplicas | int | `5` | Maximum replicas for queue HPA |
+| autoscaling.queue.minReplicas | int | `2` | Minimum replicas for queue HPA |
+| autoscaling.queue.targetCPUUtilizationPercentage | int | `80` | Target CPU utilization percentage for queue HPA |
 | autotestParser.affinity | object | `{}` |  |
 | autotestParser.image.repository | string | `"doqa/doqa-parsing-autotests"` | Autotest parser image repository |
 | autotestParser.image.tag | string | `"3.0.2-box"` | Autotest parser image tag |
 | autotestParser.nodeSelector | object | `{}` |  |
 | autotestParser.replicas | int | `1` | Autotest parser replica count |
-| autotestParser.resources | object | `{}` | Container resources |
+| autotestParser.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
 | autotestParser.tolerations | list | `[]` |  |
 | autotestResultParser.affinity | object | `{}` |  |
 | autotestResultParser.image.repository | string | `"doqa/doqa-autotest-result-parser"` | Result parser image repository |
 | autotestResultParser.image.tag | string | `"1.0.1-box"` | Result parser image tag |
 | autotestResultParser.nodeSelector | object | `{}` |  |
 | autotestResultParser.replicas | int | `1` | Result parser replica count |
-| autotestResultParser.resources | object | `{}` | Container resources |
+| autotestResultParser.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
 | autotestResultParser.tolerations | list | `[]` |  |
 | backend.affinity | object | `{}` |  |
 | backend.image.repository | string | `"doqa/doqa-backend"` | Backend image repository (relative to image.registry) |
 | backend.image.tag | string | `"4.0.2-box"` | Backend image tag |
 | backend.nodeSelector | object | `{}` |  |
 | backend.replicas | int | `2` | Backend replica count |
-| backend.resources | object | `{}` | Container resources |
+| backend.resources | object | `{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}}` | Resource requests and limits |
 | backend.skipMigrate | bool | `false` |  |
 | backend.tolerations | list | `[]` |  |
 | cron.affinity | object | `{}` |  |
 | cron.nodeSelector | object | `{}` |  |
-| cron.resources | object | `{}` | Container resources |
+| cron.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
 | cron.tolerations | list | `[]` |  |
 | debug | bool | `false` | Enable verbose debug logging |
+| defaultSecurityContext.container.allowPrivilegeEscalation | bool | `false` | Prevent privilege escalation |
+| defaultSecurityContext.container.capabilities | object | `{"drop":["ALL"]}` | Drop all Linux capabilities |
+| defaultSecurityContext.container.readOnlyRootFilesystem | bool | `false` | Mount root filesystem read-only |
+| defaultSecurityContext.pod.fsGroup | int | `1000` | Filesystem group for volume access |
+| defaultSecurityContext.pod.runAsNonRoot | bool | `false` | Run all pods as non-root |
 | extraAnnotations | object | `{}` | Extra annotations added to every resource |
 | extraLabels | object | `{}` | Extra labels added to every resource |
+| extraVolumeMounts | list | `[]` | Extra volume mounts to add to all containers |
+| extraVolumes | list | `[]` | Extra volumes to add to all Deployments |
 | frontend.affinity | object | `{}` |  |
 | frontend.image.repository | string | `"doqa/doqa-frontend"` | Frontend image repository (relative to image.registry) |
 | frontend.image.tag | string | `"4.0.2-box"` | Frontend image tag |
 | frontend.nodeSelector | object | `{}` |  |
 | frontend.replicas | int | `2` | Frontend replica count |
-| frontend.resources | object | `{}` | Container resources |
+| frontend.resources | object | `{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}}` | Resource requests and limits |
 | frontend.tolerations | list | `[]` |  |
 | fullnameOverride | string | `""` | Override the full name of resources |
 | image.pullPolicy | string | `"IfNotPresent"` | Default imagePullPolicy |
@@ -142,6 +160,7 @@ Kubernetes: `>=1.32.0-0`
 | mail.port | int | `587` | SMTP port |
 | mail.username | string | `""` | SMTP user |
 | mailIssue | string | `"support@doqa.app"` | Issue/support email exposed to backend (`MAIL_ISSUE`) |
+| minio.affinity | object | `{}` | Affinity for MinIO pods. Overrides global affinity |
 | minio.bucket | string | `"doqa"` | Bucket name |
 | minio.bucketUrl | string | `""` | Public bucket URL (defaults to "<scheme>://<appUrl>/<bucket>" when empty, served via internal nginx) |
 | minio.client.image.repository | string | `"quay.io/minio/mc"` | mc client image (used by bucket-init Job) |
@@ -150,30 +169,38 @@ Kubernetes: `>=1.32.0-0`
 | minio.endpoint | string | `""` | External MinIO/S3 endpoint (used only when create=false). For in-tree MinIO chart computes internal URL automatically |
 | minio.image.repository | string | `"quay.io/minio/minio"` | MinIO image |
 | minio.image.tag | string | `"RELEASE.2025-04-22T22-12-26Z"` | MinIO tag |
+| minio.nodeSelector | object | `{}` | Node selector for MinIO pods. Overrides global nodeSelector |
 | minio.region | string | `"ru-1"` | Region |
-| minio.resources | object | `{}` | Container resources |
+| minio.resources | object | `{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}}` | Resource requests and limits |
 | minio.storage.size | string | `"4Gi"` | PVC size for MinIO |
 | minio.storage.storageClass | string | `""` | StorageClass for MinIO PVC |
+| minio.tolerations | list | `[]` | Tolerations for MinIO pods. Overrides global tolerations |
 | nameOverride | string | `""` | Override the chart name part of resource names |
+| networkPolicy.enabled | bool | `false` | Enable NetworkPolicy resources. Creates a default-deny-ingress policy and explicit allow rules for all internal traffic paths |
 | nginx.affinity | object | `{}` |  |
 | nginx.clientMaxBodySize | string | `"150M"` | Maximum upload size |
 | nginx.image.repository | string | `"service/nginx"` | Nginx image repository (override to docker.io/nginx if no vendor mirror access) |
 | nginx.image.tag | string | `"1.23.3-alpine"` | Nginx image tag |
 | nginx.nodeSelector | object | `{}` |  |
 | nginx.replicas | int | `2` | Replica count |
-| nginx.resources | object | `{}` | Container resources |
+| nginx.resources | object | `{"limits":{"cpu":"50m","memory":"64Mi"},"requests":{"cpu":"25m","memory":"32Mi"}}` | Resource requests and limits |
 | nginx.tolerations | list | `[]` |  |
+| nodeSelector | object | `{}` | Default node selector applied to all components. Per-component values override this. |
 | notification.affinity | object | `{}` |  |
 | notification.image.repository | string | `"doqa/doqa-notify"` | Notification image repository |
 | notification.image.tag | string | `"1.0.15-box"` | Notification image tag |
 | notification.nodeSelector | object | `{}` |  |
 | notification.replicas | int | `1` | API replica count |
-| notification.resources | object | `{}` | API container resources |
+| notification.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
 | notification.tolerations | list | `[]` |  |
 | notification.worker.concurrency | int | `8` | Celery `--concurrency` value |
 | notification.worker.replicas | int | `1` | Celery worker replica count |
-| notification.worker.resources | object | `{}` | Worker container resources |
-| podSecurityContext | object | `{}` | Pod-level securityContext applied to every Pod |
+| notification.worker.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Worker resource requests and limits |
+| podAnnotations | object | `{}` | Extra annotations to add to all pod templates. Per-component overrides are not supported — use this single map. |
+| podDisruptionBudget.backend.minAvailable | int | `1` | Minimum number of backend pods that must remain available during disruptions |
+| podDisruptionBudget.enabled | bool | `false` | Create PodDisruptionBudget resources for multi-replica components |
+| podDisruptionBudget.frontend.minAvailable | int | `1` | Minimum number of frontend pods that must remain available during disruptions |
+| podDisruptionBudget.queue.minAvailable | int | `1` | Minimum number of queue pods that must remain available during disruptions |
 | postgresql.cnpg.create | bool | `true` | Provision a new CNPG `Cluster` resource. Requires CNPG operator in cluster |
 | postgresql.cnpg.imageName | string | `"ghcr.io/cloudnative-pg/postgresql:17"` | CNPG postgres image |
 | postgresql.cnpg.instances | int | `1` | Number of CNPG instances |
@@ -191,23 +218,28 @@ Kubernetes: `>=1.32.0-0`
 | queue.affinity | object | `{}` |  |
 | queue.nodeSelector | object | `{}` |  |
 | queue.replicas | int | `1` | Queue worker replica count |
-| queue.resources | object | `{}` | Container resources |
+| queue.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
 | queue.tolerations | list | `[]` |  |
+| rabbitmq.affinity | object | `{}` | Affinity for RabbitMQ pods. Overrides global affinity |
 | rabbitmq.create | bool | `true` | Provision an in-tree RabbitMQ Deployment+PVC |
 | rabbitmq.host | string | `""` | External RabbitMQ host (used only when create=false) |
 | rabbitmq.image.repository | string | `"docker.io/rabbitmq"` | RabbitMQ image |
 | rabbitmq.image.tag | string | `"4-management-alpine"` | RabbitMQ tag (management variant for built-in UI) |
+| rabbitmq.nodeSelector | object | `{}` | Node selector for RabbitMQ pods. Overrides global nodeSelector |
 | rabbitmq.port | int | `5672` | AMQP port |
-| rabbitmq.resources | object | `{}` | Container resources |
+| rabbitmq.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
 | rabbitmq.storage.size | string | `"1Gi"` | PVC size for RabbitMQ |
 | rabbitmq.storage.storageClass | string | `""` | StorageClass for RabbitMQ PVC |
+| rabbitmq.tolerations | list | `[]` | Tolerations for RabbitMQ pods. Overrides global tolerations |
 | rabbitmq.username | string | `"admin"` | RabbitMQ user |
 | rabbitmq.virtualHost | string | `"/"` | RabbitMQ virtual host |
+| redis.affinity | object | `{}` | Affinity for Redis pods. Overrides global affinity |
 | redis.create | bool | `true` | Provision an in-tree Redis Deployment+PVC. Single replica, no HA |
 | redis.db | int | `0` | Logical Redis DB for backend cache/queues |
 | redis.host | string | `""` | External Redis host (used only when create=false) |
 | redis.image.repository | string | `"docker.io/redis"` | Redis image |
 | redis.image.tag | string | `"7-alpine"` | Redis tag |
+| redis.nodeSelector | object | `{}` | Node selector for Redis pods. Overrides global nodeSelector |
 | redis.notification.db | string | `"doqa"` | Notification logical DB (vendor uses string "doqa") |
 | redis.notification.host | string | `""` | Notification Redis host (defaults to redis host when empty) |
 | redis.notification.passwordSecret.key | string | `"password"` | Key inside the password secret |
@@ -216,9 +248,10 @@ Kubernetes: `>=1.32.0-0`
 | redis.passwordSecret.key | string | `"password"` | Key inside the password secret |
 | redis.passwordSecret.name | string | `""` | External Redis password secret (leave empty for no auth) |
 | redis.port | int | `6379` | Redis port |
-| redis.resources | object | `{}` | Container resources |
+| redis.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
 | redis.storage.size | string | `"1Gi"` | PVC size for Redis |
 | redis.storage.storageClass | string | `""` | StorageClass for Redis PVC |
+| redis.tolerations | list | `[]` | Tolerations for Redis pods. Overrides global tolerations |
 | secrets.apiKeys | string | `""` | Existing secret with keys `statistic-api-key`, `notification-api-key`. Default <release>-api-keys |
 | secrets.app | string | `""` | Existing secret with keys `app-key`, `jwt-secret`. Default <release>-app-secrets |
 | secrets.create | bool | `true` | Generate chart-managed secrets with random values |
@@ -227,15 +260,19 @@ Kubernetes: `>=1.32.0-0`
 | secrets.minio | string | `""` | Existing secret with keys `access-key`, `secret-key`. Default <release>-minio-secrets |
 | secrets.pusher | string | `""` | Existing secret with key `app-secret`. Default <release>-pusher-secret |
 | secrets.rabbitmq | string | `""` | Existing secret with keys `password`, `erlang-cookie`. Default <release>-rabbitmq-secret |
-| securityContext | object | `{}` | Container-level securityContext |
 | serviceAccount.create | bool | `false` | Create a dedicated ServiceAccount |
 | serviceAccount.name | string | `""` | Existing ServiceAccount name when create=false |
+| serviceMonitor.enabled | bool | `false` | Create a Prometheus Operator ServiceMonitor for the backend Service |
+| serviceMonitor.interval | string | `""` | Scrape interval (Prometheus duration format, e.g. 30s, 1m) |
+| serviceMonitor.labels | object | `{}` | Labels for Prometheus to select the ServiceMonitor |
+| serviceMonitor.namespace | string | `""` | Namespace to deploy the ServiceMonitor into (defaults to the release namespace when empty) |
+| serviceMonitor.scrapeTimeout | string | `""` | Scrape timeout (Prometheus duration format, e.g. 10s, 30s) |
 | statistic.affinity | object | `{}` |  |
 | statistic.image.repository | string | `"doqa/doqa-statistic"` | Statistic image repository |
 | statistic.image.tag | string | `"2.0.1-box"` | Statistic image tag |
 | statistic.nodeSelector | object | `{}` |  |
 | statistic.replicas | int | `1` | Replica count |
-| statistic.resources | object | `{}` | Container resources |
+| statistic.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
 | statistic.tolerations | list | `[]` |  |
 | telegramBot.affinity | object | `{}` |  |
 | telegramBot.botName | string | `""` | Bot username (BOT_NAME) |
@@ -244,16 +281,20 @@ Kubernetes: `>=1.32.0-0`
 | telegramBot.image.tag | string | `"0.1.3-box"` | Telegram bot image tag |
 | telegramBot.nodeSelector | object | `{}` |  |
 | telegramBot.replicas | int | `1` | Replica count |
-| telegramBot.resources | object | `{}` | Container resources |
+| telegramBot.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
 | telegramBot.tokenSecret | string | `""` | Existing secret with key `token` for the Telegram bot token |
 | telegramBot.tolerations | list | `[]` |  |
+| tolerations | list | `[]` | Default tolerations applied to all components. Per-component values override this. |
+| topologySpreadConstraints.backend | list | `[]` |  |
+| topologySpreadConstraints.frontend | list | `[]` |  |
+| topologySpreadConstraints.queue | list | `[]` |  |
 | useSsl | bool | `true` | Whether the public URL is HTTPS. Affects USE_SSL env and bucket URL protocol |
 | websocket.affinity | object | `{}` |  |
 | websocket.image.repository | string | `"service/soketi"` | Soketi image repository (defaults to vendor mirror, override to `quay.io/soketi/soketi`) |
 | websocket.image.tag | string | `"16-alpine"` | Soketi image tag |
 | websocket.nodeSelector | object | `{}` |  |
 | websocket.replicas | int | `1` | Replica count |
-| websocket.resources | object | `{}` | Container resources |
+| websocket.resources | object | `{"limits":{"cpu":"100m","memory":"128Mi"},"requests":{"cpu":"50m","memory":"64Mi"}}` | Resource requests and limits |
 | websocket.tolerations | list | `[]` |  |
 
 ## Upgrading

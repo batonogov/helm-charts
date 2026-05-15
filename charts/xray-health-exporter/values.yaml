@@ -36,8 +36,14 @@ securityContext:
     drop:
       - ALL
 
-# -- Container resource requests/limits.
-resources: {}
+# -- Resource requests and limits for the exporter container
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 100m
+    memory: 128Mi
 # -- nodeSelector for the pod.
 nodeSelector: {}
 # -- Tolerations for the pod.
@@ -101,6 +107,8 @@ metrics:
   serviceMonitor:
     # -- Create a Prometheus Operator `ServiceMonitor` for the exporter.
     enabled: false
+    # -- Namespace for the ServiceMonitor. Defaults to the release namespace.
+    namespace: ""
     # -- Scrape interval.
     interval: 30s
     # -- Scrape timeout.
@@ -130,3 +138,11 @@ networkPolicy:
   ingress: []
   # -- Extra egress rules. When unset, allows all egress.
   egress: []
+
+podDisruptionBudget:
+  # -- Create a PodDisruptionBudget.
+  enabled: false
+  # -- Minimum number of pods that must be available during disruptions.
+  minAvailable: 1
+  # -- Maximum number of pods that can be unavailable during disruptions. Takes precedence over `minAvailable` when set.
+  maxUnavailable:

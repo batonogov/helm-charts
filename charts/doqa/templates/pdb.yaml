@@ -1,0 +1,23 @@
+{{- if .Values.podDisruptionBudget.enabled }}
+{{- range $component := list "backend" "frontend" "queue" }}
+{{- $pdbValues := index $.Values.podDisruptionBudget $component }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "doqa.fullname" $ }}-{{ $component }}-pdb
+  labels:
+    {{- include "doqa.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $component }}
+  {{- with $.Values.extraAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  minAvailable: {{ $pdbValues.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "doqa.selectorLabels" $ | nindent 6 }}
+      app.kubernetes.io/component: {{ $component }}
+{{- end }}
+{{- end }}

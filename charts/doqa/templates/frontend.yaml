@@ -6,7 +6,9 @@ metadata:
     {{- include "doqa.labels" . | nindent 4 }}
     app.kubernetes.io/component: frontend
 spec:
+  {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.frontend.replicas }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "doqa.selectorLabels" . | nindent 6 }}
@@ -16,19 +18,22 @@ spec:
       labels:
         {{- include "doqa.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: frontend
-      {{- with .Values.extraAnnotations }}
       annotations:
+        {{- with .Values.extraAnnotations }}
         {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- end }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
       serviceAccountName: {{ include "doqa.serviceAccountName" . }}
       {{- include "doqa.imagePullSecrets" . | nindent 6 }}
-      {{- include "doqa.podSecurityContext" . | nindent 6 }}
+      {{- include "doqa.podSecurityContext" (dict "component" .Values.frontend "root" .) | nindent 6 }}
       containers:
       - name: frontend
         image: {{ include "doqa.image" (dict "img" .Values.frontend.image "root" .) | quote }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
-        {{- include "doqa.containerSecurityContext" . | nindent 8 }}
+        {{- include "doqa.containerSecurityContext" (dict "component" .Values.frontend "root" .) | nindent 8 }}
         ports:
         - name: http
           containerPort: 8080
@@ -49,16 +54,32 @@ spec:
           timeoutSeconds: 5
         resources:
           {{- toYaml .Values.frontend.resources | nindent 10 }}
-      {{- with .Values.frontend.nodeSelector }}
+        {{- with .Values.extraVolumeMounts }}
+        volumeMounts:
+{{- range . }}
+          - {{ toYaml . | nindent 12 }}
+{{- end }}
+        {{- end }}
+      {{- with .Values.extraVolumes }}
+      volumes:
+{{- range . }}
+        - {{ toYaml . | nindent 10 }}
+{{- end }}
+      {{- end }}
+      {{- with (or .Values.frontend.nodeSelector .Values.nodeSelector) }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.frontend.affinity }}
+      {{- with (or .Values.frontend.affinity .Values.affinity) }}
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.frontend.tolerations }}
+      {{- with (or .Values.frontend.tolerations .Values.tolerations) }}
       tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints.frontend }}
+      topologySpreadConstraints:
         {{- toYaml . | nindent 8 }}
       {{- end }}
 ---

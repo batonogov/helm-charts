@@ -37,15 +37,19 @@ spec:
       labels:
         {{- include "doqa.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: minio
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
       serviceAccountName: {{ include "doqa.serviceAccountName" . }}
       {{- include "doqa.imagePullSecrets" . | nindent 6 }}
-      {{- include "doqa.podSecurityContext" . | nindent 6 }}
+      {{- include "doqa.podSecurityContext" (dict "component" .Values.minio "root" .) | nindent 6 }}
       containers:
       - name: minio
         image: "{{ .Values.minio.image.repository }}:{{ .Values.minio.image.tag }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
-        {{- include "doqa.containerSecurityContext" . | nindent 8 }}
+        {{- include "doqa.containerSecurityContext" (dict "component" .Values.minio "root" .) | nindent 8 }}
         args: ["server", "/data", "--console-address", ":9001"]
         ports:
         - name: api
@@ -68,6 +72,9 @@ spec:
         volumeMounts:
         - name: data
           mountPath: /data
+        {{- range $.Values.extraVolumeMounts }}
+        - {{ toYaml . | nindent 10 }}
+{{- end }}
         livenessProbe:
           httpGet:
             path: /minio/health/live
@@ -86,6 +93,21 @@ spec:
       - name: data
         persistentVolumeClaim:
           claimName: {{ $fullName }}-minio
+      {{- range $.Values.extraVolumes }}
+      - {{ toYaml . | nindent 8 }}
+{{- end }}
+      {{- with (or .Values.minio.nodeSelector .Values.nodeSelector) }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with (or .Values.minio.affinity .Values.affinity) }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with (or .Values.minio.tolerations .Values.tolerations) }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
 ---
 apiVersion: v1
 kind: Service

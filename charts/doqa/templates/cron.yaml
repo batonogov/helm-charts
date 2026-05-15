@@ -20,18 +20,21 @@ spec:
         {{- with .Values.extraAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       labels:
         {{- include "doqa.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: cron
     spec:
       serviceAccountName: {{ include "doqa.serviceAccountName" . }}
       {{- include "doqa.imagePullSecrets" . | nindent 6 }}
-      {{- include "doqa.podSecurityContext" . | nindent 6 }}
+      {{- include "doqa.podSecurityContext" (dict "component" .Values.cron "root" .) | nindent 6 }}
       containers:
       - name: cron
         image: {{ include "doqa.image" (dict "img" .Values.backend.image "root" .) | quote }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
-        {{- include "doqa.containerSecurityContext" . | nindent 8 }}
+        {{- include "doqa.containerSecurityContext" (dict "component" .Values.cron "root" .) | nindent 8 }}
         command: ["php", "artisan", "schedule:work"]
         envFrom:
           {{- include "doqa.backendEnvFrom" . | nindent 10 }}
@@ -39,15 +42,27 @@ spec:
           {{- include "doqa.backendSecretEnv" . | nindent 10 }}
         resources:
           {{- toYaml .Values.cron.resources | nindent 10 }}
-      {{- with .Values.cron.nodeSelector }}
+        {{- with .Values.extraVolumeMounts }}
+        volumeMounts:
+{{- range . }}
+          - {{ toYaml . | nindent 12 }}
+{{- end }}
+        {{- end }}
+      {{- with .Values.extraVolumes }}
+      volumes:
+{{- range . }}
+        - {{ toYaml . | nindent 10 }}
+{{- end }}
+      {{- end }}
+      {{- with (or .Values.cron.nodeSelector .Values.nodeSelector) }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.cron.affinity }}
+      {{- with (or .Values.cron.affinity .Values.affinity) }}
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.cron.tolerations }}
+      {{- with (or .Values.cron.tolerations .Values.tolerations) }}
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
