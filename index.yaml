@@ -3,6 +3,31 @@ entries:
   doqa:
   - apiVersion: v2
     appVersion: 4.0.0-box
+    created: "2026-05-18T09:49:17.086779363Z"
+    description: DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
+    digest: acdb93db5bcd8ae255f244d320135d52645a3911cb85575d6ea39ce56825dd1d
+    home: https://doqa.app
+    icon: https://batonogov.github.io/helm-charts/assets/doqa-icon.png
+    keywords:
+    - doqa
+    - tcms
+    - testing
+    - test-management
+    - qa
+    kubeVersion: '>=1.32.0-0'
+    maintainers:
+    - name: batonogov
+      url: https://github.com/batonogov
+    name: doqa
+    sources:
+    - https://github.com/batonogov/helm-charts
+    - https://docs.doqa.app
+    type: application
+    urls:
+    - https://github.com/batonogov/helm-charts/releases/download/doqa-0.2.0/doqa-0.2.0.tgz
+    version: 0.2.0
+  - apiVersion: v2
+    appVersion: 4.0.0-box
     created: "2026-05-05T07:24:25.253056065Z"
     description: DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
     digest: 3988a1fc24564ee3e5ea9a16edb5249ca13b29503c02cdcccfa3ee2920b9b9ff
@@ -52,6 +77,30 @@ entries:
     - https://github.com/batonogov/helm-charts/releases/download/doqa-0.1.0/doqa-0.1.0.tgz
     version: 0.1.0
   xray-health-exporter:
+  - apiVersion: v2
+    appVersion: 1.2.3
+    created: "2026-05-18T09:49:17.277522347Z"
+    description: Prometheus exporter for Xray-core tunnel health
+    digest: 017228ee347b8fd9c309c19335f752f17f4c65cc6ba47bb4e79c9598d429b343
+    home: https://github.com/batonogov/xray-health-exporter
+    keywords:
+    - xray
+    - prometheus
+    - exporter
+    - monitoring
+    - vless
+    kubeVersion: '>=1.32.0-0'
+    maintainers:
+    - name: batonogov
+      url: https://github.com/batonogov
+    name: xray-health-exporter
+    sources:
+    - https://github.com/batonogov/helm-charts
+    - https://github.com/batonogov/xray-health-exporter
+    type: application
+    urls:
+    - https://github.com/batonogov/helm-charts/releases/download/xray-health-exporter-0.1.6/xray-health-exporter-0.1.6.tgz
+    version: 0.1.6
   - apiVersion: v2
     appVersion: 1.2.3
     created: "2026-05-15T10:44:29.709559321Z"
@@ -172,4 +221,4 @@ entries:
     urls:
     - https://github.com/batonogov/helm-charts/releases/download/xray-health-exporter-0.1.0/xray-health-exporter-0.1.0.tgz
     version: 0.1.0
-generated: "2026-05-15T10:44:29.709578109Z"
+generated: "2026-05-18T09:49:17.277574526Z"
