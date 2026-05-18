@@ -17,19 +17,22 @@ spec:
       labels:
         {{- include "doqa.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: telegram-bot
-      {{- with .Values.extraAnnotations }}
       annotations:
+        {{- with .Values.extraAnnotations }}
         {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- end }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
       serviceAccountName: {{ include "doqa.serviceAccountName" . }}
       {{- include "doqa.imagePullSecrets" . | nindent 6 }}
-      {{- include "doqa.podSecurityContext" . | nindent 6 }}
+      {{- include "doqa.podSecurityContext" (dict "component" .Values.telegramBot "root" .) | nindent 6 }}
       containers:
       - name: telegram-bot
         image: {{ include "doqa.image" (dict "img" .Values.telegramBot.image "root" .) | quote }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
-        {{- include "doqa.containerSecurityContext" . | nindent 8 }}
+        {{- include "doqa.containerSecurityContext" (dict "component" .Values.telegramBot "root" .) | nindent 8 }}
         command:
         - python
         - app_run.py
@@ -37,15 +40,27 @@ spec:
           {{- include "doqa.notificationEnv" . | nindent 8 }}
         resources:
           {{- toYaml .Values.telegramBot.resources | nindent 10 }}
-      {{- with .Values.telegramBot.nodeSelector }}
+        {{- with .Values.extraVolumeMounts }}
+        volumeMounts:
+{{- range . }}
+          - {{ toYaml . | nindent 12 }}
+{{- end }}
+        {{- end }}
+      {{- with .Values.extraVolumes }}
+      volumes:
+{{- range . }}
+        - {{ toYaml . | nindent 10 }}
+{{- end }}
+      {{- end }}
+      {{- with (or .Values.telegramBot.nodeSelector .Values.nodeSelector) }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.telegramBot.affinity }}
+      {{- with (or .Values.telegramBot.affinity .Values.affinity) }}
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.telegramBot.tolerations }}
+      {{- with (or .Values.telegramBot.tolerations .Values.tolerations) }}
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}

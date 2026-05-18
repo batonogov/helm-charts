@@ -85,6 +85,19 @@ This chart targets DoQA 4.0.0+. There is no automatic migration path from
 between 3.7 and 4.0. Plan a stepwise migration if you are coming from a
 3.x install.
 
+### 0.1.x → 0.2.0
+
+- **Resource defaults**: all components now ship concrete `requests`/`limits`
+  instead of empty `{}`. If your pods consume more memory than the new limits
+  (e.g. backend `512Mi`), they will be OOMKilled after upgrade. Check current
+  usage with `kubectl top pods` and override per-component resources in your
+  values before upgrading.
+- **Security context keys renamed**: `podSecurityContext` →
+  `defaultSecurityContext.pod`, `securityContext` →
+  `defaultSecurityContext.container`. If you customized the old keys, move
+  your values to the new paths before upgrading — the old keys are silently
+  ignored.
+
 {{ template "chart.maintainersSection" . }}
 
 {{ template "chart.sourcesSection" . }}

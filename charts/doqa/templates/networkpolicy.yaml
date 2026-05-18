@@ -1,0 +1,374 @@
+{{- if .Values.networkPolicy.enabled }}
+{{- $fullName := include "doqa.fullname" . -}}
+{{- $selectorLabels := include "doqa.selectorLabels" . -}}
+---
+# Default deny all ingress in the namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $fullName }}-default-deny-ingress
+  labels:
+    {{- include "doqa.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- $selectorLabels | nindent 6 }}
+  policyTypes:
+    - Ingress
+---
+# Allow ingress controller -> nginx
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $fullName }}-allow-ingress-to-nginx
+  labels:
+    {{- include "doqa.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- $selectorLabels | nindent 6 }}
+      app.kubernetes.io/component: nginx
+  policyTypes:
+    - Ingress
+  ingress:
+    - ports:
+        - port: 80
+          protocol: TCP
+---
+# Allow nginx -> backend, frontend, autotest-parser, websocket, minio
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $fullName }}-allow-nginx-to-backends
+  labels:
+    {{- include "doqa.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- $selectorLabels | nindent 6 }}
+      app.kubernetes.io/component: backend
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: nginx
+      ports:
+        - port: 8080
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $fullName }}-allow-nginx-to-frontend
+  labels:
+    {{- include "doqa.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- $selectorLabels | nindent 6 }}
+      app.kubernetes.io/component: frontend
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: nginx
+      ports:
+        - port: 8080
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $fullName }}-allow-nginx-to-autotest-parser
+  labels:
+    {{- include "doqa.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- $selectorLabels | nindent 6 }}
+      app.kubernetes.io/component: autotest-parser
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: nginx
+      ports:
+        - port: 8000
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $fullName }}-allow-nginx-to-websocket
+  labels:
+    {{- include "doqa.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- $selectorLabels | nindent 6 }}
+      app.kubernetes.io/component: websocket
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: nginx
+      ports:
+        - port: 6001
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $fullName }}-allow-nginx-to-minio
+  labels:
+    {{- include "doqa.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- $selectorLabels | nindent 6 }}
+      app.kubernetes.io/component: minio
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: nginx
+      ports:
+        - port: 9000
+          protocol: TCP
+---
+# Allow backend/queue/cron/autotest-result-parser/statistic/notification -> postgresql
+# Only rendered when CNPG is provisioned in-cluster. External PG is reached via egress rules.
+{{- if .Values.postgresql.cnpg.create }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $fullName }}-allow-to-postgresql
+  labels:
+    {{- include "doqa.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      cnpg.io/cluster: {{ $fullName }}-cnpg
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: backend
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: queue
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: cron
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: autotest-result-parser
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: statistic
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: notification
+      ports:
+        - port: 5432
+          protocol: TCP
+{{- end }}
+---
+# Allow backend/queue/cron/statistic/notification/notification-worker -> redis
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $fullName }}-allow-to-redis
+  labels:
+    {{- include "doqa.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- $selectorLabels | nindent 6 }}
+      app.kubernetes.io/component: redis
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: backend
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: queue
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: cron
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: statistic
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: notification
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: notification-worker
+      ports:
+        - port: 6379
+          protocol: TCP
+---
+# Allow backend/queue/cron/autotest-parser/autotest-result-parser -> rabbitmq
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $fullName }}-allow-to-rabbitmq
+  labels:
+    {{- include "doqa.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- $selectorLabels | nindent 6 }}
+      app.kubernetes.io/component: rabbitmq
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: backend
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: queue
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: cron
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: autotest-parser
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: autotest-result-parser
+      ports:
+        - port: 5672
+          protocol: TCP
+---
+# Allow backend -> minio (for file uploads)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $fullName }}-allow-backend-to-minio
+  labels:
+    {{- include "doqa.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- $selectorLabels | nindent 6 }}
+      app.kubernetes.io/component: minio
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: backend
+      ports:
+        - port: 9000
+          protocol: TCP
+---
+# Allow backend -> websocket (Pusher protocol)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $fullName }}-allow-backend-to-websocket
+  labels:
+    {{- include "doqa.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- $selectorLabels | nindent 6 }}
+      app.kubernetes.io/component: websocket
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: backend
+      ports:
+        - port: 6001
+          protocol: TCP
+---
+# Allow all pods DNS resolution (kube-dns)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $fullName }}-allow-dns
+  labels:
+    {{- include "doqa.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- $selectorLabels | nindent 6 }}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+---
+# Allow all pods egress (external APIs, external DBs, image pulls, etc.)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $fullName }}-allow-egress
+  labels:
+    {{- include "doqa.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- $selectorLabels | nindent 6 }}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+{{- end }}

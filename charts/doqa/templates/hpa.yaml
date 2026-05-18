@@ -1,0 +1,27 @@
+{{- if .Values.autoscaling.enabled }}
+{{- range $component := list "backend" "frontend" "queue" }}
+{{- $cfg := index $.Values.autoscaling $component }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "doqa.fullname" $ }}-{{ $component }}
+  labels:
+    {{- include "doqa.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $component }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "doqa.fullname" $ }}-{{ $component }}
+  minReplicas: {{ $cfg.minReplicas }}
+  maxReplicas: {{ $cfg.maxReplicas }}
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: {{ $cfg.targetCPUUtilizationPercentage }}
+{{- end }}
+{{- end }}

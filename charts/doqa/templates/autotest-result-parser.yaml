@@ -18,18 +18,21 @@ spec:
         {{- with .Values.extraAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       labels:
         {{- include "doqa.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: autotest-result-parser
     spec:
       serviceAccountName: {{ include "doqa.serviceAccountName" . }}
       {{- include "doqa.imagePullSecrets" . | nindent 6 }}
-      {{- include "doqa.podSecurityContext" . | nindent 6 }}
+      {{- include "doqa.podSecurityContext" (dict "component" .Values.autotestResultParser "root" .) | nindent 6 }}
       containers:
       - name: autotest-result-parser
         image: {{ include "doqa.image" (dict "img" .Values.autotestResultParser.image "root" .) | quote }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
-        {{- include "doqa.containerSecurityContext" . | nindent 8 }}
+        {{- include "doqa.containerSecurityContext" (dict "component" .Values.autotestResultParser "root" .) | nindent 8 }}
         envFrom:
           {{- include "doqa.backendEnvFrom" . | nindent 10 }}
         env:
@@ -42,15 +45,27 @@ spec:
           {{- include "doqa.backendSecretEnv" . | nindent 8 }}
         resources:
           {{- toYaml .Values.autotestResultParser.resources | nindent 10 }}
-      {{- with .Values.autotestResultParser.nodeSelector }}
+        {{- with .Values.extraVolumeMounts }}
+        volumeMounts:
+{{- range . }}
+          - {{ toYaml . | nindent 12 }}
+{{- end }}
+        {{- end }}
+      {{- with .Values.extraVolumes }}
+      volumes:
+{{- range . }}
+        - {{ toYaml . | nindent 10 }}
+{{- end }}
+      {{- end }}
+      {{- with (or .Values.autotestResultParser.nodeSelector .Values.nodeSelector) }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.autotestResultParser.affinity }}
+      {{- with (or .Values.autotestResultParser.affinity .Values.affinity) }}
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.autotestResultParser.tolerations }}
+      {{- with (or .Values.autotestResultParser.tolerations .Values.tolerations) }}
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
