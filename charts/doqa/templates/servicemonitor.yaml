@@ -25,9 +25,9 @@ spec:
     {{- with .Values.serviceMonitor.scrapeTimeout }}
     scrapeTimeout: {{ . }}
     {{- end }}
-  {{- with .Values.serviceMonitor.namespace }}
+  {{- if .Values.serviceMonitor.namespace }}
   namespaceSelector:
     matchNames:
-    - {{ . }}
+    - {{ $.Release.Namespace }}
   {{- end }}
 {{- end }}
