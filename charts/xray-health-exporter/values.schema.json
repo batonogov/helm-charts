@@ -392,7 +392,12 @@
           "description": "Minimum number of pods that must be available during disruptions."
         },
         "maxUnavailable": {
-          "description": "Maximum number of pods that can be unavailable during disruptions. Takes precedence over minAvailable when set."
+          "description": "Maximum number of pods that can be unavailable during disruptions. Takes precedence over minAvailable when set.",
+          "anyOf": [
+            { "type": "integer", "minimum": 0 },
+            { "type": "string", "pattern": "^[0-9]+%$" },
+            { "type": "null" }
+          ]
         }
       }
     }
