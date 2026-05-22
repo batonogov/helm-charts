@@ -1,0 +1,405 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "xray-health-exporter values",
+  "description": "Prometheus exporter for Xray-core tunnel health",
+  "type": "object",
+  "properties": {
+    "nameOverride": {
+      "type": "string",
+      "description": "Override the chart name (used in resource naming)."
+    },
+    "fullnameOverride": {
+      "type": "string",
+      "description": "Fully override the generated release name."
+    },
+    "replicaCount": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Number of replicas. Values >1 force-enable leaderElection so only one pod publishes tunnel metrics."
+    },
+    "image": {
+      "type": "object",
+      "description": "Container image configuration.",
+      "properties": {
+        "repository": {
+          "type": "string",
+          "description": "Image repository."
+        },
+        "tag": {
+          "type": "string",
+          "description": "Image tag. Defaults to v<chart appVersion> when empty."
+        },
+        "pullPolicy": {
+          "type": "string",
+          "enum": ["Always", "IfNotPresent", "Never"],
+          "description": "Image pull policy."
+        },
+        "pullSecrets": {
+          "type": "array",
+          "description": "Image pull secrets (list of {name: <secret>}).",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "podAnnotations": {
+      "type": "object",
+      "description": "Annotations applied to every Deployment pod."
+    },
+    "podLabels": {
+      "type": "object",
+      "description": "Extra labels applied to every Deployment pod."
+    },
+    "podSecurityContext": {
+      "type": "object",
+      "description": "Pod-level security context (non-root, matches upstream UID 10001).",
+      "properties": {
+        "runAsNonRoot": {
+          "type": "boolean"
+        },
+        "runAsUser": {
+          "type": "integer"
+        },
+        "runAsGroup": {
+          "type": "integer"
+        },
+        "fsGroup": {
+          "type": "integer"
+        }
+      }
+    },
+    "securityContext": {
+      "type": "object",
+      "description": "Container-level security context (read-only rootfs, no privilege escalation).",
+      "properties": {
+        "allowPrivilegeEscalation": {
+          "type": "boolean"
+        },
+        "readOnlyRootFilesystem": {
+          "type": "boolean"
+        },
+        "capabilities": {
+          "type": "object",
+          "properties": {
+            "drop": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "description": "Resource requests and limits for the exporter container.",
+      "properties": {
+        "requests": {
+          "type": "object",
+          "properties": {
+            "cpu": {
+              "type": "string"
+            },
+            "memory": {
+              "type": "string"
+            }
+          }
+        },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "cpu": {
+              "type": "string"
+            },
+            "memory": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "nodeSelector": {
+      "type": "object",
+      "description": "nodeSelector for the pod."
+    },
+    "tolerations": {
+      "type": "array",
+      "description": "Tolerations for the pod.",
+      "items": {
+        "type": "object"
+      }
+    },
+    "affinity": {
+      "type": "object",
+      "description": "Affinity rules for the pod."
+    },
+    "topologySpreadConstraints": {
+      "type": "array",
+      "description": "topologySpreadConstraints for the pod.",
+      "items": {
+        "type": "object"
+      }
+    },
+    "extraEnv": {
+      "type": "array",
+      "description": "Extra environment variables (list of {name, value} or {name, valueFrom}).",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "env": {
+      "type": "object",
+      "description": "Built-in environment variables consumed by the exporter binary.",
+      "properties": {
+        "XRAY_LOG_LEVEL": {
+          "type": "string",
+          "enum": ["debug", "info", "warning", "error"],
+          "description": "Xray-core log level."
+        },
+        "DEBUG": {
+          "type": "string",
+          "enum": ["true", "false"],
+          "description": "Verbose exporter logging."
+        }
+      }
+    },
+    "leaderElection": {
+      "type": "object",
+      "description": "Kubernetes leader election configuration.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable leader election so only one replica publishes xray_tunnel_*. Forced on when replicaCount > 1."
+        },
+        "leaseName": {
+          "type": "string",
+          "description": "Lease object name. Defaults to the release fullname."
+        },
+        "rbac": {
+          "type": "object",
+          "properties": {
+            "create": {
+              "type": "boolean",
+              "description": "Create the Role + RoleBinding granting access to coordination.k8s.io/leases."
+            }
+          }
+        }
+      }
+    },
+    "serviceAccount": {
+      "type": "object",
+      "description": "ServiceAccount configuration.",
+      "properties": {
+        "create": {
+          "type": "boolean",
+          "description": "Create a dedicated ServiceAccount for the Deployment."
+        },
+        "name": {
+          "type": "string",
+          "description": "ServiceAccount name. Defaults to release fullname when empty."
+        },
+        "annotations": {
+          "type": "object",
+          "description": "Annotations applied to the ServiceAccount."
+        }
+      }
+    },
+    "service": {
+      "type": "object",
+      "description": "Service exposing the metrics endpoint.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["ClusterIP", "NodePort", "LoadBalancer", "ExternalName"],
+          "description": "Service type."
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "description": "Service port."
+        },
+        "annotations": {
+          "type": "object",
+          "description": "Annotations applied to the Service."
+        }
+      }
+    },
+    "config": {
+      "type": "object",
+      "description": "Exporter YAML config (rendered into a ConfigMap and mounted at /app/config.yaml).",
+      "properties": {
+        "defaults": {
+          "type": "object",
+          "description": "Global tunnel-check defaults applied when an entry omits the field.",
+          "properties": {
+            "check_url": {
+              "type": "string",
+              "format": "uri",
+              "description": "Default URL checked for tunnel health."
+            },
+            "check_interval": {
+              "type": "string",
+              "description": "Default interval between checks (e.g. 30s, 1m)."
+            },
+            "check_timeout": {
+              "type": "string",
+              "description": "Default timeout per check (e.g. 30s, 1m)."
+            }
+          }
+        },
+        "subscriptions": {
+          "type": "array",
+          "description": "Subscription URLs that auto-discover tunnels. WARNING: subscription URLs typically embed access tokens — rendered into a plain ConfigMap. Use existingConfigSecret to source config.yaml from a Secret instead.",
+          "items": {
+            "type": "object"
+          }
+        },
+        "tunnels": {
+          "type": "array",
+          "description": "Static tunnels. Each entry needs either url (VLESS) or xray_config_file.",
+          "items": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "existingConfigSecret": {
+      "type": "string",
+      "description": "Mount an existing Secret containing config.yaml instead of rendering one from .Values.config."
+    },
+    "metrics": {
+      "type": "object",
+      "description": "Prometheus integration settings.",
+      "properties": {
+        "serviceMonitor": {
+          "type": "object",
+          "description": "Prometheus Operator ServiceMonitor configuration.",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Create a Prometheus Operator ServiceMonitor for the exporter."
+            },
+            "namespace": {
+              "type": "string",
+              "description": "Namespace for the ServiceMonitor. Defaults to the release namespace."
+            },
+            "interval": {
+              "type": "string",
+              "description": "Scrape interval."
+            },
+            "scrapeTimeout": {
+              "type": "string",
+              "description": "Scrape timeout."
+            },
+            "labels": {
+              "type": "object",
+              "description": "Extra labels (e.g. release: kube-prometheus-stack)."
+            },
+            "annotations": {
+              "type": "object",
+              "description": "Extra annotations on the ServiceMonitor."
+            },
+            "metricRelabelings": {
+              "type": "array",
+              "description": "Optional metric relabelings.",
+              "items": {
+                "type": "object"
+              }
+            },
+            "relabelings": {
+              "type": "array",
+              "description": "Optional relabelings.",
+              "items": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "prometheusRule": {
+          "type": "object",
+          "description": "Prometheus Operator PrometheusRule configuration.",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Create a PrometheusRule with default tunnel alerts."
+            },
+            "labels": {
+              "type": "object",
+              "description": "Extra labels (e.g. release: kube-prometheus-stack)."
+            },
+            "annotations": {
+              "type": "object",
+              "description": "Extra annotations."
+            },
+            "rules": {
+              "type": "array",
+              "description": "Override the default rule list. When empty the chart ships defaults (XrayTunnelDown, XrayHighLatency, XrayNoRecentCheck).",
+              "items": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "networkPolicy": {
+      "type": "object",
+      "description": "NetworkPolicy configuration.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Create a NetworkPolicy."
+        },
+        "ingress": {
+          "type": "array",
+          "description": "Extra ingress rules. When unset, allows ingress from any pod with label app.kubernetes.io/name: prometheus.",
+          "items": {
+            "type": "object"
+          }
+        },
+        "egress": {
+          "type": "array",
+          "description": "Extra egress rules. When unset, allows all egress.",
+          "items": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "podDisruptionBudget": {
+      "type": "object",
+      "description": "PodDisruptionBudget configuration.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Create a PodDisruptionBudget."
+        },
+        "minAvailable": {
+          "type": "integer",
+          "description": "Minimum number of pods that must be available during disruptions."
+        },
+        "maxUnavailable": {
+          "description": "Maximum number of pods that can be unavailable during disruptions. Takes precedence over minAvailable when set.",
+          "anyOf": [
+            { "type": "integer", "minimum": 0 },
+            { "type": "string", "pattern": "^[0-9]+%$" },
+            { "type": "null" }
+          ]
+        }
+      }
+    }
+  }
+}
