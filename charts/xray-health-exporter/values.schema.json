@@ -168,10 +168,15 @@
           "enum": ["debug", "info", "warning", "error"],
           "description": "Xray-core log level."
         },
-        "DEBUG": {
+        "LOG_LEVEL": {
           "type": "string",
-          "enum": ["true", "false"],
-          "description": "Verbose exporter logging."
+          "enum": ["debug", "info", "warning", "error"],
+          "description": "Exporter log level. Replaces the deprecated DEBUG=true flag."
+        },
+        "LOG_FORMAT": {
+          "type": "string",
+          "enum": ["text", "json"],
+          "description": "Exporter log format (text or json)."
         }
       }
     },

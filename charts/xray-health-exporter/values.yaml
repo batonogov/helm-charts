@@ -60,8 +60,10 @@ extraEnv: []
 env:
   # -- Xray-core log level (`debug`/`info`/`warning`/`error`).
   XRAY_LOG_LEVEL: warning
-  # -- Verbose exporter logging.
-  DEBUG: "false"
+  # -- Exporter log level (`debug`/`info`/`warning`/`error`). Replaces the deprecated `DEBUG=true` flag.
+  LOG_LEVEL: info
+  # -- Exporter log format (`text` or `json`).
+  LOG_FORMAT: text
 
 leaderElection:
   # -- Enable Kubernetes leader election so only one replica publishes `xray_tunnel_*`. Forced on whenever `replicaCount > 1`, regardless of this flag.
