@@ -266,12 +266,16 @@ Usage: {{ include "doqa.stableSecret" (dict "ctx" . "name" "<release>-app-secret
 */}}
 {{- define "doqa.stableSecret" -}}
 {{- $existing := lookup "v1" "Secret" .ctx.Release.Namespace .name -}}
+{{- $val := "" -}}
 {{- if and $existing (index $existing.data .key) -}}
-{{- index $existing.data .key | b64dec -}}
-{{- else -}}
-{{- $val := randAlphaNum (.len | int) -}}
-{{- if .prefix -}}{{ .prefix }}{{- end -}}{{ $val }}
+{{- $val = index $existing.data .key | b64dec -}}
+{{- if and .prefix (hasPrefix .prefix $val) -}}
+{{- $val = trimPrefix .prefix $val -}}
 {{- end -}}
+{{- else -}}
+{{- $val = randAlphaNum (.len | int) -}}
+{{- end -}}
+{{- if .prefix -}}{{ .prefix }}{{- end -}}{{ $val }}
 {{- end -}}
 
 {{/* ===== ConfigMap envFrom for backend/queue/cron ===== */}}
