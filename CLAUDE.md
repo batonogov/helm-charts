@@ -8,7 +8,7 @@ A monorepo of Helm charts published as a public Helm repository on GitHub Pages.
 
 Currently shipped charts:
 - `charts/doqa` — DoQA Test Case Management System (TCMS), self-hosted on Kubernetes 1.32+. Targets `appVersion 4.0.0-box`.
-- `charts/xray-health-exporter` — Prometheus exporter for Xray-core tunnel health. Targets `appVersion 1.2.0`.
+- `charts/xray-health-exporter` — Prometheus exporter for Xray-core tunnel health. Targets `appVersion 1.4.0`.
 
 ## Common commands
 
@@ -47,6 +47,8 @@ The `gh-pages` branch must exist before the first release (one-time bootstrap). 
 ## Working with `.tmp/`
 
 `.tmp/` is gitignored. Use it for ad-hoc recon during chart development — vendor binaries, extracted configs, manifest diffs. Don't commit anything from there.
+
+**Note:** `helm-docs` 1.14.2 crashes if `.tmp/` exists in CWD (`lstat .tmp/charts: no such file or directory`). Workaround: run `cd /tmp && helm-docs --chart-search-root /abs/path/to/charts`. The pre-commit hook runs `helm-docs` before `.tmp/` would normally exist, so CI is unaffected.
 
 ## Architecture of `charts/doqa`
 
@@ -164,11 +166,15 @@ The Ingress sends all traffic to the nginx Service; TLS terminates at the Ingres
 
 - Backup/restore (vendor's `./doqa backup`/`restore` use one-shot containers with `profiles: manual` — out of scope; user runs CronJobs separately if needed).
 - The CNPG operator itself, cert-manager, ingress controllers — all assumed pre-installed cluster-wide.
-- HPA, PDB, NetworkPolicy, ServiceMonitor, topologySpreadConstraints — none in v0.1.0 (deliberate scope cut for the first release; add behind opt-in flags later).
+- HPA, PDB, NetworkPolicy, ServiceMonitor, topologySpreadConstraints — all implemented behind opt-in flags (`autoscaling.enabled`, `podDisruptionBudget.enabled`, `networkPolicy.enabled`, `serviceMonitor.enabled`, per-component `topologySpreadConstraints`).
 
 ### Vendor licensing
 
 DoQA is a paid product. The chart deploys the stack and the UI loads, but creating a super-user is gated by a vendor license key (`https://doqa.app`). End-to-end smoke beyond `/api/v1/info` returning 200 isn't possible without a real key.
+
+### Security context constraints
+
+**All vendor images (`registry.control.doqa.app/*`) and the in-tree dependency images (`redis`, `rabbitmq`, `minio`, `nginx`) run as root (uid=0).** None have a `USER` directive in their Dockerfile. The vendor docker-compose has no `user:` directives. Setting `runAsNonRoot: true` or `runAsUser` != 0 as a default will break `helm install` from scratch. The chart ships `defaultSecurityContext.container` with `allowPrivilegeEscalation: false` and `capabilities: drop: ["ALL"]` — these are safe for root-based images. Users who rebuild vendor images with non-root users can override via `defaultSecurityContext` or per-component `podSecurityContext`/`containerSecurityContext`.
 
 ## Test deploy values
 

@@ -575,7 +575,10 @@ serviceAccount:
 #         drop: ["ALL"]
 defaultSecurityContext:
   pod: {}
-  container: {}
+  container:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
 
 serviceMonitor:
   # -- Create a Prometheus Operator ServiceMonitor for the backend Service

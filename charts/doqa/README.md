@@ -2,7 +2,7 @@
 
 DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
 
-![Version: 0.2.0](https://img.shields.io/badge/Version-0.2.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.0.0-box](https://img.shields.io/badge/AppVersion-4.0.0--box-informational?style=flat-square)
+![Version: 0.2.1](https://img.shields.io/badge/Version-0.2.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.0.0-box](https://img.shields.io/badge/AppVersion-4.0.0--box-informational?style=flat-square)
 
 **Homepage:** <https://doqa.app>
 
@@ -120,7 +120,8 @@ Kubernetes: `>=1.32.0-0`
 | cron.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
 | cron.tolerations | list | `[]` |  |
 | debug | bool | `false` | Enable verbose debug logging |
-| defaultSecurityContext.container | object | `{}` |  |
+| defaultSecurityContext.container.allowPrivilegeEscalation | bool | `false` |  |
+| defaultSecurityContext.container.capabilities.drop[0] | string | `"ALL"` |  |
 | defaultSecurityContext.pod | object | `{}` |  |
 | extraAnnotations | object | `{}` | Extra annotations added to every resource |
 | extraLabels | object | `{}` | Extra labels added to every resource |
