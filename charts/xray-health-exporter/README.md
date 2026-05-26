@@ -2,7 +2,7 @@
 
 Prometheus exporter for Xray-core tunnel health
 
-![Version: 0.1.7](https://img.shields.io/badge/Version-0.1.7-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.2.3](https://img.shields.io/badge/AppVersion-1.2.3-informational?style=flat-square)
+![Version: 0.1.8](https://img.shields.io/badge/Version-0.1.8-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.3.0](https://img.shields.io/badge/AppVersion-1.3.0-informational?style=flat-square)
 
 **Homepage:** <https://github.com/batonogov/xray-health-exporter>
 
@@ -79,7 +79,8 @@ Kubernetes: `>=1.32.0-0`
 | config.defaults | object | `{"check_interval":"30s","check_timeout":"30s","check_url":"https://www.google.com"}` | Global tunnel-check defaults applied when an entry omits the field. |
 | config.subscriptions | list | `[]` | Subscription URLs that auto-discover tunnels. See upstream README for schema. WARNING: subscription URLs typically embed access tokens — they are rendered into a plain ConfigMap. Use `existingConfigSecret` to source `config.yaml` from a Secret instead. |
 | config.tunnels | list | `[]` | Static tunnels. Each entry needs either `url` (VLESS) or `xray_config_file`. At least one tunnel or one subscription is required (or set `existingConfigSecret`); otherwise the exporter refuses to start. |
-| env.DEBUG | string | `"false"` | Verbose exporter logging. |
+| env.LOG_FORMAT | string | `"text"` | Exporter log format (`text` or `json`). |
+| env.LOG_LEVEL | string | `"info"` | Exporter log level (`debug`/`info`/`warning`/`error`). Replaces the deprecated `DEBUG=true` flag. |
 | env.XRAY_LOG_LEVEL | string | `"warning"` | Xray-core log level (`debug`/`info`/`warning`/`error`). |
 | existingConfigSecret | string | `""` | Mount an existing Secret containing `config.yaml` instead of rendering one from `.Values.config`. |
 | extraEnv | list | `[]` | Extra environment variables (list of `{name, value}` or `{name, valueFrom}`). |
