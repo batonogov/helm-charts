@@ -122,11 +122,7 @@ Kubernetes: `>=1.32.0-0`
 | debug | bool | `false` | Enable verbose debug logging |
 | defaultSecurityContext.container.allowPrivilegeEscalation | bool | `false` |  |
 | defaultSecurityContext.container.capabilities.drop[0] | string | `"ALL"` |  |
-| defaultSecurityContext.container.readOnlyRootFilesystem | bool | `false` |  |
-| defaultSecurityContext.pod.fsGroup | int | `1000` |  |
-| defaultSecurityContext.pod.runAsGroup | int | `1000` |  |
-| defaultSecurityContext.pod.runAsNonRoot | bool | `true` |  |
-| defaultSecurityContext.pod.runAsUser | int | `1000` |  |
+| defaultSecurityContext.pod | object | `{}` |  |
 | extraAnnotations | object | `{}` | Extra annotations added to every resource |
 | extraLabels | object | `{}` | Extra labels added to every resource |
 | extraVolumeMounts | list | `[]` | Extra volume mounts to add to all containers |
