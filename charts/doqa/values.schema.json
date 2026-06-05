@@ -1,0 +1,1176 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "doqa values",
+  "description": "DoQA Test Case Management System (TCMS) self-hosted chart values",
+  "type": "object",
+  "properties": {
+    "nameOverride": {
+      "type": "string",
+      "description": "Override the chart name part of resource names."
+    },
+    "fullnameOverride": {
+      "type": "string",
+      "description": "Override the full name of resources."
+    },
+    "nodeSelector": {
+      "type": "object",
+      "description": "Default node selector applied to all components."
+    },
+    "affinity": {
+      "type": "object",
+      "description": "Default affinity applied to all components."
+    },
+    "tolerations": {
+      "type": "array",
+      "description": "Default tolerations applied to all components.",
+      "items": {
+        "type": "object"
+      }
+    },
+    "appUrl": {
+      "type": "string",
+      "minLength": 1,
+      "description": "DoQA application URL host without protocol."
+    },
+    "appFrontendUrl": {
+      "type": "string",
+      "description": "Frontend URL. Defaults to appUrl when empty."
+    },
+    "useSsl": {
+      "type": "boolean",
+      "description": "Whether the public URL is HTTPS."
+    },
+    "debug": {
+      "type": "boolean",
+      "description": "Enable verbose debug logging."
+    },
+    "mailIssue": {
+      "type": "string",
+      "description": "Issue/support email exposed to backend."
+    },
+    "image": {
+      "type": "object",
+      "description": "Global image settings.",
+      "properties": {
+        "registry": {
+          "type": "string",
+          "description": "Container registry hosting DoQA images."
+        },
+        "pullPolicy": {
+          "type": "string",
+          "enum": ["Always", "IfNotPresent", "Never"],
+          "description": "Default image pull policy."
+        },
+        "pullSecrets": {
+          "$ref": "#/definitions/imagePullSecrets"
+        }
+      }
+    },
+    "secrets": {
+      "type": "object",
+      "description": "Chart-managed or pre-existing Secret names.",
+      "properties": {
+        "create": {
+          "type": "boolean",
+          "description": "Generate chart-managed secrets with stable random values."
+        },
+        "app": {
+          "type": "string",
+          "description": "Existing secret with app-key and jwt-secret keys."
+        },
+        "apiKeys": {
+          "type": "string",
+          "description": "Existing secret with statistic-api-key, notification-api-key, and llm-api-key keys."
+        },
+        "pusher": {
+          "type": "string",
+          "description": "Existing secret with app-secret key."
+        },
+        "rabbitmq": {
+          "type": "string",
+          "description": "Existing secret with password and erlang-cookie keys."
+        },
+        "minio": {
+          "type": "string",
+          "description": "Existing secret with access-key and secret-key keys."
+        },
+        "mail": {
+          "type": "string",
+          "description": "Existing secret with password key for SMTP auth."
+        },
+        "ldap": {
+          "type": "string",
+          "description": "Existing secret with password key for LDAP bind."
+        }
+      }
+    },
+    "postgresql": {
+      "type": "object",
+      "description": "PostgreSQL configuration.",
+      "properties": {
+        "cnpg": {
+          "type": "object",
+          "description": "CloudNativePG in-tree provisioning.",
+          "properties": {
+            "create": {
+              "type": "boolean",
+              "description": "Provision a new CNPG Cluster resource."
+            },
+            "instances": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Number of CNPG instances."
+            },
+            "imageName": {
+              "type": "string",
+              "description": "CNPG PostgreSQL image."
+            },
+            "storage": {
+              "$ref": "#/definitions/storage"
+            }
+          }
+        },
+        "host": {
+          "type": "string",
+          "description": "External PostgreSQL host used when cnpg.create=false."
+        },
+        "port": {
+          "$ref": "#/definitions/port"
+        },
+        "database": {
+          "type": "string",
+          "description": "Database name."
+        },
+        "username": {
+          "type": "string",
+          "description": "Database user."
+        },
+        "passwordSecret": {
+          "$ref": "#/definitions/secretKeyRef"
+        }
+      }
+    },
+    "redis": {
+      "type": "object",
+      "description": "Redis configuration.",
+      "properties": {
+        "create": {
+          "type": "boolean",
+          "description": "Provision an in-tree Redis Deployment and PVC."
+        },
+        "image": {
+          "$ref": "#/definitions/componentImage"
+        },
+        "storage": {
+          "$ref": "#/definitions/storage"
+        },
+        "resources": {
+          "$ref": "#/definitions/resourceRequirements"
+        },
+        "nodeSelector": {
+          "type": "object"
+        },
+        "affinity": {
+          "type": "object"
+        },
+        "tolerations": {
+          "$ref": "#/definitions/tolerations"
+        },
+        "podSecurityContext": {
+          "type": "object"
+        },
+        "containerSecurityContext": {
+          "type": "object"
+        },
+        "host": {
+          "type": "string",
+          "description": "External Redis host used when create=false."
+        },
+        "port": {
+          "$ref": "#/definitions/port"
+        },
+        "db": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Logical Redis DB for backend cache and queues."
+        },
+        "passwordSecret": {
+          "$ref": "#/definitions/optionalSecretKeyRef"
+        },
+        "notification": {
+          "type": "object",
+          "description": "Notification service Redis settings.",
+          "properties": {
+            "host": {
+              "type": "string",
+              "description": "Notification Redis host. Defaults to redis.host when empty."
+            },
+            "port": {
+              "$ref": "#/definitions/port"
+            },
+            "db": {
+              "anyOf": [
+                { "type": "integer", "minimum": 0 },
+                { "type": "string" }
+              ],
+              "description": "Notification logical Redis DB."
+            },
+            "passwordSecret": {
+              "$ref": "#/definitions/optionalSecretKeyRef"
+            }
+          }
+        }
+      }
+    },
+    "rabbitmq": {
+      "type": "object",
+      "description": "RabbitMQ configuration.",
+      "properties": {
+        "create": {
+          "type": "boolean",
+          "description": "Provision an in-tree RabbitMQ Deployment and PVC."
+        },
+        "image": {
+          "$ref": "#/definitions/componentImage"
+        },
+        "storage": {
+          "$ref": "#/definitions/storage"
+        },
+        "resources": {
+          "$ref": "#/definitions/resourceRequirements"
+        },
+        "nodeSelector": {
+          "type": "object"
+        },
+        "affinity": {
+          "type": "object"
+        },
+        "tolerations": {
+          "$ref": "#/definitions/tolerations"
+        },
+        "podSecurityContext": {
+          "type": "object"
+        },
+        "containerSecurityContext": {
+          "type": "object"
+        },
+        "host": {
+          "type": "string",
+          "description": "External RabbitMQ host used when create=false."
+        },
+        "port": {
+          "$ref": "#/definitions/port"
+        },
+        "username": {
+          "type": "string",
+          "description": "RabbitMQ user."
+        },
+        "virtualHost": {
+          "type": "string",
+          "description": "RabbitMQ virtual host."
+        }
+      }
+    },
+    "minio": {
+      "type": "object",
+      "description": "MinIO or external S3-compatible storage configuration.",
+      "properties": {
+        "create": {
+          "type": "boolean",
+          "description": "Provision an in-tree MinIO Deployment, PVC, and bucket-init Job."
+        },
+        "image": {
+          "$ref": "#/definitions/componentImage"
+        },
+        "client": {
+          "type": "object",
+          "properties": {
+            "image": {
+              "$ref": "#/definitions/componentImage"
+            }
+          }
+        },
+        "storage": {
+          "$ref": "#/definitions/storage"
+        },
+        "resources": {
+          "$ref": "#/definitions/resourceRequirements"
+        },
+        "nodeSelector": {
+          "type": "object"
+        },
+        "affinity": {
+          "type": "object"
+        },
+        "tolerations": {
+          "$ref": "#/definitions/tolerations"
+        },
+        "podSecurityContext": {
+          "type": "object"
+        },
+        "containerSecurityContext": {
+          "type": "object"
+        },
+        "endpoint": {
+          "type": "string",
+          "description": "External MinIO/S3 endpoint used when create=false."
+        },
+        "bucket": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Bucket name."
+        },
+        "region": {
+          "type": "string",
+          "description": "Region."
+        },
+        "bucketUrl": {
+          "type": "string",
+          "description": "Public bucket URL."
+        }
+      }
+    },
+    "mail": {
+      "type": "object",
+      "description": "SMTP mail settings.",
+      "properties": {
+        "mailer": {
+          "type": "string",
+          "description": "Mailer driver."
+        },
+        "host": {
+          "type": "string",
+          "description": "SMTP host."
+        },
+        "port": {
+          "$ref": "#/definitions/port"
+        },
+        "username": {
+          "type": "string",
+          "description": "SMTP user."
+        },
+        "encryption": {
+          "type": "string",
+          "description": "SMTP encryption mode."
+        },
+        "fromAddress": {
+          "type": "string",
+          "description": "Sender address."
+        },
+        "fromName": {
+          "type": "string",
+          "description": "Sender display name."
+        }
+      }
+    },
+    "ldap": {
+      "type": "object",
+      "description": "LDAP login settings.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable LDAP login."
+        },
+        "host": {
+          "type": "string",
+          "description": "LDAP host."
+        },
+        "port": {
+          "$ref": "#/definitions/port"
+        },
+        "username": {
+          "type": "string",
+          "description": "Bind DN of the technical account."
+        },
+        "baseDn": {
+          "type": "string",
+          "description": "Search base DN."
+        },
+        "encryption": {
+          "type": "string",
+          "description": "LDAP encryption mode."
+        },
+        "sasl": {
+          "type": "boolean",
+          "description": "Use SASL bind."
+        }
+      }
+    },
+    "pusher": {
+      "type": "object",
+      "description": "Pusher/Soketi protocol settings.",
+      "properties": {
+        "appId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Pusher protocol app id."
+        },
+        "appKey": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Pusher protocol app key."
+        },
+        "scheme": {
+          "type": "string",
+          "enum": ["http", "https"],
+          "description": "Pusher protocol scheme used for internal websocket calls."
+        },
+        "port": {
+          "$ref": "#/definitions/port"
+        }
+      }
+    },
+    "backend": {
+      "description": "Backend php-fpm Laravel API component.",
+      "allOf": [
+        { "$ref": "#/definitions/imageWorkload" },
+        {
+          "type": "object",
+          "properties": {
+            "skipMigrate": {
+              "type": "boolean",
+              "description": "Skip running php artisan migrate --force on rollout."
+            }
+          }
+        }
+      ]
+    },
+    "topologySpreadConstraints": {
+      "type": "object",
+      "description": "Topology spread constraints for multi-replica Deployments.",
+      "properties": {
+        "backend": {
+          "$ref": "#/definitions/topologySpreadConstraints"
+        },
+        "frontend": {
+          "$ref": "#/definitions/topologySpreadConstraints"
+        },
+        "queue": {
+          "$ref": "#/definitions/topologySpreadConstraints"
+        }
+      }
+    },
+    "queue": {
+      "description": "Queue worker component.",
+      "allOf": [
+        { "$ref": "#/definitions/workload" }
+      ]
+    },
+    "cron": {
+      "description": "Cron and scheduled jobs component.",
+      "allOf": [
+        { "$ref": "#/definitions/workloadCommon" }
+      ]
+    },
+    "frontend": {
+      "description": "Frontend Nuxt SPA component.",
+      "allOf": [
+        { "$ref": "#/definitions/imageWorkload" }
+      ]
+    },
+    "autotestParser": {
+      "description": "Autotest parser component.",
+      "allOf": [
+        { "$ref": "#/definitions/imageWorkload" }
+      ]
+    },
+    "autotestResultParser": {
+      "description": "Autotest result parser component.",
+      "allOf": [
+        { "$ref": "#/definitions/imageWorkload" }
+      ]
+    },
+    "statistic": {
+      "description": "Statistic micro-service component.",
+      "allOf": [
+        { "$ref": "#/definitions/imageWorkload" }
+      ]
+    },
+    "llm": {
+      "description": "LLM micro-service component.",
+      "allOf": [
+        { "$ref": "#/definitions/imageWorkload" }
+      ]
+    },
+    "notification": {
+      "description": "Notification API and worker component.",
+      "allOf": [
+        { "$ref": "#/definitions/imageWorkload" },
+        {
+          "type": "object",
+          "properties": {
+            "worker": {
+              "type": "object",
+              "description": "Celery notification worker settings.",
+              "properties": {
+                "replicas": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Celery worker replica count."
+                },
+                "concurrency": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Celery worker concurrency value."
+                },
+                "resources": {
+                  "$ref": "#/definitions/resourceRequirements"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "telegramBot": {
+      "description": "Optional Telegram bot component.",
+      "allOf": [
+        { "$ref": "#/definitions/imageWorkload" },
+        {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Enable Telegram bot."
+            },
+            "botName": {
+              "type": "string",
+              "description": "Bot username."
+            },
+            "tokenSecret": {
+              "type": "string",
+              "description": "Existing secret with token key for the Telegram bot token."
+            }
+          }
+        }
+      ]
+    },
+    "websocket": {
+      "description": "Soketi WebSocket server component.",
+      "allOf": [
+        { "$ref": "#/definitions/imageWorkload" }
+      ]
+    },
+    "nginx": {
+      "description": "Internal nginx router component.",
+      "allOf": [
+        { "$ref": "#/definitions/imageWorkload" },
+        {
+          "type": "object",
+          "properties": {
+            "clientMaxBodySize": {
+              "type": "string",
+              "description": "Maximum upload size."
+            }
+          }
+        }
+      ]
+    },
+    "ingress": {
+      "type": "object",
+      "description": "Ingress configuration.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Create the Ingress resource."
+        },
+        "className": {
+          "type": "string",
+          "description": "IngressClassName."
+        },
+        "annotations": {
+          "type": "object",
+          "description": "Extra annotations."
+        },
+        "tls": {
+          "type": "object",
+          "description": "Ingress TLS settings.",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Enable TLS in the Ingress."
+            },
+            "secretName": {
+              "type": "string",
+              "description": "Existing TLS secret name."
+            }
+          }
+        }
+      }
+    },
+    "networkPolicy": {
+      "type": "object",
+      "description": "NetworkPolicy configuration.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable NetworkPolicy resources."
+        }
+      }
+    },
+    "autoscaling": {
+      "type": "object",
+      "description": "HorizontalPodAutoscaler configuration.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable HPA for backend, frontend, and queue."
+        },
+        "backend": {
+          "$ref": "#/definitions/hpa"
+        },
+        "frontend": {
+          "$ref": "#/definitions/hpa"
+        },
+        "queue": {
+          "$ref": "#/definitions/hpa"
+        }
+      }
+    },
+    "serviceAccount": {
+      "type": "object",
+      "description": "ServiceAccount configuration.",
+      "properties": {
+        "create": {
+          "type": "boolean",
+          "description": "Create a dedicated ServiceAccount."
+        },
+        "name": {
+          "type": "string",
+          "description": "Existing ServiceAccount name when create=false."
+        }
+      }
+    },
+    "defaultSecurityContext": {
+      "type": "object",
+      "description": "Default pod and container security contexts applied to Deployments.",
+      "properties": {
+        "pod": {
+          "type": "object",
+          "description": "Default pod-level security context."
+        },
+        "container": {
+          "$ref": "#/definitions/containerSecurityContext"
+        }
+      }
+    },
+    "serviceMonitor": {
+      "type": "object",
+      "description": "Prometheus Operator ServiceMonitor configuration.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Create a ServiceMonitor for the backend Service."
+        },
+        "interval": {
+          "type": "string",
+          "description": "Scrape interval."
+        },
+        "scrapeTimeout": {
+          "type": "string",
+          "description": "Scrape timeout."
+        },
+        "labels": {
+          "type": "object",
+          "description": "Labels for Prometheus to select the ServiceMonitor."
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Namespace to deploy the ServiceMonitor into."
+        }
+      }
+    },
+    "podDisruptionBudget": {
+      "type": "object",
+      "description": "PodDisruptionBudget configuration.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Create PodDisruptionBudget resources."
+        },
+        "backend": {
+          "$ref": "#/definitions/pdb"
+        },
+        "frontend": {
+          "$ref": "#/definitions/pdb"
+        },
+        "queue": {
+          "$ref": "#/definitions/pdb"
+        }
+      }
+    },
+    "extraLabels": {
+      "type": "object",
+      "description": "Extra labels added to every resource."
+    },
+    "extraAnnotations": {
+      "type": "object",
+      "description": "Extra annotations added to every resource."
+    },
+    "podAnnotations": {
+      "type": "object",
+      "description": "Extra annotations added to all pod templates."
+    },
+    "extraVolumes": {
+      "type": "array",
+      "description": "Extra volumes added to all Deployments.",
+      "items": {
+        "type": "object"
+      }
+    },
+    "extraVolumeMounts": {
+      "type": "array",
+      "description": "Extra volume mounts added to all containers.",
+      "items": {
+        "type": "object"
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": ["secrets"],
+        "properties": {
+          "secrets": {
+            "type": "object",
+            "required": ["create"],
+            "properties": {
+              "create": {
+                "enum": [false]
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "secrets": {
+            "type": "object",
+            "required": ["app", "apiKeys", "pusher", "rabbitmq", "minio"],
+            "properties": {
+              "app": {
+                "type": "string",
+                "minLength": 1
+              },
+              "apiKeys": {
+                "type": "string",
+                "minLength": 1
+              },
+              "pusher": {
+                "type": "string",
+                "minLength": 1
+              },
+              "rabbitmq": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minio": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["postgresql"],
+        "properties": {
+          "postgresql": {
+            "type": "object",
+            "required": ["cnpg"],
+            "properties": {
+              "cnpg": {
+                "type": "object",
+                "required": ["create"],
+                "properties": {
+                  "create": {
+                    "enum": [false]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "postgresql": {
+            "type": "object",
+            "required": ["host", "passwordSecret"],
+            "properties": {
+              "host": {
+                "type": "string",
+                "minLength": 1
+              },
+              "passwordSecret": {
+                "type": "object",
+                "required": ["name"],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["redis"],
+        "properties": {
+          "redis": {
+            "type": "object",
+            "required": ["create"],
+            "properties": {
+              "create": {
+                "enum": [false]
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "redis": {
+            "type": "object",
+            "required": ["host"],
+            "properties": {
+              "host": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["rabbitmq"],
+        "properties": {
+          "rabbitmq": {
+            "type": "object",
+            "required": ["create"],
+            "properties": {
+              "create": {
+                "enum": [false]
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "rabbitmq": {
+            "type": "object",
+            "required": ["host"],
+            "properties": {
+              "host": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "secrets": {
+            "type": "object",
+            "required": ["rabbitmq"],
+            "properties": {
+              "rabbitmq": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["minio"],
+        "properties": {
+          "minio": {
+            "type": "object",
+            "required": ["create"],
+            "properties": {
+              "create": {
+                "enum": [false]
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "minio": {
+            "type": "object",
+            "required": ["endpoint"],
+            "properties": {
+              "endpoint": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "secrets": {
+            "type": "object",
+            "required": ["minio"],
+            "properties": {
+              "minio": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "definitions": {
+    "componentImage": {
+      "type": "object",
+      "description": "Container image reference.",
+      "properties": {
+        "repository": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Image repository."
+        },
+        "tag": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Image tag."
+        }
+      }
+    },
+    "imagePullSecrets": {
+      "type": "array",
+      "description": "Image pull secrets applied to every Deployment.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "port": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535,
+      "description": "TCP port."
+    },
+    "storage": {
+      "type": "object",
+      "description": "Persistent storage settings.",
+      "properties": {
+        "size": {
+          "type": "string",
+          "minLength": 1,
+          "description": "PVC size."
+        },
+        "storageClass": {
+          "type": "string",
+          "description": "StorageClass for PVCs."
+        }
+      }
+    },
+    "secretKeyRef": {
+      "type": "object",
+      "description": "Secret key reference.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Secret name."
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Key inside the Secret."
+        }
+      }
+    },
+    "optionalSecretKeyRef": {
+      "type": "object",
+      "description": "Optional Secret key reference.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Secret name."
+        },
+        "key": {
+          "type": "string",
+          "description": "Key inside the Secret."
+        }
+      }
+    },
+    "tolerations": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "topologySpreadConstraints": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "resourceRequirements": {
+      "type": "object",
+      "description": "Container resource requests and limits.",
+      "properties": {
+        "requests": {
+          "type": "object",
+          "properties": {
+            "cpu": {
+              "type": "string"
+            },
+            "memory": {
+              "type": "string"
+            }
+          }
+        },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "cpu": {
+              "type": "string"
+            },
+            "memory": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "containerSecurityContext": {
+      "type": "object",
+      "description": "Container-level security context.",
+      "properties": {
+        "allowPrivilegeEscalation": {
+          "type": "boolean"
+        },
+        "readOnlyRootFilesystem": {
+          "type": "boolean"
+        },
+        "runAsNonRoot": {
+          "type": "boolean"
+        },
+        "runAsUser": {
+          "type": "integer"
+        },
+        "runAsGroup": {
+          "type": "integer"
+        },
+        "capabilities": {
+          "type": "object",
+          "properties": {
+            "drop": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "add": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "workloadCommon": {
+      "type": "object",
+      "properties": {
+        "resources": {
+          "$ref": "#/definitions/resourceRequirements"
+        },
+        "nodeSelector": {
+          "type": "object"
+        },
+        "affinity": {
+          "type": "object"
+        },
+        "tolerations": {
+          "$ref": "#/definitions/tolerations"
+        },
+        "podSecurityContext": {
+          "type": "object"
+        },
+        "containerSecurityContext": {
+          "type": "object"
+        }
+      }
+    },
+    "workload": {
+      "allOf": [
+        { "$ref": "#/definitions/workloadCommon" },
+        {
+          "type": "object",
+          "properties": {
+            "replicas": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Replica count."
+            }
+          }
+        }
+      ]
+    },
+    "imageWorkload": {
+      "allOf": [
+        { "$ref": "#/definitions/workload" },
+        {
+          "type": "object",
+          "properties": {
+            "image": {
+              "$ref": "#/definitions/componentImage"
+            }
+          }
+        }
+      ]
+    },
+    "hpa": {
+      "type": "object",
+      "description": "HorizontalPodAutoscaler settings.",
+      "properties": {
+        "minReplicas": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Minimum replicas."
+        },
+        "maxReplicas": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum replicas."
+        },
+        "targetCPUUtilizationPercentage": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Target CPU utilization percentage."
+        }
+      }
+    },
+    "pdb": {
+      "type": "object",
+      "description": "PodDisruptionBudget settings.",
+      "properties": {
+        "minAvailable": {
+          "anyOf": [
+            { "type": "integer", "minimum": 0 },
+            { "type": "string", "pattern": "^[0-9]+%$" }
+          ],
+          "description": "Minimum number or percentage of pods that must remain available."
+        }
+      }
+    }
+  }
+}
