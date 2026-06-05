@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 A monorepo of Helm charts published as a public Helm repository on GitHub Pages. Each chart lives in `charts/<name>/`, is versioned independently per semver, and is released via `chart-releaser-action`. The published index is served from `https://batonogov.github.io/helm-charts/index.yaml`; the actual `.tgz` packages are GitHub Release assets, not stored in `gh-pages`.
 
 Currently shipped charts:
-- `charts/doqa` — DoQA Test Case Management System (TCMS), self-hosted on Kubernetes 1.32+. Targets `appVersion 4.0.0-box`.
+- `charts/doqa` — DoQA Test Case Management System (TCMS), self-hosted on Kubernetes 1.32+. Targets `appVersion 4.1.0-box`.
 - `charts/xray-health-exporter` — Prometheus exporter for Xray-core tunnel health. Targets `appVersion 1.4.0`.
 
 ## Common commands
@@ -52,14 +52,14 @@ The `gh-pages` branch must exist before the first release (one-time bootstrap). 
 
 ## Architecture of `charts/doqa`
 
-This chart deploys the full DoQA v4.0.0 stack — 14 Deployments + Service mesh that mirror the vendor's `docker-compose.with-database.yml`. The vendor does not publish a Helm chart and won't (confirmed with their support); the chart is reverse-engineered from their CLI's behaviour.
+This chart deploys the full DoQA v4.1.0 stack — 15 Deployments + Service mesh that mirror the vendor's `docker-compose.with-database.yml`. The vendor does not publish a Helm chart and won't (confirmed with their support); the chart is reverse-engineered from their CLI's behaviour.
 
 ### Source of truth
 
 Vendor ships installation as a Go binary (`https://doqa.app/downloads/doqa`, ELF amd64) plus per-version artifacts. The binary itself only contains the `install` subcommand on first run — it self-mutates into a post-install state that exposes `start/stop/update/cert/domain/backup/restore` once `.env`/`docker-compose.yml` exist in cwd. **All real content is in the per-version configs zip, not in the binary.** Pull these directly:
 
 ```
-https://doqa.app/downloads/latest.txt          → "4_0_0"  (current)
+https://doqa.app/downloads/latest.txt          → "4_1_0"  (current)
 https://doqa.app/downloads/cli_latest.txt      → CLI binary version
 https://doqa.app/downloads/support_versions.json
 https://doqa.app/downloads/configs_<ver>.zip   → .env.install + docker-compose.yml +
@@ -84,6 +84,7 @@ Each vendor compose service has a 1:1 chart counterpart:
 | `doqa_autotest_parser` | `templates/autotest-parser.yaml` | Deployment + Service (:8000), explicit env (no envFrom) |
 | `doqa_autotest_result_parser` | `templates/autotest-result-parser.yaml` | Deployment, no Service |
 | `service-statistic` | `templates/statistic.yaml` | Deployment + Service (:3000), explicit env |
+| `service-llm` | `templates/llm.yaml` | Deployment + Service (:3000), explicit env |
 | `service-notification` | `templates/notification.yaml` (api block) | Deployment + Service (:3000) |
 | `worker-notification` | `templates/notification.yaml` (worker block) | Deployment, Celery |
 | `telegram-bot` | `templates/telegram-bot.yaml` | Deployment, gated by `telegramBot.enabled` |
@@ -97,10 +98,10 @@ Each vendor compose service has a 1:1 chart counterpart:
 | `redis` (notification-only, second instance in compose) | reused single `redis.yaml` instance with different `REDIS_DB` | — |
 | `minio_backup`/`minio_restore`/`doqa_backup_postgres`/`doqa_restore_postgres` | **not implemented** — vendor uses `profiles: manual`, invoked via `./doqa backup`/`restore` | — (out of scope) |
 
-`.env.install` (47 keys) splits into three places in the chart:
-- **ConfigMap `<release>-env`** — non-secret config (APP_URL, DB_HOST, MAIL_*, MINIO_*, BROADCAST_DRIVER, PUSHER_APP_HOST/ID/KEY/PORT, STATISTIC/NOTIFICATION_ENDPOINT, etc.). Pulled via `envFrom` into backend/queue/cron/result-parser.
-- **Per-pod `env:` blocks** for components vendor doesn't load `env_file=.env` for: autotest-parser (12 explicit RABBITMQ/JWT/DEBUG envs), statistic (DB+API_KEY), notification anchor, websocket (5 SOKETI_* envs).
-- **Secrets** — passwords/keys (APP_KEY, JWT_SECRET, DB_PASSWORD, RABBITMQ_PASSWORD/ERLANG_COOKIE, MINIO_KEY/SECRET, MAIL_PASSWORD, PUSHER_APP_SECRET, STATISTIC_API_KEY, NOTIFICATION_API_KEY, BOT_TOKEN). See "Secret strategy" below.
+`.env.install` splits into three places in the chart:
+- **ConfigMap `<release>-env`** — non-secret config (APP_URL, DB_HOST, MAIL_*, MINIO_*, BROADCAST_DRIVER, PUSHER_APP_HOST/ID/KEY/PORT/SCHEME, STATISTIC/NOTIFICATION/LLM_ENDPOINT, QUEUE_WORKERS, etc.). Pulled via `envFrom` into backend/queue/cron/result-parser.
+- **Per-pod `env:` blocks** for components vendor doesn't load `env_file=.env` for: autotest-parser (12 explicit RABBITMQ/JWT/DEBUG envs), statistic (DB+API_KEY), llm (API_KEY + statistic endpoint/key), notification anchor, websocket (5 SOKETI_* envs).
+- **Secrets** — passwords/keys (APP_KEY, JWT_SECRET, DB_PASSWORD, RABBITMQ_PASSWORD/ERLANG_COOKIE, MINIO_KEY/SECRET, MAIL_PASSWORD, PUSHER_APP_SECRET, STATISTIC_API_KEY, NOTIFICATION_API_KEY, LLM_API_KEY, BOT_TOKEN). See "Secret strategy" below.
 
 ### Deliberate departures from vendor compose
 
@@ -110,7 +111,7 @@ These are NOT bugs — the chart re-expresses compose into k8s idioms:
 - **`MINIO_BUCKET_URL`** computed as `<scheme>://<appUrl>/<bucket>` (browser hits Ingress→nginx→/doqa proxy→MinIO), vs vendor's `http://minio/doqa` which only works inside compose network.
 - **Bucket creation via Helm post-install hook Job** (`templates/minio.yaml:Job`) instead of vendor's compose `createbuckets` profile. Hook delete-policy includes `hook-failed` so a stuck Job doesn't pin the release.
 - **Backup/restore not implemented** — vendor's `./doqa backup` runs `pg_dump` + `mc mirror` into a zip; in k8s this belongs in a separate CronJob / external tool, not the application chart.
-- **PUSHER_APP_HOST and STATISTIC/NOTIFICATION_ENDPOINT** hardcoded by vendor to compose `container_name`s; chart computes them from `<release>-<component>` Service names so they survive `nameOverride`/`fullnameOverride`.
+- **PUSHER_APP_HOST and STATISTIC/NOTIFICATION/LLM_ENDPOINT** hardcoded by vendor to compose `container_name`s; chart computes them from `<release>-<component>` Service names so they survive `nameOverride`/`fullnameOverride`.
 
 ### Updating to a new vendor version
 
@@ -126,7 +127,7 @@ When vendor publishes a new `box` version (check `https://doqa.app/downloads/lat
 
 ### Component inventory
 
-`backend` (php-fpm Laravel, port 8080), `queue` (`queue:work`), `cron` (`schedule:work`), `frontend` (Nuxt :8080), `autotest-parser` (FastAPI :8000, RabbitMQ-driven), `autotest-result-parser` (RabbitMQ consumer, no HTTP), `statistic` (ASGI :3000), `notification` (ASGI :3000) + `notification-worker` (Celery), `telegram-bot` (optional), `websocket` (Soketi :6001), `nginx` (internal router :80) — Ingress points at the nginx Service which proxies to all backends by path. Vendor images live at `registry.control.doqa.app` and pull anonymously (no `imagePullSecrets` needed by default).
+`backend` (php-fpm Laravel, port 8080), `queue` (`queue:work`), `cron` (`schedule:work`), `frontend` (Nuxt :8080), `autotest-parser` (FastAPI :8000, RabbitMQ-driven), `autotest-result-parser` (RabbitMQ consumer, no HTTP), `statistic` (ASGI :3000), `llm` (ASGI :3000), `notification` (ASGI :3000) + `notification-worker` (Celery), `telegram-bot` (optional), `websocket` (Soketi :6001), `nginx` (internal router :80) — Ingress points at the nginx Service which proxies to all backends by path. Vendor images live at `registry.control.doqa.app` and pull anonymously (no `imagePullSecrets` needed by default).
 
 ### Stateful dependencies — `<name>.create` flag pattern
 

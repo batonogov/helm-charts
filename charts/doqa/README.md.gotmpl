@@ -38,12 +38,12 @@ anonymously — no `imagePullSecrets` are required by default.
 
 ## Architecture
 
-Components mirror the vendor docker-compose for v4.0.0:
+Components mirror the vendor docker-compose for v4.1.0:
 
 - `backend` (php-fpm Laravel API), `queue` (`queue:work`), `cron` (`schedule:work`)
 - `frontend` (Nuxt SPA)
 - `autotest-parser`, `autotest-result-parser` (RabbitMQ-driven)
-- `statistic`, `notification` (+ Celery worker), `telegram-bot` (optional)
+- `statistic`, `llm`, `notification` (+ Celery worker), `telegram-bot` (optional)
 - `websocket` (Soketi, Pusher protocol)
 - `nginx` (internal router) → exposed via Ingress
 
@@ -66,7 +66,7 @@ with stable values via `lookup` — they survive `helm upgrade`. Set
 | Secret | Keys |
 |---|---|
 | `<release>-app-secrets` | `app-key`, `jwt-secret` |
-| `<release>-api-keys` | `statistic-api-key`, `notification-api-key` |
+| `<release>-api-keys` | `statistic-api-key`, `notification-api-key`, `llm-api-key` |
 | `<release>-pusher-secret` | `app-secret` |
 | `<release>-rabbitmq-secret` | `password`, `erlang-cookie` |
 | `<release>-minio-secrets` | `access-key`, `secret-key` |
@@ -80,10 +80,21 @@ and `secrets.ldap`.
 
 ## Upgrading
 
-This chart targets DoQA 4.0.0+. There is no automatic migration path from
+This chart targets DoQA 4.1.0+. There is no automatic migration path from
 3.x deployments — vendor changed the queue broker from Redis to RabbitMQ
 between 3.7 and 4.0. Plan a stepwise migration if you are coming from a
 3.x install.
+
+### 0.2.x → 0.3.0
+
+- **DoQA 4.1.0**: the chart adds the new `llm` service and updates all vendor
+  application image tags.
+- **Queue default changed**: `queue.replicas` now defaults to `3`, matching the
+  vendor `QUEUE_WORKERS=3` setting.
+- **API key secret expanded**: when `secrets.create=false` or
+  `secrets.apiKeys` points to a pre-existing secret, add the new
+  `llm-api-key` key. Chart-managed secrets generate it automatically during
+  upgrade.
 
 ### 0.1.x → 0.2.0
 

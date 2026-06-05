@@ -22,6 +22,8 @@ data:
   REDIS_PORT: {{ .Values.redis.port | quote }}
   REDIS_DB: {{ .Values.redis.db | quote }}
 
+  QUEUE_WORKERS: {{ .Values.queue.replicas | quote }}
+
   RABBITMQ_HOST: {{ include "doqa.rabbitmq.host" . | quote }}
   RABBITMQ_PORT: {{ .Values.rabbitmq.port | quote }}
   RABBITMQ_USER: {{ .Values.rabbitmq.username | quote }}
@@ -46,9 +48,11 @@ data:
   PUSHER_APP_ID: {{ .Values.pusher.appId | quote }}
   PUSHER_APP_KEY: {{ .Values.pusher.appKey | quote }}
   PUSHER_APP_PORT: {{ .Values.pusher.port | quote }}
+  PUSHER_SCHEME: {{ .Values.pusher.scheme | quote }}
 
   STATISTIC_ENDPOINT: {{ printf "http://%s-statistic:3000/" (include "doqa.fullname" .) | quote }}
   NOTIFICATION_ENDPOINT: {{ printf "http://%s-notification:3000/" (include "doqa.fullname" .) | quote }}
+  LLM_ENDPOINT: {{ printf "http://%s-llm:3000/" (include "doqa.fullname" .) | quote }}
 
   BOT_NAME: {{ .Values.telegramBot.botName | quote }}
 
