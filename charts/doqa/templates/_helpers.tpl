@@ -208,7 +208,7 @@ Resolution rules per secret:
 {{- if .Values.secrets.apiKeys -}}
 {{- .Values.secrets.apiKeys -}}
 {{- else if not .Values.secrets.create -}}
-{{- required "secrets.apiKeys must be set when secrets.create=false (existing Secret with keys statistic-api-key, notification-api-key)" "" -}}
+{{- required "secrets.apiKeys must be set when secrets.create=false (existing Secret with keys statistic-api-key, notification-api-key, llm-api-key)" "" -}}
 {{- else -}}
 {{- printf "%s-api-keys" (include "doqa.fullname" .) -}}
 {{- end -}}
@@ -337,6 +337,11 @@ Per-pod env entries that read from secrets (DB password, app keys, mail/minio/ap
     secretKeyRef:
       name: {{ include "doqa.secret.apiKeys" . }}
       key: notification-api-key
+- name: LLM_API_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "doqa.secret.apiKeys" . }}
+      key: llm-api-key
 - name: PUSHER_APP_SECRET
   valueFrom:
     secretKeyRef:

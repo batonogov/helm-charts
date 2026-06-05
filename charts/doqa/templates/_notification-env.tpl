@@ -24,6 +24,8 @@ Shared env block for notification API, worker, and telegram-bot — matches the 
     secretKeyRef:
       name: {{ include "doqa.secret.pusher" . }}
       key: app-secret
+- name: PUSHER_SSL
+  value: {{ eq .Values.pusher.scheme "https" | quote }}
 - name: MAIL_HOST
   value: {{ .Values.mail.host | quote }}
 - name: MAIL_PORT
@@ -79,4 +81,6 @@ Shared env block for notification API, worker, and telegram-bot — matches the 
   value: "False"
 - name: PREFIX_ROOT_PATH
   value: "/"
+- name: IS_BOX
+  value: "true"
 {{- end }}

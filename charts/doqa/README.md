@@ -2,7 +2,7 @@
 
 DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
 
-![Version: 0.2.1](https://img.shields.io/badge/Version-0.2.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.0.0-box](https://img.shields.io/badge/AppVersion-4.0.0--box-informational?style=flat-square)
+![Version: 0.3.0](https://img.shields.io/badge/Version-0.3.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.1.0-box](https://img.shields.io/badge/AppVersion-4.1.0--box-informational?style=flat-square)
 
 **Homepage:** <https://doqa.app>
 
@@ -36,12 +36,12 @@ anonymously — no `imagePullSecrets` are required by default.
 
 ## Architecture
 
-Components mirror the vendor docker-compose for v4.0.0:
+Components mirror the vendor docker-compose for v4.1.0:
 
 - `backend` (php-fpm Laravel API), `queue` (`queue:work`), `cron` (`schedule:work`)
 - `frontend` (Nuxt SPA)
 - `autotest-parser`, `autotest-result-parser` (RabbitMQ-driven)
-- `statistic`, `notification` (+ Celery worker), `telegram-bot` (optional)
+- `statistic`, `llm`, `notification` (+ Celery worker), `telegram-bot` (optional)
 - `websocket` (Soketi, Pusher protocol)
 - `nginx` (internal router) → exposed via Ingress
 
@@ -64,7 +64,7 @@ with stable values via `lookup` — they survive `helm upgrade`. Set
 | Secret | Keys |
 |---|---|
 | `<release>-app-secrets` | `app-key`, `jwt-secret` |
-| `<release>-api-keys` | `statistic-api-key`, `notification-api-key` |
+| `<release>-api-keys` | `statistic-api-key`, `notification-api-key`, `llm-api-key` |
 | `<release>-pusher-secret` | `app-secret` |
 | `<release>-rabbitmq-secret` | `password`, `erlang-cookie` |
 | `<release>-minio-secrets` | `access-key`, `secret-key` |
@@ -91,25 +91,25 @@ Kubernetes: `>=1.32.0-0`
 | autoscaling.frontend.minReplicas | int | `2` | Minimum replicas for frontend HPA |
 | autoscaling.frontend.targetCPUUtilizationPercentage | int | `80` | Target CPU utilization percentage for frontend HPA |
 | autoscaling.queue.maxReplicas | int | `5` | Maximum replicas for queue HPA |
-| autoscaling.queue.minReplicas | int | `2` | Minimum replicas for queue HPA |
+| autoscaling.queue.minReplicas | int | `3` | Minimum replicas for queue HPA |
 | autoscaling.queue.targetCPUUtilizationPercentage | int | `80` | Target CPU utilization percentage for queue HPA |
 | autotestParser.affinity | object | `{}` |  |
 | autotestParser.image.repository | string | `"doqa/doqa-parsing-autotests"` | Autotest parser image repository |
-| autotestParser.image.tag | string | `"3.0.2-box"` | Autotest parser image tag |
+| autotestParser.image.tag | string | `"4.1.0-box"` | Autotest parser image tag |
 | autotestParser.nodeSelector | object | `{}` |  |
 | autotestParser.replicas | int | `1` | Autotest parser replica count |
 | autotestParser.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
 | autotestParser.tolerations | list | `[]` |  |
 | autotestResultParser.affinity | object | `{}` |  |
 | autotestResultParser.image.repository | string | `"doqa/doqa-autotest-result-parser"` | Result parser image repository |
-| autotestResultParser.image.tag | string | `"1.0.1-box"` | Result parser image tag |
+| autotestResultParser.image.tag | string | `"2.0.0-box"` | Result parser image tag |
 | autotestResultParser.nodeSelector | object | `{}` |  |
 | autotestResultParser.replicas | int | `1` | Result parser replica count |
 | autotestResultParser.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
 | autotestResultParser.tolerations | list | `[]` |  |
 | backend.affinity | object | `{}` |  |
 | backend.image.repository | string | `"doqa/doqa-backend"` | Backend image repository (relative to image.registry) |
-| backend.image.tag | string | `"4.0.2-box"` | Backend image tag |
+| backend.image.tag | string | `"4.1.13-box"` | Backend image tag |
 | backend.nodeSelector | object | `{}` |  |
 | backend.replicas | int | `2` | Backend replica count |
 | backend.resources | object | `{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}}` | Resource requests and limits |
@@ -129,7 +129,7 @@ Kubernetes: `>=1.32.0-0`
 | extraVolumes | list | `[]` | Extra volumes to add to all Deployments |
 | frontend.affinity | object | `{}` |  |
 | frontend.image.repository | string | `"doqa/doqa-frontend"` | Frontend image repository (relative to image.registry) |
-| frontend.image.tag | string | `"4.0.2-box"` | Frontend image tag |
+| frontend.image.tag | string | `"4.1.4-box"` | Frontend image tag |
 | frontend.nodeSelector | object | `{}` |  |
 | frontend.replicas | int | `2` | Frontend replica count |
 | frontend.resources | object | `{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}}` | Resource requests and limits |
@@ -150,6 +150,13 @@ Kubernetes: `>=1.32.0-0`
 | ldap.port | int | `389` | LDAP port |
 | ldap.sasl | bool | `false` | Use SASL bind |
 | ldap.username | string | `""` | Bind DN of the technical account |
+| llm.affinity | object | `{}` |  |
+| llm.image.repository | string | `"doqa/doqa-llm"` | LLM image repository |
+| llm.image.tag | string | `"1.0.5-box"` | LLM image tag |
+| llm.nodeSelector | object | `{}` |  |
+| llm.replicas | int | `1` | Replica count |
+| llm.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
+| llm.tolerations | list | `[]` |  |
 | mail.encryption | string | `"tls"` | Encryption (tls/ssl/null) |
 | mail.fromAddress | string | `""` | Sender address |
 | mail.fromName | string | `"DoQA"` | Sender display name |
@@ -186,7 +193,7 @@ Kubernetes: `>=1.32.0-0`
 | nodeSelector | object | `{}` | Default node selector applied to all components. Per-component values override this. |
 | notification.affinity | object | `{}` |  |
 | notification.image.repository | string | `"doqa/doqa-notify"` | Notification image repository |
-| notification.image.tag | string | `"1.0.15-box"` | Notification image tag |
+| notification.image.tag | string | `"2.0.2-box"` | Notification image tag |
 | notification.nodeSelector | object | `{}` |  |
 | notification.replicas | int | `1` | API replica count |
 | notification.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
@@ -213,9 +220,10 @@ Kubernetes: `>=1.32.0-0`
 | pusher.appId | string | `"web-socket"` | Pusher protocol app id |
 | pusher.appKey | string | `"web-socket"` | Pusher protocol app key |
 | pusher.port | int | `6001` | Soketi exposed port |
+| pusher.scheme | string | `"http"` | Pusher protocol scheme used for internal websocket calls |
 | queue.affinity | object | `{}` |  |
 | queue.nodeSelector | object | `{}` |  |
-| queue.replicas | int | `1` | Queue worker replica count |
+| queue.replicas | int | `3` | Queue worker replica count |
 | queue.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
 | queue.tolerations | list | `[]` |  |
 | rabbitmq.affinity | object | `{}` | Affinity for RabbitMQ pods. Overrides global affinity |
@@ -250,7 +258,7 @@ Kubernetes: `>=1.32.0-0`
 | redis.storage.size | string | `"1Gi"` | PVC size for Redis |
 | redis.storage.storageClass | string | `""` | StorageClass for Redis PVC |
 | redis.tolerations | list | `[]` | Tolerations for Redis pods. Overrides global tolerations |
-| secrets.apiKeys | string | `""` | Existing secret with keys `statistic-api-key`, `notification-api-key`. Default <release>-api-keys |
+| secrets.apiKeys | string | `""` | Existing secret with keys `statistic-api-key`, `notification-api-key`, `llm-api-key`. Default <release>-api-keys |
 | secrets.app | string | `""` | Existing secret with keys `app-key`, `jwt-secret`. Default <release>-app-secrets |
 | secrets.create | bool | `true` | Generate chart-managed secrets with random values |
 | secrets.ldap | string | `""` | Existing secret with key `password`. Required only when ldap.enabled=true |
@@ -267,7 +275,7 @@ Kubernetes: `>=1.32.0-0`
 | serviceMonitor.scrapeTimeout | string | `""` | Scrape timeout (Prometheus duration format, e.g. 10s, 30s) |
 | statistic.affinity | object | `{}` |  |
 | statistic.image.repository | string | `"doqa/doqa-statistic"` | Statistic image repository |
-| statistic.image.tag | string | `"2.0.1-box"` | Statistic image tag |
+| statistic.image.tag | string | `"3.0.0-box"` | Statistic image tag |
 | statistic.nodeSelector | object | `{}` |  |
 | statistic.replicas | int | `1` | Replica count |
 | statistic.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
@@ -276,7 +284,7 @@ Kubernetes: `>=1.32.0-0`
 | telegramBot.botName | string | `""` | Bot username (BOT_NAME) |
 | telegramBot.enabled | bool | `false` | Enable telegram bot |
 | telegramBot.image.repository | string | `"doqa/doqa-telegram-bot"` | Telegram bot image repository |
-| telegramBot.image.tag | string | `"0.1.3-box"` | Telegram bot image tag |
+| telegramBot.image.tag | string | `"1.0.1-box"` | Telegram bot image tag |
 | telegramBot.nodeSelector | object | `{}` |  |
 | telegramBot.replicas | int | `1` | Replica count |
 | telegramBot.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
@@ -297,10 +305,21 @@ Kubernetes: `>=1.32.0-0`
 
 ## Upgrading
 
-This chart targets DoQA 4.0.0+. There is no automatic migration path from
+This chart targets DoQA 4.1.0+. There is no automatic migration path from
 3.x deployments — vendor changed the queue broker from Redis to RabbitMQ
 between 3.7 and 4.0. Plan a stepwise migration if you are coming from a
 3.x install.
+
+### 0.2.x → 0.3.0
+
+- **DoQA 4.1.0**: the chart adds the new `llm` service and updates all vendor
+  application image tags.
+- **Queue default changed**: `queue.replicas` now defaults to `3`, matching the
+  vendor `QUEUE_WORKERS=3` setting.
+- **API key secret expanded**: when `secrets.create=false` or
+  `secrets.apiKeys` points to a pre-existing secret, add the new
+  `llm-api-key` key. Chart-managed secrets generate it automatically during
+  upgrade.
 
 ### 0.1.x → 0.2.0
 

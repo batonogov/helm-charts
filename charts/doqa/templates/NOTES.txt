@@ -10,7 +10,7 @@ URL: {{ ternary "https" "http" .Values.useSsl }}://{{ .Values.appUrl }}/
 Required external secrets (must already exist in namespace `{{ .Release.Namespace }}`):
   {{ include "doqa.secret.app" . }}      keys: app-key, jwt-secret
   {{ include "doqa.secret.minio" . }}    keys: access-key, secret-key
-  {{ include "doqa.secret.apiKeys" . }}  keys: statistic-api-key, notification-api-key
+  {{ include "doqa.secret.apiKeys" . }}  keys: statistic-api-key, notification-api-key, llm-api-key
   {{ include "doqa.secret.pusher" . }}   keys: app-secret
   {{ include "doqa.secret.rabbitmq" . }} keys: password, erlang-cookie
 {{- if .Values.secrets.mail }}

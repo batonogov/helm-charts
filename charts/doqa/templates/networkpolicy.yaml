@@ -151,7 +151,7 @@ spec:
         - port: 9000
           protocol: TCP
 ---
-# Allow backend/queue/cron/autotest-result-parser/statistic/notification -> postgresql
+# Allow app workloads -> postgresql
 # Only rendered when CNPG is provisioned in-cluster. External PG is reached via egress rules.
 {{- if .Values.postgresql.cnpg.create }}
 apiVersion: networking.k8s.io/v1
@@ -192,12 +192,20 @@ spec:
             matchLabels:
               {{- $selectorLabels | nindent 14 }}
               app.kubernetes.io/component: notification
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: notification-worker
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: telegram-bot
       ports:
         - port: 5432
           protocol: TCP
 {{- end }}
 ---
-# Allow backend/queue/cron/statistic/notification/notification-worker -> redis
+# Allow app workloads -> redis
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -237,6 +245,10 @@ spec:
             matchLabels:
               {{- $selectorLabels | nindent 14 }}
               app.kubernetes.io/component: notification-worker
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: telegram-bot
       ports:
         - port: 6379
           protocol: TCP
@@ -305,11 +317,11 @@ spec:
         - port: 9000
           protocol: TCP
 ---
-# Allow backend -> websocket (Pusher protocol)
+# Allow app workloads -> websocket (Pusher protocol)
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: {{ $fullName }}-allow-backend-to-websocket
+  name: {{ $fullName }}-allow-app-to-websocket
   labels:
     {{- include "doqa.labels" . | nindent 4 }}
 spec:
@@ -325,8 +337,128 @@ spec:
             matchLabels:
               {{- $selectorLabels | nindent 14 }}
               app.kubernetes.io/component: backend
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: queue
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: cron
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: notification
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: notification-worker
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: telegram-bot
       ports:
         - port: 6001
+          protocol: TCP
+---
+# Allow app workloads -> statistic API
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $fullName }}-allow-app-to-statistic
+  labels:
+    {{- include "doqa.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- $selectorLabels | nindent 6 }}
+      app.kubernetes.io/component: statistic
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: backend
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: queue
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: cron
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: llm
+      ports:
+        - port: 3000
+          protocol: TCP
+---
+# Allow app workloads -> notification API
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $fullName }}-allow-app-to-notification
+  labels:
+    {{- include "doqa.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- $selectorLabels | nindent 6 }}
+      app.kubernetes.io/component: notification
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: backend
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: queue
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: cron
+      ports:
+        - port: 3000
+          protocol: TCP
+---
+# Allow app workloads -> LLM API
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $fullName }}-allow-app-to-llm
+  labels:
+    {{- include "doqa.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- $selectorLabels | nindent 6 }}
+      app.kubernetes.io/component: llm
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: backend
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: queue
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: cron
+      ports:
+        - port: 3000
           protocol: TCP
 ---
 # Allow all pods DNS resolution (kube-dns)
