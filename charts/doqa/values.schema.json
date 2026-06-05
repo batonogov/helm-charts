@@ -941,8 +941,10 @@
           "description": "Image repository."
         },
         "tag": {
-          "type": "string",
-          "minLength": 1,
+          "anyOf": [
+            { "type": "string", "minLength": 1 },
+            { "type": "number" }
+          ],
           "description": "Image tag."
         }
       }
