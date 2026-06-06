@@ -42,7 +42,7 @@ spec:
             severity: warning
           annotations:
             summary: "High P95 latency on Xray tunnel {{`{{ $labels.name }}`}}"
-            description: "Tunnel {{`{{ $labels.name }}`}} P95 latency is {{`{{ $value | humanize }}`}}s (threshold 2s)."
+            description: "Tunnel {{`{{ $labels.name }}`}} P95 latency is {{`{{ $value | printf \"%.2f\" }}`}}s (threshold 2s)."
         - alert: XrayTunnelErrors
           expr: increase(xray_tunnel_error_total[15m]) > 10
           for: 5m
@@ -50,7 +50,7 @@ spec:
             severity: warning
           annotations:
             summary: "High error rate on Xray tunnel {{`{{ $labels.name }}`}}"
-            description: "Tunnel {{`{{ $labels.name }}`}} ({{`{{ $labels.reason }}`}}) has {{`{{ $value }}`}} errors in the last 15m."
+            description: "Tunnel {{`{{ $labels.name }}`}} ({{`{{ $labels.reason }}`}}) has {{`{{ $value | printf \"%.0f\" }}`}} errors in the last 15m."
         - alert: XrayNoRecentCheck
           expr: (time() - xray_tunnel_last_success_timestamp) > 300
           for: 5m
