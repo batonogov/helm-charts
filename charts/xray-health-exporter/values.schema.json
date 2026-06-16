@@ -177,6 +177,34 @@
           "type": "string",
           "enum": ["text", "json"],
           "description": "Exporter log format (text or json)."
+        },
+        "CHECK_METHOD": {
+          "type": "string",
+          "enum": ["http", "ip", "download"],
+          "description": "Default health-check method when a tunnel omits check_method."
+        },
+        "IP_CHECK_URL": {
+          "type": "string",
+          "format": "uri",
+          "description": "IP-echo URL for the ip check method."
+        },
+        "DOWNLOAD_URL": {
+          "type": "string",
+          "format": "uri",
+          "description": "File URL for the download check method."
+        },
+        "DOWNLOAD_TIMEOUT": {
+          "type": "string",
+          "description": "Timeout for the download check method (Go duration)."
+        },
+        "DOWNLOAD_MIN_SIZE": {
+          "description": "Minimum downloaded bytes for the download method to succeed.",
+          "anyOf": [{ "type": "integer", "minimum": 0 }, { "type": "string", "pattern": "^[0-9]+$" }]
+        },
+        "RUN_ONCE": {
+          "type": "string",
+          "enum": ["true", "false"],
+          "description": "One-shot mode. true runs a single check cycle and exits."
         }
       }
     },
@@ -262,6 +290,29 @@
             "check_timeout": {
               "type": "string",
               "description": "Default timeout per check (e.g. 30s, 1m)."
+            },
+            "check_method": {
+              "type": "string",
+              "enum": ["http", "ip", "download"],
+              "description": "Default check method (v1.6.0+): http, ip, or download."
+            },
+            "ip_check_url": {
+              "type": "string",
+              "format": "uri",
+              "description": "Default IP-echo URL for the ip method."
+            },
+            "download_url": {
+              "type": "string",
+              "format": "uri",
+              "description": "Default file URL for the download method."
+            },
+            "download_timeout": {
+              "type": "string",
+              "description": "Default timeout for the download method (Go duration)."
+            },
+            "download_min_size": {
+              "description": "Default minimum downloaded bytes for the download method.",
+              "anyOf": [{ "type": "integer", "minimum": 0 }, { "type": "string", "pattern": "^[0-9]+$" }]
             }
           }
         },
@@ -284,6 +335,68 @@
     "existingConfigSecret": {
       "type": "string",
       "description": "Mount an existing Secret containing config.yaml instead of rendering one from .Values.config."
+    },
+    "metricsBasicAuth": {
+      "type": "object",
+      "description": "Optional HTTP Basic Auth on the /metrics endpoint (upstream v1.6.0+). Auto-injects matching credentials into the ServiceMonitor when enabled together with metrics.serviceMonitor.enabled.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Protect /metrics with HTTP Basic Auth."
+        },
+        "username": {
+          "type": "string",
+          "description": "Username. Defaults to upstream's metricsUser when empty."
+        },
+        "existingSecret": {
+          "type": "string",
+          "description": "Use an existing Secret instead of a chart-generated one. Must contain both username and password keys in the ServiceMonitor's namespace."
+        },
+        "secretName": {
+          "type": "string",
+          "description": "Name override for the chart-generated Basic Auth Secret. Ignored when existingSecret is set."
+        },
+        "usernameKey": {
+          "type": "string",
+          "description": "Key inside the Secret holding the username (default username)."
+        },
+        "passwordKey": {
+          "type": "string",
+          "description": "Key inside the Secret holding the password (default password)."
+        }
+      }
+    },
+    "metricsPush": {
+      "type": "object",
+      "description": "Optional Pushgateway push (upstream v1.6.0+). Complementary to the /metrics pull endpoint; only the leader pushes.",
+      "properties": {
+        "url": {
+          "type": "string",
+          "description": "Full Pushgateway URL. Avoid embedding credentials here (use urlSecret); they would land in the rendered Deployment in plaintext. Empty disables push."
+        },
+        "urlSecret": {
+          "type": "object",
+          "description": "Reference an existing Secret holding the full Pushgateway URL. Takes precedence over url and keeps credentials out of rendered manifests.",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Name of the Secret holding the Pushgateway URL."
+            },
+            "key": {
+              "type": "string",
+              "description": "Key inside the Secret (default url)."
+            }
+          }
+        },
+        "interval": {
+          "type": "string",
+          "description": "Interval between pushes (Go duration)."
+        },
+        "instance": {
+          "type": "string",
+          "description": "Value of the instance grouping label for pushed metrics."
+        }
+      }
     },
     "metrics": {
       "type": "object",

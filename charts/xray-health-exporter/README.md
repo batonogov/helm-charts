@@ -2,7 +2,7 @@
 
 Prometheus exporter for Xray-core tunnel health
 
-![Version: 0.2.0](https://img.shields.io/badge/Version-0.2.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.5.0](https://img.shields.io/badge/AppVersion-1.5.0-informational?style=flat-square)
+![Version: 0.3.0](https://img.shields.io/badge/Version-0.3.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.6.0](https://img.shields.io/badge/AppVersion-1.6.0-informational?style=flat-square)
 
 **Homepage:** <https://github.com/batonogov/xray-health-exporter>
 
@@ -67,6 +67,48 @@ default tunnel alerts (`XrayTunnelDown`, `XrayHighLatency`,
 `XrayNoRecentCheck`); override `metrics.prometheusRule.rules` to provide your
 own list.
 
+## Health-check methods (v1.6.0+)
+
+The exporter supports three check methods, configurable globally via
+`env.CHECK_METHOD` or per tunnel via `config.defaults.check_method` /
+tunnel-level `check_method`:
+
+- `http` (default) — HTTP GET against `check_url`
+- `ip` — fetch the tunnel's exit IP via `IP_CHECK_URL`
+- `download` — download a file via `DOWNLOAD_URL` and verify its size
+
+All three measure latency as TTFB (time to first byte).
+
+## Securing the metrics endpoint (v1.6.0+)
+
+Set `metricsBasicAuth.enabled=true` to protect `/metrics` with HTTP Basic
+Auth. The chart provisions a stable Secret holding both the username and
+password (reused on upgrade so they do not rotate) unless you point
+`metricsBasicAuth.existingSecret` at your own Secret (which must contain both
+the username and password keys, in the ServiceMonitor's namespace).
+
+When `metrics.serviceMonitor.enabled=true` is also set, the chart **injects
+matching `basicAuth` credentials into the ServiceMonitor automatically**, so
+Prometheus scrapes succeed without extra configuration. The username and
+password keys are configurable via `metricsBasicAuth.usernameKey` /
+`metricsBasicAuth.passwordKey`.
+
+> **Note:** Prometheus Operator reads the referenced Secret from the
+> ServiceMonitor's namespace. If you move the ServiceMonitor to another
+> namespace via `metrics.serviceMonitor.namespace`, the chart-generated Secret
+> (in the release namespace) won't be reachable — set
+> `metricsBasicAuth.existingSecret` to a Secret in that namespace instead.
+
+## Pushing to Pushgateway (v1.6.0+)
+
+Set `metricsPush.url` to additionally push metrics to a Pushgateway. Push is
+complementary to the `/metrics` pull endpoint and only the leader pushes.
+
+To avoid leaking Pushgateway credentials in the rendered Deployment (and in
+etcd), point `metricsPush.urlSecret.name` at an existing Secret holding the
+full URL (key `url` by default) when the URL embeds `user:pass@` — it takes
+precedence over `metricsPush.url`.
+
 ## Requirements
 
 Kubernetes: `>=1.32.0-0`
@@ -79,8 +121,14 @@ Kubernetes: `>=1.32.0-0`
 | config.defaults | object | `{"check_interval":"30s","check_timeout":"30s","check_url":"https://www.google.com"}` | Global tunnel-check defaults applied when an entry omits the field. |
 | config.subscriptions | list | `[]` | Subscription URLs that auto-discover tunnels. See upstream README for schema. WARNING: subscription URLs typically embed access tokens — they are rendered into a plain ConfigMap. Use `existingConfigSecret` to source `config.yaml` from a Secret instead. |
 | config.tunnels | list | `[]` | Static tunnels. Each entry needs either `url` (VLESS) or `xray_config_file`. At least one tunnel or one subscription is required (or set `existingConfigSecret`); otherwise the exporter refuses to start. |
+| env.CHECK_METHOD | string | `"http"` | Default health-check method used when a tunnel omits `check_method`. `http` (HTTP GET), `ip` (IP echo via `IP_CHECK_URL`), or `download` (file download via `DOWNLOAD_URL`). |
+| env.DOWNLOAD_MIN_SIZE | string | `"51200"` | Minimum downloaded bytes for the `download` method to be considered successful. |
+| env.DOWNLOAD_TIMEOUT | string | `"60s"` | Timeout for the `download` check method (Go duration, e.g. `60s`, `2m`). |
+| env.DOWNLOAD_URL | string | `"https://proof.ovh.net/files/1Mb.dat"` | File URL for the `download` check method. |
+| env.IP_CHECK_URL | string | `"https://api.ipify.org?format=text"` | IP-echo URL for the `ip` check method. |
 | env.LOG_FORMAT | string | `"text"` | Exporter log format (`text` or `json`). |
 | env.LOG_LEVEL | string | `"info"` | Exporter log level (`debug`/`info`/`warning`/`error`). Replaces the deprecated `DEBUG=true` flag. |
+| env.RUN_ONCE | string | `"false"` | One-shot mode. If `true`, run a single check cycle, print metrics to stdout, and exit. Disable for long-running Deployments (useful only for CronJob-style usage). |
 | env.XRAY_LOG_LEVEL | string | `"warning"` | Xray-core log level (`debug`/`info`/`warning`/`error`). |
 | existingConfigSecret | string | `""` | Mount an existing Secret containing `config.yaml` instead of rendering one from `.Values.config`. |
 | extraEnv | list | `[]` | Extra environment variables (list of `{name, value}` or `{name, valueFrom}`). |
@@ -104,6 +152,17 @@ Kubernetes: `>=1.32.0-0`
 | metrics.serviceMonitor.namespace | string | `""` | Namespace for the ServiceMonitor. Defaults to the release namespace. |
 | metrics.serviceMonitor.relabelings | list | `[]` | Optional relabelings. |
 | metrics.serviceMonitor.scrapeTimeout | string | `"10s"` | Scrape timeout. |
+| metricsBasicAuth.enabled | bool | `false` | Protect /metrics with HTTP Basic Auth. When `true`, the `METRICS_PROTECTED`/`METRICS_USERNAME`/`METRICS_PASSWORD` envs are rendered. |
+| metricsBasicAuth.existingSecret | string | `""` | Use an existing Secret instead of a chart-generated one. Takes precedence over the generated Secret and `secretName`. The Secret must contain both the username and password keys in the ServiceMonitor's namespace. |
+| metricsBasicAuth.passwordKey | string | `""` | Key inside the Secret holding the password (default `password`). |
+| metricsBasicAuth.secretName | string | `""` | Name override for the chart-generated Secret holding the Basic Auth credentials. Defaults to `<release>-basicauth`. Ignored when `existingSecret` is set. |
+| metricsBasicAuth.username | string | `""` | Username. Defaults to upstream's `metricsUser` when empty. |
+| metricsBasicAuth.usernameKey | string | `""` | Key inside the Secret holding the username (default `username`). |
+| metricsPush.instance | string | `""` | Value of the `instance` grouping label for pushed metrics. Defaults to the pod hostname upstream. |
+| metricsPush.interval | string | `""` | Interval between pushes (Go duration). Defaults to the smallest tunnel `check_interval`, or `30s` upstream. |
+| metricsPush.url | string | `""` | Full Pushgateway URL, e.g. `https://pushgateway:9091`. AVOID embedding credentials (`user:pass@`) here — they land in the rendered Deployment in plaintext. For credentialed URLs use `urlSecret` instead. Empty disables push (default). |
+| metricsPush.urlSecret | object | `{"key":"url","name":""}` | Reference an existing Secret holding the full Pushgateway URL. Takes precedence over `url` and keeps any embedded credentials out of the rendered manifests. |
+| metricsPush.urlSecret.key | string | `"url"` | Key inside the Secret holding the Pushgateway URL. |
 | nameOverride | string | `""` | Override the chart name (used in resource naming). |
 | networkPolicy.egress | list | `[]` | Extra egress rules. When unset, allows all egress. |
 | networkPolicy.enabled | bool | `false` | Create a NetworkPolicy. By default allows all egress and Prometheus-style ingress to the metrics port. |

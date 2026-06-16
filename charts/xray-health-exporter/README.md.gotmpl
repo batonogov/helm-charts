@@ -69,6 +69,48 @@ default tunnel alerts (`XrayTunnelDown`, `XrayHighLatency`,
 `XrayNoRecentCheck`); override `metrics.prometheusRule.rules` to provide your
 own list.
 
+## Health-check methods (v1.6.0+)
+
+The exporter supports three check methods, configurable globally via
+`env.CHECK_METHOD` or per tunnel via `config.defaults.check_method` /
+tunnel-level `check_method`:
+
+- `http` (default) — HTTP GET against `check_url`
+- `ip` — fetch the tunnel's exit IP via `IP_CHECK_URL`
+- `download` — download a file via `DOWNLOAD_URL` and verify its size
+
+All three measure latency as TTFB (time to first byte).
+
+## Securing the metrics endpoint (v1.6.0+)
+
+Set `metricsBasicAuth.enabled=true` to protect `/metrics` with HTTP Basic
+Auth. The chart provisions a stable Secret holding both the username and
+password (reused on upgrade so they do not rotate) unless you point
+`metricsBasicAuth.existingSecret` at your own Secret (which must contain both
+the username and password keys, in the ServiceMonitor's namespace).
+
+When `metrics.serviceMonitor.enabled=true` is also set, the chart **injects
+matching `basicAuth` credentials into the ServiceMonitor automatically**, so
+Prometheus scrapes succeed without extra configuration. The username and
+password keys are configurable via `metricsBasicAuth.usernameKey` /
+`metricsBasicAuth.passwordKey`.
+
+> **Note:** Prometheus Operator reads the referenced Secret from the
+> ServiceMonitor's namespace. If you move the ServiceMonitor to another
+> namespace via `metrics.serviceMonitor.namespace`, the chart-generated Secret
+> (in the release namespace) won't be reachable — set
+> `metricsBasicAuth.existingSecret` to a Secret in that namespace instead.
+
+## Pushing to Pushgateway (v1.6.0+)
+
+Set `metricsPush.url` to additionally push metrics to a Pushgateway. Push is
+complementary to the `/metrics` pull endpoint and only the leader pushes.
+
+To avoid leaking Pushgateway credentials in the rendered Deployment (and in
+etcd), point `metricsPush.urlSecret.name` at an existing Secret holding the
+full URL (key `url` by default) when the URL embeds `user:pass@` — it takes
+precedence over `metricsPush.url`.
+
 {{ template "chart.requirementsSection" . }}
 
 {{ template "chart.valuesSection" . }}
