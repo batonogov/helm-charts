@@ -1,3 +1,4 @@
+{{- include "xray-health-exporter.validateBasicAuthServiceMonitor" . -}}
 {{- if .Values.metrics.serviceMonitor.enabled -}}
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
@@ -22,6 +23,15 @@ spec:
       interval: {{ .Values.metrics.serviceMonitor.interval }}
       scrapeTimeout: {{ .Values.metrics.serviceMonitor.scrapeTimeout }}
       path: /metrics
+      {{- if .Values.metricsBasicAuth.enabled }}
+      basicAuth:
+        username:
+          name: {{ include "xray-health-exporter.basicAuthSecretName" . }}
+          key: {{ include "xray-health-exporter.basicAuthUsernameKey" . }}
+        password:
+          name: {{ include "xray-health-exporter.basicAuthSecretName" . }}
+          key: {{ include "xray-health-exporter.basicAuthPasswordKey" . }}
+      {{- end }}
       {{- with .Values.metrics.serviceMonitor.metricRelabelings }}
       metricRelabelings:
         {{- toYaml . | nindent 8 }}

@@ -82,16 +82,22 @@ All three measure latency as TTFB (time to first byte).
 ## Securing the metrics endpoint (v1.6.0+)
 
 Set `metricsBasicAuth.enabled=true` to protect `/metrics` with HTTP Basic
-Auth. The chart provisions a stable Secret holding the password (reused on
-upgrade so it does not rotate) unless you point `metricsBasicAuth.existingSecret`
-at your own Secret (key `password`). Remember to configure matching Basic Auth
-credentials on the Prometheus scrape.
+Auth. The chart provisions a stable Secret holding both the username and
+password (reused on upgrade so they do not rotate) unless you point
+`metricsBasicAuth.existingSecret` at your own Secret (which must contain both
+the username and password keys, in the ServiceMonitor's namespace).
 
-> **Note:** when both `metricsBasicAuth.enabled=true` and
-> `metrics.serviceMonitor.enabled=true`, the chart does not yet inject Basic
-> Auth credentials into the ServiceMonitor — Prometheus would receive a 401.
-> Configure scrape Basic Auth on the ServiceMonitor side (`basicAuth` field)
-> until this is wired up.
+When `metrics.serviceMonitor.enabled=true` is also set, the chart **injects
+matching `basicAuth` credentials into the ServiceMonitor automatically**, so
+Prometheus scrapes succeed without extra configuration. The username and
+password keys are configurable via `metricsBasicAuth.usernameKey` /
+`metricsBasicAuth.passwordKey`.
+
+> **Note:** Prometheus Operator reads the referenced Secret from the
+> ServiceMonitor's namespace. If you move the ServiceMonitor to another
+> namespace via `metrics.serviceMonitor.namespace`, the chart-generated Secret
+> (in the release namespace) won't be reachable — set
+> `metricsBasicAuth.existingSecret` to a Secret in that namespace instead.
 
 ## Pushing to Pushgateway (v1.6.0+)
 
@@ -146,10 +152,12 @@ Kubernetes: `>=1.32.0-0`
 | metrics.serviceMonitor.namespace | string | `""` | Namespace for the ServiceMonitor. Defaults to the release namespace. |
 | metrics.serviceMonitor.relabelings | list | `[]` | Optional relabelings. |
 | metrics.serviceMonitor.scrapeTimeout | string | `"10s"` | Scrape timeout. |
-| metricsBasicAuth.enabled | bool | `false` | Protect /metrics with HTTP Basic Auth. When `true`, all three `METRICS_*` envs are rendered and Prometheus must scrape with matching credentials. |
-| metricsBasicAuth.existingSecret | string | `""` | Use an existing Secret (key `password`) instead of a chart-generated one. Takes precedence over the generated Secret. |
-| metricsBasicAuth.secretName | string | `""` | Name override for the chart-generated Secret holding the Basic Auth password. Defaults to `<release>-basicauth`. |
+| metricsBasicAuth.enabled | bool | `false` | Protect /metrics with HTTP Basic Auth. When `true`, the `METRICS_PROTECTED`/`METRICS_USERNAME`/`METRICS_PASSWORD` envs are rendered. |
+| metricsBasicAuth.existingSecret | string | `""` | Use an existing Secret instead of a chart-generated one. Takes precedence over the generated Secret and `secretName`. The Secret must contain both the username and password keys in the ServiceMonitor's namespace. |
+| metricsBasicAuth.passwordKey | string | `""` | Key inside the Secret holding the password (default `password`). |
+| metricsBasicAuth.secretName | string | `""` | Name override for the chart-generated Secret holding the Basic Auth credentials. Defaults to `<release>-basicauth`. Ignored when `existingSecret` is set. |
 | metricsBasicAuth.username | string | `""` | Username. Defaults to upstream's `metricsUser` when empty. |
+| metricsBasicAuth.usernameKey | string | `""` | Key inside the Secret holding the username (default `username`). |
 | metricsPush.instance | string | `""` | Value of the `instance` grouping label for pushed metrics. Defaults to the pod hostname upstream. |
 | metricsPush.interval | string | `""` | Interval between pushes (Go duration). Defaults to the smallest tunnel `check_interval`, or `30s` upstream. |
 | metricsPush.url | string | `""` | Full Pushgateway URL, e.g. `https://pushgateway:9091`. AVOID embedding credentials (`user:pass@`) here — they land in the rendered Deployment in plaintext. For credentialed URLs use `urlSecret` instead. Empty disables push (default). |

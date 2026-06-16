@@ -338,7 +338,7 @@
     },
     "metricsBasicAuth": {
       "type": "object",
-      "description": "Optional HTTP Basic Auth on the /metrics endpoint (upstream v1.6.0+).",
+      "description": "Optional HTTP Basic Auth on the /metrics endpoint (upstream v1.6.0+). Auto-injects matching credentials into the ServiceMonitor when enabled together with metrics.serviceMonitor.enabled.",
       "properties": {
         "enabled": {
           "type": "boolean",
@@ -350,11 +350,19 @@
         },
         "existingSecret": {
           "type": "string",
-          "description": "Use an existing Secret (key password) instead of a chart-generated one."
+          "description": "Use an existing Secret instead of a chart-generated one. Must contain both username and password keys in the ServiceMonitor's namespace."
         },
         "secretName": {
           "type": "string",
-          "description": "Name override for the chart-generated Basic Auth Secret."
+          "description": "Name override for the chart-generated Basic Auth Secret. Ignored when existingSecret is set."
+        },
+        "usernameKey": {
+          "type": "string",
+          "description": "Key inside the Secret holding the username (default username)."
+        },
+        "passwordKey": {
+          "type": "string",
+          "description": "Key inside the Secret holding the password (default password)."
         }
       }
     },

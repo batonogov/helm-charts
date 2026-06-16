@@ -92,6 +92,40 @@ true
 {{- end }}
 
 {{/*
+Effective Basic Auth username. Upstream defaults to `metricsUser` when
+`METRICS_USERNAME` is empty; the chart materializes that default so the
+username is concrete in the generated Secret and ServiceMonitor.
+*/}}
+{{- define "xray-health-exporter.basicAuthUsername" -}}
+{{- .Values.metricsBasicAuth.username | default "metricsUser" }}
+{{- end }}
+
+{{/* Key in the Basic Auth Secret holding the username (default `username`). */}}
+{{- define "xray-health-exporter.basicAuthUsernameKey" -}}
+{{- .Values.metricsBasicAuth.usernameKey | default "username" }}
+{{- end }}
+
+{{/* Key in the Basic Auth Secret holding the password (default `password`). */}}
+{{- define "xray-health-exporter.basicAuthPasswordKey" -}}
+{{- .Values.metricsBasicAuth.passwordKey | default "password" }}
+{{- end }}
+
+{{/*
+Fail fast when Basic Auth + ServiceMonitor are enabled but the chart-generated
+Secret lives in a namespace the ServiceMonitor cannot read. The Prometheus
+Operator requires the referenced Secret in the same namespace as the
+ServiceMonitor; the chart creates the Secret in the release namespace. When the
+ServiceMonitor targets a different namespace, the user must supply a Secret
+there via `metricsBasicAuth.existingSecret`.
+*/}}
+{{- define "xray-health-exporter.validateBasicAuthServiceMonitor" -}}
+{{- $smNs := .Values.metrics.serviceMonitor.namespace | default .Release.Namespace -}}
+{{- if and .Values.metricsBasicAuth.enabled .Values.metrics.serviceMonitor.enabled (ne $smNs .Release.Namespace) (not .Values.metricsBasicAuth.existingSecret) -}}
+{{- fail (printf "xray-health-exporter: metricsBasicAuth is enabled and the ServiceMonitor targets namespace %q, but the chart-generated Basic Auth Secret lives in the release namespace %q and Prometheus Operator only reads Secrets from the ServiceMonitor's namespace. Set metricsBasicAuth.existingSecret to a Secret in namespace %q (containing both the username and password keys), or move the ServiceMonitor back to the release namespace via metrics.serviceMonitor.namespace." $smNs .Release.Namespace $smNs) -}}
+{{- end -}}
+{{- end }}
+
+{{/*
 Fail fast when the chart cannot produce a working config: no static tunnels,
 no subscriptions, and no externally-managed Secret.
 */}}

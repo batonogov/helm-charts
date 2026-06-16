@@ -95,15 +95,22 @@ serviceAccount:
   annotations: {}
 
 # Optional HTTP Basic Auth on the /metrics endpoint (upstream v1.6.0+).
+# When enabled together with `metrics.serviceMonitor.enabled`, the chart
+# automatically injects matching `basicAuth` credentials into the ServiceMonitor
+# so Prometheus scrapes successfully.
 metricsBasicAuth:
-  # -- Protect /metrics with HTTP Basic Auth. When `true`, all three `METRICS_*` envs are rendered and Prometheus must scrape with matching credentials.
+  # -- Protect /metrics with HTTP Basic Auth. When `true`, the `METRICS_PROTECTED`/`METRICS_USERNAME`/`METRICS_PASSWORD` envs are rendered.
   enabled: false
   # -- Username. Defaults to upstream's `metricsUser` when empty.
   username: ""
-  # -- Use an existing Secret (key `password`) instead of a chart-generated one. Takes precedence over the generated Secret.
+  # -- Use an existing Secret instead of a chart-generated one. Takes precedence over the generated Secret and `secretName`. The Secret must contain both the username and password keys in the ServiceMonitor's namespace.
   existingSecret: ""
-  # -- Name override for the chart-generated Secret holding the Basic Auth password. Defaults to `<release>-basicauth`.
+  # -- Name override for the chart-generated Secret holding the Basic Auth credentials. Defaults to `<release>-basicauth`. Ignored when `existingSecret` is set.
   secretName: ""
+  # -- Key inside the Secret holding the username (default `username`).
+  usernameKey: ""
+  # -- Key inside the Secret holding the password (default `password`).
+  passwordKey: ""
 
 # Optional Pushgateway push (upstream v1.6.0+). Complementary to the /metrics pull endpoint; only the leader pushes.
 metricsPush:

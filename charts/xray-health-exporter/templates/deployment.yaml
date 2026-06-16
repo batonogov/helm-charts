@@ -74,12 +74,15 @@ spec:
             - name: METRICS_PROTECTED
               value: "true"
             - name: METRICS_USERNAME
-              value: {{ .Values.metricsBasicAuth.username | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "xray-health-exporter.basicAuthSecretName" . }}
+                  key: {{ include "xray-health-exporter.basicAuthUsernameKey" . }}
             - name: METRICS_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ include "xray-health-exporter.basicAuthSecretName" . }}
-                  key: password
+                  key: {{ include "xray-health-exporter.basicAuthPasswordKey" . }}
             {{- end }}
             {{- if or .Values.metricsPush.url .Values.metricsPush.urlSecret.name }}
             - name: METRICS_PUSH_URL

@@ -6,9 +6,13 @@ Health endpoint:  http://{{ include "xray-health-exporter.fullname" . }}:{{ .Val
 
 {{- if .Values.metricsBasicAuth.enabled }}
 
-The /metrics endpoint is protected with HTTP Basic Auth (username "{{ .Values.metricsBasicAuth.username | default "metricsUser" }}").
+The /metrics endpoint is protected with HTTP Basic Auth (username "{{ include "xray-health-exporter.basicAuthUsername" . }}").
+{{- if .Values.metrics.serviceMonitor.enabled }}
+The ServiceMonitor is configured with matching basicAuth credentials automatically.
+{{- else }}
 Configure your Prometheus scrape with matching Basic Auth credentials. The password is in Secret:
-  kubectl get secret {{ include "xray-health-exporter.basicAuthSecretName" . }} -o jsonpath="{.data.password}" | base64 -d
+  kubectl get secret {{ include "xray-health-exporter.basicAuthSecretName" . }} -o jsonpath="{.data.{{ include "xray-health-exporter.basicAuthPasswordKey" . }}}" | base64 -d
+{{- end }}
 {{- end }}
 
 {{- if or .Values.metricsPush.url .Values.metricsPush.urlSecret.name }}
