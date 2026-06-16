@@ -364,7 +364,21 @@
       "properties": {
         "url": {
           "type": "string",
-          "description": "Full Pushgateway URL, e.g. https://user:pass@pushgateway:9091. Empty disables push."
+          "description": "Full Pushgateway URL. Avoid embedding credentials here (use urlSecret); they would land in the rendered Deployment in plaintext. Empty disables push."
+        },
+        "urlSecret": {
+          "type": "object",
+          "description": "Reference an existing Secret holding the full Pushgateway URL. Takes precedence over url and keeps credentials out of rendered manifests.",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Name of the Secret holding the Pushgateway URL."
+            },
+            "key": {
+              "type": "string",
+              "description": "Key inside the Secret (default url)."
+            }
+          }
         },
         "interval": {
           "type": "string",

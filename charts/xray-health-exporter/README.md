@@ -87,12 +87,21 @@ upgrade so it does not rotate) unless you point `metricsBasicAuth.existingSecret
 at your own Secret (key `password`). Remember to configure matching Basic Auth
 credentials on the Prometheus scrape.
 
+> **Note:** when both `metricsBasicAuth.enabled=true` and
+> `metrics.serviceMonitor.enabled=true`, the chart does not yet inject Basic
+> Auth credentials into the ServiceMonitor — Prometheus would receive a 401.
+> Configure scrape Basic Auth on the ServiceMonitor side (`basicAuth` field)
+> until this is wired up.
+
 ## Pushing to Pushgateway (v1.6.0+)
 
-Set `metricsPush.url` (e.g. `https://user:pass@pushgateway:9091`) to additionally
-push metrics to a Pushgateway. Push is complementary to the `/metrics` pull
-endpoint and only the leader pushes. Credentials embedded in the URL are used
-for HTTP Basic Auth automatically.
+Set `metricsPush.url` to additionally push metrics to a Pushgateway. Push is
+complementary to the `/metrics` pull endpoint and only the leader pushes.
+
+To avoid leaking Pushgateway credentials in the rendered Deployment (and in
+etcd), point `metricsPush.urlSecret.name` at an existing Secret holding the
+full URL (key `url` by default) when the URL embeds `user:pass@` — it takes
+precedence over `metricsPush.url`.
 
 ## Requirements
 
@@ -143,7 +152,9 @@ Kubernetes: `>=1.32.0-0`
 | metricsBasicAuth.username | string | `""` | Username. Defaults to upstream's `metricsUser` when empty. |
 | metricsPush.instance | string | `""` | Value of the `instance` grouping label for pushed metrics. Defaults to the pod hostname upstream. |
 | metricsPush.interval | string | `""` | Interval between pushes (Go duration). Defaults to the smallest tunnel `check_interval`, or `30s` upstream. |
-| metricsPush.url | string | `""` | Full Pushgateway URL, e.g. `https://user:pass@pushgateway:9091`. Credentials embedded in the URL are used for HTTP Basic Auth. Empty disables push (default). |
+| metricsPush.url | string | `""` | Full Pushgateway URL, e.g. `https://pushgateway:9091`. AVOID embedding credentials (`user:pass@`) here — they land in the rendered Deployment in plaintext. For credentialed URLs use `urlSecret` instead. Empty disables push (default). |
+| metricsPush.urlSecret | object | `{"key":"url","name":""}` | Reference an existing Secret holding the full Pushgateway URL. Takes precedence over `url` and keeps any embedded credentials out of the rendered manifests. |
+| metricsPush.urlSecret.key | string | `"url"` | Key inside the Secret holding the Pushgateway URL. |
 | nameOverride | string | `""` | Override the chart name (used in resource naming). |
 | networkPolicy.egress | list | `[]` | Extra egress rules. When unset, allows all egress. |
 | networkPolicy.enabled | bool | `false` | Create a NetworkPolicy. By default allows all egress and Prometheus-style ingress to the metrics port. |

@@ -11,9 +11,9 @@ Configure your Prometheus scrape with matching Basic Auth credentials. The passw
   kubectl get secret {{ include "xray-health-exporter.basicAuthSecretName" . }} -o jsonpath="{.data.password}" | base64 -d
 {{- end }}
 
-{{- if .Values.metricsPush.url }}
+{{- if or .Values.metricsPush.url .Values.metricsPush.urlSecret.name }}
 
-Metrics are also pushed to Pushgateway ({{ .Values.metricsPush.url }}) by the leader, in addition to the /metrics pull endpoint.
+Metrics are also pushed to Pushgateway by the leader, in addition to the /metrics pull endpoint.
 {{- end }}
 
 {{- if eq (include "xray-health-exporter.leaderElectionEnabled" .) "true" }}

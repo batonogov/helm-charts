@@ -81,9 +81,16 @@ spec:
                   name: {{ include "xray-health-exporter.basicAuthSecretName" . }}
                   key: password
             {{- end }}
-            {{- if .Values.metricsPush.url }}
+            {{- if or .Values.metricsPush.url .Values.metricsPush.urlSecret.name }}
             - name: METRICS_PUSH_URL
+              {{- if .Values.metricsPush.urlSecret.name }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.metricsPush.urlSecret.name }}
+                  key: {{ .Values.metricsPush.urlSecret.key | default "url" }}
+              {{- else }}
               value: {{ .Values.metricsPush.url | quote }}
+              {{- end }}
             {{- with .Values.metricsPush.interval }}
             - name: METRICS_PUSH_INTERVAL
               value: {{ . | quote }}

@@ -73,11 +73,12 @@ prepends `v` to keep `helm install` working out of the box.
 
 {{/*
 Name of the Secret holding the Basic Auth password.
-Uses a user-supplied existing Secret when set, otherwise a chart-generated
-Secret named `<release>-basicauth` (or the `secretName` override).
+Precedence: existingSecret > secretName > generated `<fullname>-basicauth`.
+Sprig `default` only inspects the first non-empty "given" arg, so the
+override must be nested rather than listed positionally.
 */}}
 {{- define "xray-health-exporter.basicAuthSecretName" -}}
-{{- default (include "xray-health-exporter.fullname" . | printf "%s-basicauth") .Values.metricsBasicAuth.existingSecret .Values.metricsBasicAuth.secretName }}
+{{- default (default (printf "%s-basicauth" (include "xray-health-exporter.fullname" .)) .Values.metricsBasicAuth.secretName) .Values.metricsBasicAuth.existingSecret }}
 {{- end }}
 
 {{/*
