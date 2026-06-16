@@ -69,6 +69,33 @@ default tunnel alerts (`XrayTunnelDown`, `XrayHighLatency`,
 `XrayNoRecentCheck`); override `metrics.prometheusRule.rules` to provide your
 own list.
 
+## Health-check methods (v1.6.0+)
+
+The exporter supports three check methods, configurable globally via
+`env.CHECK_METHOD` or per tunnel via `config.defaults.check_method` /
+tunnel-level `check_method`:
+
+- `http` (default) — HTTP GET against `check_url`
+- `ip` — fetch the tunnel's exit IP via `IP_CHECK_URL`
+- `download` — download a file via `DOWNLOAD_URL` and verify its size
+
+All three measure latency as TTFB (time to first byte).
+
+## Securing the metrics endpoint (v1.6.0+)
+
+Set `metricsBasicAuth.enabled=true` to protect `/metrics` with HTTP Basic
+Auth. The chart provisions a stable Secret holding the password (reused on
+upgrade so it does not rotate) unless you point `metricsBasicAuth.existingSecret`
+at your own Secret (key `password`). Remember to configure matching Basic Auth
+credentials on the Prometheus scrape.
+
+## Pushing to Pushgateway (v1.6.0+)
+
+Set `metricsPush.url` (e.g. `https://user:pass@pushgateway:9091`) to additionally
+push metrics to a Pushgateway. Push is complementary to the `/metrics` pull
+endpoint and only the leader pushes. Credentials embedded in the URL are used
+for HTTP Basic Auth automatically.
+
 {{ template "chart.requirementsSection" . }}
 
 {{ template "chart.valuesSection" . }}

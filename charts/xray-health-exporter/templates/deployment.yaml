@@ -70,6 +70,29 @@ spec:
                 fieldRef:
                   fieldPath: metadata.name
             {{- end }}
+            {{- if .Values.metricsBasicAuth.enabled }}
+            - name: METRICS_PROTECTED
+              value: "true"
+            - name: METRICS_USERNAME
+              value: {{ .Values.metricsBasicAuth.username | quote }}
+            - name: METRICS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "xray-health-exporter.basicAuthSecretName" . }}
+                  key: password
+            {{- end }}
+            {{- if .Values.metricsPush.url }}
+            - name: METRICS_PUSH_URL
+              value: {{ .Values.metricsPush.url | quote }}
+            {{- with .Values.metricsPush.interval }}
+            - name: METRICS_PUSH_INTERVAL
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.metricsPush.instance }}
+            - name: METRICS_INSTANCE
+              value: {{ . | quote }}
+            {{- end }}
+            {{- end }}
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

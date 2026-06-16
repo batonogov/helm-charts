@@ -4,6 +4,18 @@ Service: {{ include "xray-health-exporter.fullname" . }}.{{ .Release.Namespace }
 Metrics endpoint: http://{{ include "xray-health-exporter.fullname" . }}:{{ .Values.service.port }}/metrics
 Health endpoint:  http://{{ include "xray-health-exporter.fullname" . }}:{{ .Values.service.port }}/health
 
+{{- if .Values.metricsBasicAuth.enabled }}
+
+The /metrics endpoint is protected with HTTP Basic Auth (username "{{ .Values.metricsBasicAuth.username | default "metricsUser" }}").
+Configure your Prometheus scrape with matching Basic Auth credentials. The password is in Secret:
+  kubectl get secret {{ include "xray-health-exporter.basicAuthSecretName" . }} -o jsonpath="{.data.password}" | base64 -d
+{{- end }}
+
+{{- if .Values.metricsPush.url }}
+
+Metrics are also pushed to Pushgateway ({{ .Values.metricsPush.url }}) by the leader, in addition to the /metrics pull endpoint.
+{{- end }}
+
 {{- if eq (include "xray-health-exporter.leaderElectionEnabled" .) "true" }}
 
 Leader election is active (replicaCount={{ .Values.replicaCount }}). Only the leader publishes

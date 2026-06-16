@@ -72,6 +72,25 @@ prepends `v` to keep `helm install` working out of the box.
 {{- end }}
 
 {{/*
+Name of the Secret holding the Basic Auth password.
+Uses a user-supplied existing Secret when set, otherwise a chart-generated
+Secret named `<release>-basicauth` (or the `secretName` override).
+*/}}
+{{- define "xray-health-exporter.basicAuthSecretName" -}}
+{{- default (include "xray-health-exporter.fullname" . | printf "%s-basicauth") .Values.metricsBasicAuth.existingSecret .Values.metricsBasicAuth.secretName }}
+{{- end }}
+
+{{/*
+Whether the chart should provision a Secret itself for Basic Auth.
+True only when Basic Auth is enabled and the user did not point at an existing Secret.
+*/}}
+{{- define "xray-health-exporter.basicAuthSecretCreate" -}}
+{{- if and .Values.metricsBasicAuth.enabled (not .Values.metricsBasicAuth.existingSecret) -}}
+true
+{{- end -}}
+{{- end }}
+
+{{/*
 Fail fast when the chart cannot produce a working config: no static tunnels,
 no subscriptions, and no externally-managed Secret.
 */}}

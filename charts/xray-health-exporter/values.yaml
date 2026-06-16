@@ -64,6 +64,18 @@ env:
   LOG_LEVEL: info
   # -- Exporter log format (`text` or `json`).
   LOG_FORMAT: text
+  # -- Default health-check method used when a tunnel omits `check_method`. `http` (HTTP GET), `ip` (IP echo via `IP_CHECK_URL`), or `download` (file download via `DOWNLOAD_URL`).
+  CHECK_METHOD: http
+  # -- IP-echo URL for the `ip` check method.
+  IP_CHECK_URL: https://api.ipify.org?format=text
+  # -- File URL for the `download` check method.
+  DOWNLOAD_URL: https://proof.ovh.net/files/1Mb.dat
+  # -- Timeout for the `download` check method (Go duration, e.g. `60s`, `2m`).
+  DOWNLOAD_TIMEOUT: 60s
+  # -- Minimum downloaded bytes for the `download` method to be considered successful.
+  DOWNLOAD_MIN_SIZE: "51200"
+  # -- One-shot mode. If `true`, run a single check cycle, print metrics to stdout, and exit. Disable for long-running Deployments (useful only for CronJob-style usage).
+  RUN_ONCE: "false"
 
 leaderElection:
   # -- Enable Kubernetes leader election so only one replica publishes `xray_tunnel_*`. Forced on whenever `replicaCount > 1`, regardless of this flag.
@@ -81,6 +93,26 @@ serviceAccount:
   name: ""
   # -- Annotations applied to the ServiceAccount.
   annotations: {}
+
+# Optional HTTP Basic Auth on the /metrics endpoint (upstream v1.6.0+).
+metricsBasicAuth:
+  # -- Protect /metrics with HTTP Basic Auth. When `true`, all three `METRICS_*` envs are rendered and Prometheus must scrape with matching credentials.
+  enabled: false
+  # -- Username. Defaults to upstream's `metricsUser` when empty.
+  username: ""
+  # -- Use an existing Secret (key `password`) instead of a chart-generated one. Takes precedence over the generated Secret.
+  existingSecret: ""
+  # -- Name override for the chart-generated Secret holding the Basic Auth password. Defaults to `<release>-basicauth`.
+  secretName: ""
+
+# Optional Pushgateway push (upstream v1.6.0+). Complementary to the /metrics pull endpoint; only the leader pushes.
+metricsPush:
+  # -- Full Pushgateway URL, e.g. `https://user:pass@pushgateway:9091`. Credentials embedded in the URL are used for HTTP Basic Auth. Empty disables push (default).
+  url: ""
+  # -- Interval between pushes (Go duration). Defaults to the smallest tunnel `check_interval`, or `30s` upstream.
+  interval: ""
+  # -- Value of the `instance` grouping label for pushed metrics. Defaults to the pod hostname upstream.
+  instance: ""
 
 service:
   # -- Service type.
