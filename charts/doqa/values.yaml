@@ -537,9 +537,9 @@ nginx:
   affinity: {}
 
 ingress:
-  # -- Create the Ingress resource
+  # -- Create the Ingress resource. Defaults to true. When enabled, `ingress.className` is REQUIRED and rendering fails with a clear error if it is empty (no Ingress controller claims an empty className).
   enabled: true
-  # -- IngressClassName (e.g. nginx, traefik)
+  # -- REQUIRED when `ingress.enabled=true`. IngressClassName the controller listens on (e.g. nginx, traefik). Empty value fails rendering with a clear error.
   className: ""
   # -- Extra annotations (e.g. cert-manager.io/cluster-issuer)
   annotations: {}

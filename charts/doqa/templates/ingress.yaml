@@ -10,9 +10,7 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  {{- with .Values.ingress.className }}
-  ingressClassName: {{ . }}
-  {{- end }}
+  ingressClassName: {{ required "ingress.className is required when ingress.enabled=true" .Values.ingress.className | quote }}
   {{- if .Values.ingress.tls.enabled }}
   tls:
     - hosts:

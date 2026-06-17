@@ -2,7 +2,7 @@
 
 DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
 
-![Version: 0.3.4](https://img.shields.io/badge/Version-0.3.4-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.1.0-box](https://img.shields.io/badge/AppVersion-4.1.0--box-informational?style=flat-square)
+![Version: 0.3.5](https://img.shields.io/badge/Version-0.3.5-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.1.0-box](https://img.shields.io/badge/AppVersion-4.1.0--box-informational?style=flat-square)
 
 **Homepage:** <https://doqa.app>
 
@@ -139,8 +139,8 @@ Kubernetes: `>=1.32.0-0`
 | image.pullSecrets | list | `[]` | imagePullSecrets applied to every Deployment |
 | image.registry | string | `"registry.control.doqa.app"` | Container registry hosting DoQA images |
 | ingress.annotations | object | `{}` | Extra annotations (e.g. cert-manager.io/cluster-issuer) |
-| ingress.className | string | `""` | IngressClassName (e.g. nginx, traefik) |
-| ingress.enabled | bool | `true` | Create the Ingress resource |
+| ingress.className | string | `""` | REQUIRED when `ingress.enabled=true`. IngressClassName the controller listens on (e.g. nginx, traefik). Empty value fails rendering with a clear error. |
+| ingress.enabled | bool | `true` | Create the Ingress resource. Defaults to true. When enabled, `ingress.className` is REQUIRED and rendering fails with a clear error if it is empty (no Ingress controller claims an empty className). |
 | ingress.tls.enabled | bool | `true` | Enable TLS in the Ingress |
 | ingress.tls.secretName | string | `""` | Existing TLS secret name (empty = <release>-tls) |
 | ldap.baseDn | string | `""` | Search base DN |
