@@ -373,6 +373,22 @@ Per-pod env entries that read from secrets (DB password, app keys, mail/minio/ap
 {{- end }}
 {{- end }}
 
+{{/* ===== extraAnnotations helper =====
+   Renders user-provided `extraAnnotations` while dropping any key whose name
+   starts with the reserved `checksum/` prefix. Those keys are chart-managed
+   (e.g. `checksum/env`, `checksum/config`) and must not collide with
+   user-supplied values. Returns an empty string when nothing remains so the
+   existing `with` guards at the call sites behave unchanged. */}}
+{{- define "doqa.extraAnnotations" -}}
+{{- $filtered := dict -}}
+{{- range $k, $v := . -}}
+{{- if not (hasPrefix "checksum/" $k) -}}
+{{- $_ := set $filtered $k $v -}}
+{{- end -}}
+{{- end -}}
+{{- with $filtered -}}{{- toYaml . -}}{{- end -}}
+{{- end -}}
+
 {{/* ===== Service spec helper ===== */}}
 {{- define "doqa.componentService" -}}
 type: ClusterIP

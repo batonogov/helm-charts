@@ -630,7 +630,7 @@ podDisruptionBudget:
 
 # -- Extra labels added to every resource
 extraLabels: {}
-# -- Extra annotations added to every resource
+# -- Extra annotations added to every resource. Keys with a `checksum/` prefix (e.g. `checksum/env`, `checksum/config`) are chart-managed and reserved; any such key supplied here is silently dropped at render time to avoid colliding with the chart's own checksum annotations.
 extraAnnotations: {}
 # -- Extra annotations to add to all pod templates. Per-component overrides are not supported — use this single map.
 podAnnotations: {}
