@@ -6,7 +6,7 @@ metadata:
     {{- include "doqa.labels" . | nindent 4 }}
   {{- with .Values.extraAnnotations }}
   annotations:
-    {{- toYaml . | nindent 4 }}
+    {{- include "doqa.extraAnnotations" . | nindent 4 }}
   {{- end }}
 data:
   APP_URL: {{ .Values.appUrl | quote }}

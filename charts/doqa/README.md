@@ -2,7 +2,7 @@
 
 DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
 
-![Version: 0.3.3](https://img.shields.io/badge/Version-0.3.3-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.1.0-box](https://img.shields.io/badge/AppVersion-4.1.0--box-informational?style=flat-square)
+![Version: 0.3.4](https://img.shields.io/badge/Version-0.3.4-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.1.0-box](https://img.shields.io/badge/AppVersion-4.1.0--box-informational?style=flat-square)
 
 **Homepage:** <https://doqa.app>
 
@@ -123,7 +123,7 @@ Kubernetes: `>=1.32.0-0`
 | defaultSecurityContext.container.allowPrivilegeEscalation | bool | `false` |  |
 | defaultSecurityContext.container.capabilities.drop[0] | string | `"ALL"` |  |
 | defaultSecurityContext.pod | object | `{}` |  |
-| extraAnnotations | object | `{}` | Extra annotations added to every resource |
+| extraAnnotations | object | `{}` | Extra annotations added to every resource. Keys with a `checksum/` prefix (e.g. `checksum/env`, `checksum/config`) are chart-managed and reserved; any such key supplied here is silently dropped at render time to avoid colliding with the chart's own checksum annotations. |
 | extraLabels | object | `{}` | Extra labels added to every resource |
 | extraVolumeMounts | list | `[]` | Extra volume mounts to add to all containers |
 | extraVolumes | list | `[]` | Extra volumes to add to all Deployments |
