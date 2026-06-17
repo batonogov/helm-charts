@@ -139,8 +139,8 @@ Kubernetes: `>=1.32.0-0`
 | image.pullSecrets | list | `[]` | imagePullSecrets applied to every Deployment |
 | image.registry | string | `"registry.control.doqa.app"` | Container registry hosting DoQA images |
 | ingress.annotations | object | `{}` | Extra annotations (e.g. cert-manager.io/cluster-issuer) |
-| ingress.className | string | `""` | REQUIRED when `ingress.enabled=true`. IngressClassName the controller listens on (e.g. nginx, traefik). Empty value fails rendering with a clear error |
-| ingress.enabled | bool | `false` | Create the Ingress resource. Defaults to false so `helm lint`/`helm install` without overrides does not render an Ingress no controller claims; set `enabled: true` together with `className` to publish the app |
+| ingress.className | string | `""` | REQUIRED when `ingress.enabled=true`. IngressClassName the controller listens on (e.g. nginx, traefik). Empty value fails rendering with a clear error. |
+| ingress.enabled | bool | `true` | Create the Ingress resource. Defaults to true. When enabled, `ingress.className` is REQUIRED and rendering fails with a clear error if it is empty (no Ingress controller claims an empty className). |
 | ingress.tls.enabled | bool | `true` | Enable TLS in the Ingress |
 | ingress.tls.secretName | string | `""` | Existing TLS secret name (empty = <release>-tls) |
 | ldap.baseDn | string | `""` | Search base DN |
