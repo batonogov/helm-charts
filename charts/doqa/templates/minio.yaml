@@ -176,7 +176,7 @@ spec:
           # `mc alias set` only writes the alias locally; it does not probe the server.
           # Server reachability and credential validity are verified via `mc ls`,
           # which calls ListBuckets and returns HTTP 403/401 on bad credentials.
-          mc alias set doqa "http://{{ $fullName }}-minio:9000" "$KEY" "$SECRET" >/dev/null
+          mc alias set doqa "http://{{ $fullName }}-minio:9000" "$KEY" "$SECRET" >/dev/null 2>&1 || true
           MC_PROBE_ERR=""
           while :; do
             if MC_PROBE_ERR="$(mc ls doqa 2>&1 >/dev/null)"; then
