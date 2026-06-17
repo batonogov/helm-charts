@@ -47,7 +47,7 @@ data:
   PUSHER_APP_HOST: {{ printf "%s-websocket" (include "doqa.fullname" .) | quote }}
   PUSHER_APP_ID: {{ .Values.pusher.appId | quote }}
   PUSHER_APP_KEY: {{ .Values.pusher.appKey | quote }}
-  PUSHER_APP_PORT: {{ .Values.pusher.port | quote }}
+  PUSHER_APP_PORT: {{ .Values.pusher.port | int | quote }}
   PUSHER_SCHEME: {{ .Values.pusher.scheme | quote }}
 
   STATISTIC_ENDPOINT: {{ printf "http://%s-statistic:3000/" (include "doqa.fullname" .) | quote }}
