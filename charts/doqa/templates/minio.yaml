@@ -173,8 +173,21 @@ spec:
         - -c
         - |
           set -e
-          until mc alias set doqa "http://{{ $fullName }}-minio:9000" "$KEY" "$SECRET" >/dev/null 2>&1; do
-            echo "waiting for minio..."
+          # `mc alias set` only writes the alias locally; it does not probe the server.
+          # Server reachability and credential validity are verified via `mc ls`,
+          # which calls ListBuckets and returns HTTP 403/401 on bad credentials.
+          mc alias set doqa "http://{{ $fullName }}-minio:9000" "$KEY" "$SECRET" >/dev/null 2>&1 || true
+          MC_PROBE_ERR=""
+          while :; do
+            if MC_PROBE_ERR="$(mc ls doqa 2>&1 >/dev/null)"; then
+              break
+            fi
+            # Auth/access errors indicate wrong credentials: fail fast instead of retrying.
+            if printf '%s' "$MC_PROBE_ERR" | grep -Eqi 'access denied|access key|forbidden|unauthorized|403|401|signature|invalid login|credentials'; then
+              echo "ERROR: MinIO credentials are invalid (auth failed). Check secrets.minio / MINIO keys. Server response: $MC_PROBE_ERR" >&2
+              exit 1
+            fi
+            echo "waiting for minio to be ready..."
             sleep 2
           done
           mc mb --ignore-existing doqa/{{ .Values.minio.bucket }}
