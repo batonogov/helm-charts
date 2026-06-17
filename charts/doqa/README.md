@@ -2,7 +2,7 @@
 
 DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
 
-![Version: 0.3.2](https://img.shields.io/badge/Version-0.3.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.1.0-box](https://img.shields.io/badge/AppVersion-4.1.0--box-informational?style=flat-square)
+![Version: 0.3.3](https://img.shields.io/badge/Version-0.3.3-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.1.0-box](https://img.shields.io/badge/AppVersion-4.1.0--box-informational?style=flat-square)
 
 **Homepage:** <https://doqa.app>
 
@@ -23,7 +23,7 @@ helm install doqa batonogov/doqa -n doqa --create-namespace \
 ## Prerequisites
 
 - Kubernetes 1.32+
-- Helm 3.14+ (Helm 4 supported)
+- Helm 3.13+ (Helm 4 supported) — templates use only functions available since Helm 3.0 (`lookup`, `required`, `toYaml`, `sha256sum`, JSON schema validation); no Helm 3.14-only features are required
 - An Ingress controller routable from the public DNS pointing to `appUrl`
 - For TLS: cert-manager with a working ClusterIssuer (or a pre-provisioned TLS secret)
 - For PostgreSQL via CNPG (default): the
