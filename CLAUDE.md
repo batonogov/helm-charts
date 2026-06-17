@@ -52,7 +52,7 @@ The `gh-pages` branch must exist before the first release (one-time bootstrap). 
 
 ## Architecture of `charts/doqa`
 
-This chart deploys the full DoQA stack — 15 Deployments + Service mesh that mirror the vendor's `docker-compose.with-database.yml` (current upstream `box` version is whatever `latest.txt` reports; check it before working on the chart). The vendor does not publish a Helm chart and won't (confirmed with their support); the chart is reverse-engineered from their CLI's behaviour.
+This chart deploys the full DoQA stack — 16 Deployments + Service mesh that mirror the vendor's `docker-compose.with-database.yml` (current upstream `box` version is whatever `latest.txt` reports; check it before working on the chart). The vendor does not publish a Helm chart and won't (confirmed with their support); the chart is reverse-engineered from their CLI's behaviour.
 
 ### Source of truth
 
