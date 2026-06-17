@@ -25,7 +25,7 @@ helm install doqa batonogov/doqa -n doqa --create-namespace \
 ## Prerequisites
 
 - Kubernetes 1.32+
-- Helm 3.14+ (Helm 4 supported)
+- Helm 3.13+ (Helm 4 supported) — templates use only functions available since Helm 3.0 (`lookup`, `required`, `toYaml`, `sha256sum`, JSON schema validation); no Helm 3.14-only features are required
 - An Ingress controller routable from the public DNS pointing to `appUrl`
 - For TLS: cert-manager with a working ClusterIssuer (or a pre-provisioned TLS secret)
 - For PostgreSQL via CNPG (default): the
