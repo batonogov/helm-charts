@@ -144,9 +144,9 @@ Defaults are all `true` so a stranger doing `helm install` gets a working stack.
 
 ### Secret strategy
 
-`secrets.create=true` (default) makes the chart generate **stable** application secrets via `randAlphaNum 32` + `lookup` (existing values are read back from the live secret on `helm upgrade`, so values don't rotate). The `_helpers.tpl` secret-name resolvers (`doqa.secret.app`, `doqa.secret.apiKeys`, `doqa.secret.pusher`, `doqa.secret.rabbitmq`, `doqa.secret.minio`) `required` the matching `Values.secrets.<name>` whenever the chart cannot generate the secret (i.e. `secrets.create=false`, or `<infra>.create=false` for rabbitmq/minio where the chart doesn't know the external password). This produces a clear `helm install` error instead of a runtime CrashLoop on a missing Secret.
+`secrets.create=true` (default) makes the chart generate **stable** application secrets via `randAlphaNum 32` + `lookup` (existing values are read back from the live secret on `helm upgrade`, so values don't rotate). The `_helpers.tpl` has six secret-name resolvers. Five are for chart-generated secrets (`doqa.secret.app`, `doqa.secret.apiKeys`, `doqa.secret.pusher`, `doqa.secret.rabbitmq`, `doqa.secret.minio`): when `secrets.create=true` (default) the chart provisions them via `generated-secrets.yaml` (5 Secret objects); when it cannot generate them (i.e. `secrets.create=false`, or `<infra>.create=false` for rabbitmq/minio where the chart doesn't know the external password) these resolvers `required` the matching `Values.secrets.<name>`. This produces a clear `helm install` error instead of a runtime CrashLoop on a missing Secret.
 
-Mail and LDAP passwords are always user-provided (`secrets.mail`, `secrets.ldap`) — chart never auto-generates these.
+The sixth, `doqa.secret.mail`, is a plain passthrough that returns `secrets.mail` (or empty) with no generation or `required` — mail and LDAP passwords are always user-provided (`secrets.mail`, `secrets.ldap`; LDAP has no helper and is referenced directly). Both are optional: `mail` is only consumed when `mail.host` is set, `ldap` only when `ldap.enabled=true`.
 
 ### nginx routing
 
@@ -161,7 +161,7 @@ The Ingress sends all traffic to the nginx Service; TLS terminates at the Ingres
 
 ### Bucket-init Job
 
-`templates/minio.yaml` includes a Helm `post-install,post-upgrade` hook Job that runs `mc alias set doqa http://...:9000 "$KEY" "$SECRET"` (in a wait loop until MinIO is ready) and creates the bucket. `hook-delete-policy: before-hook-creation,hook-succeeded,hook-failed` ensures a failed Job is cleaned up — without `hook-failed` the release would lock in `pending-install`.
+`templates/minio.yaml` includes a Helm `post-install,post-upgrade` hook Job that provisions the MinIO bucket. It runs `mc alias set` **non-fatally** (`|| true` — that call only writes the alias locally and does not probe the server), then probes readiness and credential validity with `mc ls doqa` in a `while`/`sleep 2` loop. If the probe fails with an auth/credential error (`access denied`, `403`, `401`, `signature`, `invalid login`, …) the Job **fails fast** (`exit 1`) instead of retrying forever, so bad `secrets.minio`/MINIO keys surface immediately rather than stalling the release. Once reachable it runs `mc mb --ignore-existing` + `mc anonymous set public`. `hook-delete-policy: before-hook-creation,hook-succeeded,hook-failed` ensures a failed Job is cleaned up — without `hook-failed` the release would lock in `pending-install`.
 
 ### What does **not** get bundled
 
