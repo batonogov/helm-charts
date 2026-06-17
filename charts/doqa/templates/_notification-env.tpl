@@ -12,7 +12,7 @@ Shared env block for notification API, worker, and telegram-bot — matches the 
       key: token
 {{- end }}
 - name: PUSHER_PORT
-  value: {{ .Values.pusher.port | quote }}
+  value: {{ .Values.pusher.port | int | quote }}
 - name: PUSHER_APP_HOST
   value: {{ printf "%s-websocket" (include "doqa.fullname" .) | quote }}
 - name: PUSHER_APP_ID
