@@ -6,9 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A monorepo of Helm charts published as a public Helm repository on GitHub Pages. Each chart lives in `charts/<name>/`, is versioned independently per semver, and is released via `chart-releaser-action`. The published index is served from `https://batonogov.github.io/helm-charts/index.yaml`; the actual `.tgz` packages are GitHub Release assets, not stored in `gh-pages`.
 
-Currently shipped charts:
-- `charts/doqa` — DoQA Test Case Management System (TCMS), self-hosted on Kubernetes 1.32+. Targets `appVersion 4.1.0-box`.
-- `charts/xray-health-exporter` — Prometheus exporter for Xray-core tunnel health. Targets `appVersion 1.4.0`.
+Currently shipped charts (do **not** hardcode versions here — they drift fast. `Chart.yaml` in each chart is the source of truth for its `appVersion`):
+- `charts/doqa` — DoQA Test Case Management System (TCMS), self-hosted on Kubernetes 1.32+. Upstream `box` version: `curl -s https://doqa.app/downloads/latest.txt` (e.g. `4_1_0`). See "Source of truth" below for the full discovery flow.
+- `charts/xray-health-exporter` — Prometheus exporter for Xray-core tunnel health. Upstream releases are GitHub Releases on `batonogov/xray-health-exporter`; the image lives at `ghcr.io/batonogov/xray-health-exporter` and `renovate.json` auto-bumps `Chart.yaml`'s `appVersion` when a new image tag is pushed. `curl -s https://api.github.com/repos/batonogov/xray-health-exporter/releases/latest | jq -r .tag_name` for the latest, or list GHCR tags via the OCI distribution API.
 
 ## Common commands
 
@@ -52,14 +52,14 @@ The `gh-pages` branch must exist before the first release (one-time bootstrap). 
 
 ## Architecture of `charts/doqa`
 
-This chart deploys the full DoQA v4.1.0 stack — 15 Deployments + Service mesh that mirror the vendor's `docker-compose.with-database.yml`. The vendor does not publish a Helm chart and won't (confirmed with their support); the chart is reverse-engineered from their CLI's behaviour.
+This chart deploys the full DoQA stack — 16 Deployments + Service mesh that mirror the vendor's `docker-compose.with-database.yml` (current upstream `box` version is whatever `latest.txt` reports; check it before working on the chart). The vendor does not publish a Helm chart and won't (confirmed with their support); the chart is reverse-engineered from their CLI's behaviour.
 
 ### Source of truth
 
 Vendor ships installation as a Go binary (`https://doqa.app/downloads/doqa`, ELF amd64) plus per-version artifacts. The binary itself only contains the `install` subcommand on first run — it self-mutates into a post-install state that exposes `start/stop/update/cert/domain/backup/restore` once `.env`/`docker-compose.yml` exist in cwd. **All real content is in the per-version configs zip, not in the binary.** Pull these directly:
 
 ```
-https://doqa.app/downloads/latest.txt          → "4_1_0"  (current)
+https://doqa.app/downloads/latest.txt          → latest box version, format `4_1_0`
 https://doqa.app/downloads/cli_latest.txt      → CLI binary version
 https://doqa.app/downloads/support_versions.json
 https://doqa.app/downloads/configs_<ver>.zip   → .env.install + docker-compose.yml +
@@ -144,9 +144,9 @@ Defaults are all `true` so a stranger doing `helm install` gets a working stack.
 
 ### Secret strategy
 
-`secrets.create=true` (default) makes the chart generate **stable** application secrets via `randAlphaNum 32` + `lookup` (existing values are read back from the live secret on `helm upgrade`, so values don't rotate). The `_helpers.tpl` secret-name resolvers (`doqa.secret.app`, `doqa.secret.apiKeys`, `doqa.secret.pusher`, `doqa.secret.rabbitmq`, `doqa.secret.minio`) `required` the matching `Values.secrets.<name>` whenever the chart cannot generate the secret (i.e. `secrets.create=false`, or `<infra>.create=false` for rabbitmq/minio where the chart doesn't know the external password). This produces a clear `helm install` error instead of a runtime CrashLoop on a missing Secret.
+`secrets.create=true` (default) makes the chart generate **stable** application secrets via `randAlphaNum 32` + `lookup` (existing values are read back from the live secret on `helm upgrade`, so values don't rotate). The `_helpers.tpl` has six secret-name resolvers. Five are for chart-generated secrets (`doqa.secret.app`, `doqa.secret.apiKeys`, `doqa.secret.pusher`, `doqa.secret.rabbitmq`, `doqa.secret.minio`): when `secrets.create=true` (default) the chart provisions them via `generated-secrets.yaml` (5 Secret objects); when it cannot generate them (i.e. `secrets.create=false`, or `<infra>.create=false` for rabbitmq/minio where the chart doesn't know the external password) these resolvers `required` the matching `Values.secrets.<name>`. This produces a clear `helm install` error instead of a runtime CrashLoop on a missing Secret.
 
-Mail and LDAP passwords are always user-provided (`secrets.mail`, `secrets.ldap`) — chart never auto-generates these.
+The sixth, `doqa.secret.mail`, is a plain passthrough that returns `secrets.mail` (or empty) with no generation or `required` — mail and LDAP passwords are always user-provided (`secrets.mail`, `secrets.ldap`; LDAP has no helper and is referenced directly). Both are optional: `mail` is only consumed when `mail.host` is set, `ldap` only when `ldap.enabled=true`.
 
 ### nginx routing
 
@@ -161,7 +161,7 @@ The Ingress sends all traffic to the nginx Service; TLS terminates at the Ingres
 
 ### Bucket-init Job
 
-`templates/minio.yaml` includes a Helm `post-install,post-upgrade` hook Job that runs `mc alias set doqa http://...:9000 "$KEY" "$SECRET"` (in a wait loop until MinIO is ready) and creates the bucket. `hook-delete-policy: before-hook-creation,hook-succeeded,hook-failed` ensures a failed Job is cleaned up — without `hook-failed` the release would lock in `pending-install`.
+`templates/minio.yaml` includes a Helm `post-install,post-upgrade` hook Job that provisions the MinIO bucket. It runs `mc alias set` **non-fatally** (`|| true` — that call only writes the alias locally and does not probe the server), then probes readiness and credential validity with `mc ls doqa` in a `while`/`sleep 2` loop. If the probe fails with an auth/credential error (`access denied`, `403`, `401`, `signature`, `invalid login`, …) the Job **fails fast** (`exit 1`) instead of retrying forever, so bad `secrets.minio`/MINIO keys surface immediately rather than stalling the release. Once reachable it runs `mc mb --ignore-existing` + `mc anonymous set public`. `hook-delete-policy: before-hook-creation,hook-succeeded,hook-failed` ensures a failed Job is cleaned up — without `hook-failed` the release would lock in `pending-install`.
 
 ### What does **not** get bundled
 
