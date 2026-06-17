@@ -6,9 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A monorepo of Helm charts published as a public Helm repository on GitHub Pages. Each chart lives in `charts/<name>/`, is versioned independently per semver, and is released via `chart-releaser-action`. The published index is served from `https://batonogov.github.io/helm-charts/index.yaml`; the actual `.tgz` packages are GitHub Release assets, not stored in `gh-pages`.
 
-Currently shipped charts:
-- `charts/doqa` — DoQA Test Case Management System (TCMS), self-hosted on Kubernetes 1.32+. Targets `appVersion 4.1.0-box`.
-- `charts/xray-health-exporter` — Prometheus exporter for Xray-core tunnel health. Targets `appVersion 1.4.0`.
+Currently shipped charts (do **not** hardcode versions here — they drift fast. `Chart.yaml` in each chart is the source of truth for its `appVersion`):
+- `charts/doqa` — DoQA Test Case Management System (TCMS), self-hosted on Kubernetes 1.32+. Upstream `box` version: `curl -s https://doqa.app/downloads/latest.txt` (e.g. `4_1_0`). See "Source of truth" below for the full discovery flow.
+- `charts/xray-health-exporter` — Prometheus exporter for Xray-core tunnel health. Upstream releases are GitHub Releases on `batonogov/xray-health-exporter`; the image lives at `ghcr.io/batonogov/xray-health-exporter` and `renovate.json` auto-bumps `Chart.yaml`'s `appVersion` when a new image tag is pushed. `curl -s https://api.github.com/repos/batonogov/xray-health-exporter/releases/latest | jq -r .tag_name` for the latest, or list GHCR tags via the OCI distribution API.
 
 ## Common commands
 
@@ -52,14 +52,14 @@ The `gh-pages` branch must exist before the first release (one-time bootstrap). 
 
 ## Architecture of `charts/doqa`
 
-This chart deploys the full DoQA v4.1.0 stack — 15 Deployments + Service mesh that mirror the vendor's `docker-compose.with-database.yml`. The vendor does not publish a Helm chart and won't (confirmed with their support); the chart is reverse-engineered from their CLI's behaviour.
+This chart deploys the full DoQA stack — 15 Deployments + Service mesh that mirror the vendor's `docker-compose.with-database.yml` (current upstream `box` version is whatever `latest.txt` reports; check it before working on the chart). The vendor does not publish a Helm chart and won't (confirmed with their support); the chart is reverse-engineered from their CLI's behaviour.
 
 ### Source of truth
 
 Vendor ships installation as a Go binary (`https://doqa.app/downloads/doqa`, ELF amd64) plus per-version artifacts. The binary itself only contains the `install` subcommand on first run — it self-mutates into a post-install state that exposes `start/stop/update/cert/domain/backup/restore` once `.env`/`docker-compose.yml` exist in cwd. **All real content is in the per-version configs zip, not in the binary.** Pull these directly:
 
 ```
-https://doqa.app/downloads/latest.txt          → "4_1_0"  (current)
+https://doqa.app/downloads/latest.txt          → latest box version, format `4_1_0`
 https://doqa.app/downloads/cli_latest.txt      → CLI binary version
 https://doqa.app/downloads/support_versions.json
 https://doqa.app/downloads/configs_<ver>.zip   → .env.install + docker-compose.yml +
