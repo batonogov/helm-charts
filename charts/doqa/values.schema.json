@@ -6,7 +6,7 @@
   "properties": {
     "nameOverride": {
       "type": "string",
-      "description": "Override the chart name part of resource names. SET-ONCE-AT-INSTALL: changing this on an existing release makes the upgrade fail with `field is immutable` because app.kubernetes.io/name is immutable in every Deployment's selector."
+      "description": "Override the chart name part of resource names. SET-ONCE-AT-INSTALL: changing it on an existing release makes the upgrade fail with `field is immutable` (app.kubernetes.io/name is in every Deployment selector), and also renames every resource (orphaning PVCs) because it feeds doqa.fullname when fullnameOverride is unset."
     },
     "fullnameOverride": {
       "type": "string",

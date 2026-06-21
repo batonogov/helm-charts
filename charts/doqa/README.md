@@ -180,7 +180,7 @@ Kubernetes: `>=1.32.0-0`
 | minio.storage.size | string | `"4Gi"` | PVC size for MinIO |
 | minio.storage.storageClass | string | `""` | StorageClass for MinIO PVC |
 | minio.tolerations | list | `[]` | Tolerations for MinIO pods. Overrides global tolerations |
-| nameOverride | string | `""` | Override the chart name part of resource names. SET-ONCE-AT-INSTALL: `app.kubernetes.io/name` (derived from this) lands in every Deployment's `.spec.selector`, which Kubernetes treats as immutable. Changing nameOverride on an existing release makes the upgrade fail with `field is immutable` on all Deployments until they are deleted/reinstalled. |
+| nameOverride | string | `""` | Override the chart name part of resource names. SET-ONCE-AT-INSTALL: `app.kubernetes.io/name` (derived from this) lands in every Deployment's `.spec.selector`, which Kubernetes treats as immutable. Changing nameOverride on an existing release makes the upgrade fail with `field is immutable` on all Deployments until the value is reverted or the release is reinstalled. nameOverride also feeds doqa.fullname (when fullnameOverride is unset), so it additionally renames every chart-managed resource and orphans the redis/rabbitmq/minio PVCs. |
 | networkPolicy.enabled | bool | `false` | Enable NetworkPolicy resources. Creates a default-deny-ingress policy and explicit allow rules for all internal traffic paths |
 | nginx.affinity | object | `{}` |  |
 | nginx.clientMaxBodySize | string | `"150M"` | Maximum upload size |

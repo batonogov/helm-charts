@@ -2,7 +2,10 @@
 # `app.kubernetes.io/name` (derived from this) lands in every Deployment's
 # `.spec.selector`, which Kubernetes treats as immutable. Changing
 # nameOverride on an existing release makes the upgrade fail with
-# `field is immutable` on all Deployments until they are deleted/reinstalled.
+# `field is immutable` on all Deployments until the value is reverted or the
+# release is reinstalled. nameOverride also feeds doqa.fullname (when
+# fullnameOverride is unset), so it additionally renames every chart-managed
+# resource and orphans the redis/rabbitmq/minio PVCs.
 nameOverride: ""
 # -- Override the full name of resources. SET-ONCE-AT-INSTALL: changing this
 # on an existing release renames every chart-managed resource (Helm drops the
