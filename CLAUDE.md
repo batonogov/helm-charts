@@ -26,7 +26,7 @@ helm-docs --chart-search-root charts
 ct lint --config .github/ct.yaml --target-branch main
 ```
 
-There are no unit tests — validation is `ct lint` with chart version increment checks and a `helm-docs` sync check on PRs. End-to-end installation is verified manually against a real cluster. `renovate.json` lets Renovate open automated PRs when the upstream exporter publishes a newer GHCR image tag.
+There are no unit tests — validation is `ct lint` with chart version increment checks and a `helm-docs` sync check on PRs. End-to-end installation is verified manually against a real cluster. Renovate runs from the repo-owned `.github/workflows/renovate.yaml` workflow (scheduled + `workflow_dispatch`), NOT the external Renovate GitHub App. It needs a `RENOVATE_TOKEN` repo secret — a GitHub PAT (classic, `repo` scope), since the default `GITHUB_TOKEN` authors PRs that don't trigger `pull_request` CI. The per-repo config is `renovate.json` (auto-bumps `Chart.yaml` `appVersion` on a new GHCR image tag); the bot/global config is `.github/renovate.js`.
 
 ## Release flow
 

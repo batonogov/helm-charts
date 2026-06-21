@@ -1,0 +1,52 @@
+name: renovate
+
+# Repository-owned Renovate runner. This workflow drives Renovate on a schedule
+# and on demand, so the repo does NOT depend on the external Renovate GitHub App
+# being installed manually. See issue #32.
+#
+# Required repository secret: RENOVATE_TOKEN
+#   A GitHub Personal Access Token. Use a classic PAT with `repo` scope (or
+#   `repo:public_repo` for public repos only). The workflow's default
+#   GITHUB_TOKEN MUST NOT be used here: PRs authored with GITHUB_TOKEN do not
+#   trigger downstream `pull_request` CI runs (e.g. the lint-test workflow),
+#   which would leave Renovate PRs un-linted.
+#
+# Config files:
+#   - `.github/renovate.js`  -> global/self-hosted bot config (platform,
+#                               repositories, onboarding). Consumed via
+#                               `configurationFile` below.
+#   - `renovate.json` (root) -> per-repository config (the regex manager +
+#                               bump rules). Renovate reads this automatically
+#                               when it processes the repo; it is NOT passed
+#                               to the action directly.
+on:
+  schedule:
+    # Twice daily at an off-peak minute (avoid the "on the hour" herd). This is
+    # a public repo so Actions minutes are free, but a moderate cadence is
+    # courteous to the GHCR/Docker Hub APIs. Adjust as needed.
+    - cron: '37 6,18 * * *'
+  workflow_dispatch:
+
+permissions:
+  # Renovate authenticates with the RENOVATE_TOKEN PAT, not the workflow's
+  # GITHUB_TOKEN, so GITHUB_TOKEN only needs read access for `actions/checkout`.
+  contents: read
+
+concurrency:
+  group: renovate-${{ github.ref }}
+  # Let a running Renovate finish instead of cancelling mid-update.
+  cancel-in-progress: false
+
+jobs:
+  renovate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Self-hosted Renovate
+        uses: renovatebot/github-action@8217b3fc286df088d7c27f3255fe8414463bc0fd # v46.1.15
+        with:
+          configurationFile: .github/renovate.js
+          token: ${{ secrets.RENOVATE_TOKEN }}
