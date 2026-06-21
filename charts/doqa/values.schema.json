@@ -6,11 +6,11 @@
   "properties": {
     "nameOverride": {
       "type": "string",
-      "description": "Override the chart name part of resource names."
+      "description": "Override the chart name part of resource names. SET-ONCE-AT-INSTALL: changing this on an existing release makes the upgrade fail with `field is immutable` because app.kubernetes.io/name is immutable in every Deployment's selector."
     },
     "fullnameOverride": {
       "type": "string",
-      "description": "Override the full name of resources."
+      "description": "Override the full name of resources. SET-ONCE-AT-INSTALL: changing this renames every chart-managed resource, orphaning the CNPG Cluster and redis/rabbitmq/minio PVCs (data loss)."
     },
     "nodeSelector": {
       "type": "object",

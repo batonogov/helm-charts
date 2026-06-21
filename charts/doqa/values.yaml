@@ -1,6 +1,13 @@
-# -- Override the chart name part of resource names
+# -- Override the chart name part of resource names. SET-ONCE-AT-INSTALL:
+# `app.kubernetes.io/name` (derived from this) lands in every Deployment's
+# `.spec.selector`, which Kubernetes treats as immutable. Changing
+# nameOverride on an existing release makes the upgrade fail with
+# `field is immutable` on all Deployments until they are deleted/reinstalled.
 nameOverride: ""
-# -- Override the full name of resources
+# -- Override the full name of resources. SET-ONCE-AT-INSTALL: changing this
+# on an existing release renames every chart-managed resource (Helm drops the
+# old-named objects and creates new ones), orphaning the CNPG Cluster and the
+# redis/rabbitmq/minio PVCs (data loss). Do not change after first install.
 fullnameOverride: ""
 
 # -- Default node selector applied to all components. Per-component values override this.
