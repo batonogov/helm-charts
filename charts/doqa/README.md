@@ -36,7 +36,7 @@ anonymously — no `imagePullSecrets` are required by default.
 
 ## Architecture
 
-Components mirror the vendor docker-compose for v4.1.2:
+Components mirror the vendor docker-compose for v4.1.0:
 
 - `backend` (php-fpm Laravel API), `queue` (`queue:work`), `cron` (`schedule:work`)
 - `frontend` (Nuxt SPA)
