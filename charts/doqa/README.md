@@ -2,7 +2,7 @@
 
 DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
 
-![Version: 0.3.7](https://img.shields.io/badge/Version-0.3.7-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.1.0-box](https://img.shields.io/badge/AppVersion-4.1.0--box-informational?style=flat-square)
+![Version: 0.3.8](https://img.shields.io/badge/Version-0.3.8-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.1.2-box](https://img.shields.io/badge/AppVersion-4.1.2--box-informational?style=flat-square)
 
 **Homepage:** <https://doqa.app>
 
@@ -81,6 +81,7 @@ Kubernetes: `>=1.32.0-0`
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | affinity | object | `{}` | Default affinity applied to all components. Per-component values override this. |
+| apiBaseUrl | string | `""` | Optional explicit API base URL (`API_BASE_URL`). Leave empty to use internal backend service. |
 | appFrontendUrl | string | `""` | Frontend URL (defaults to appUrl when empty) |
 | appUrl | string | `"doqa.example.com"` | DoQA application URL (host without protocol, e.g. "doqa.example.com") |
 | autoscaling.backend.maxReplicas | int | `5` | Maximum replicas for backend HPA |
@@ -95,7 +96,7 @@ Kubernetes: `>=1.32.0-0`
 | autoscaling.queue.targetCPUUtilizationPercentage | int | `80` | Target CPU utilization percentage for queue HPA |
 | autotestParser.affinity | object | `{}` |  |
 | autotestParser.image.repository | string | `"doqa/doqa-parsing-autotests"` | Autotest parser image repository |
-| autotestParser.image.tag | string | `"4.1.0-box"` | Autotest parser image tag |
+| autotestParser.image.tag | string | `"4.1.3-box"` | Autotest parser image tag |
 | autotestParser.nodeSelector | object | `{}` |  |
 | autotestParser.replicas | int | `1` | Autotest parser replica count |
 | autotestParser.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
@@ -109,7 +110,7 @@ Kubernetes: `>=1.32.0-0`
 | autotestResultParser.tolerations | list | `[]` |  |
 | backend.affinity | object | `{}` |  |
 | backend.image.repository | string | `"doqa/doqa-backend"` | Backend image repository (relative to image.registry) |
-| backend.image.tag | string | `"4.1.13-box"` | Backend image tag |
+| backend.image.tag | string | `"4.1.14-box"` | Backend image tag |
 | backend.nodeSelector | object | `{}` |  |
 | backend.replicas | int | `2` | Backend replica count |
 | backend.resources | object | `{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}}` | Resource requests and limits |
@@ -129,7 +130,7 @@ Kubernetes: `>=1.32.0-0`
 | extraVolumes | list | `[]` | Extra volumes to add to all Deployments |
 | frontend.affinity | object | `{}` |  |
 | frontend.image.repository | string | `"doqa/doqa-frontend"` | Frontend image repository (relative to image.registry) |
-| frontend.image.tag | string | `"4.1.4-box"` | Frontend image tag |
+| frontend.image.tag | string | `"4.1.6-box"` | Frontend image tag |
 | frontend.nodeSelector | object | `{}` |  |
 | frontend.replicas | int | `2` | Frontend replica count |
 | frontend.resources | object | `{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}}` | Resource requests and limits |
@@ -309,6 +310,14 @@ This chart targets DoQA 4.1.0+. There is no automatic migration path from
 3.x deployments — vendor changed the queue broker from Redis to RabbitMQ
 between 3.7 and 4.0. Plan a stepwise migration if you are coming from a
 3.x install.
+
+### 0.3.7 → 0.3.8
+
+- **DoQA 4.1.2**: bumps backend (4.1.14-box), frontend (4.1.6-box),
+  autotest-parser (4.1.3-box).
+- **New env var**: `API_BASE_URL` added per upstream 4.1.2 configs.
+  Defaults to empty (uses internal backend service). Set
+  `apiBaseUrl` if the frontend should reach the API via a different URL.
 
 ### 0.2.x → 0.3.0
 

@@ -85,6 +85,14 @@ This chart targets DoQA 4.1.0+. There is no automatic migration path from
 between 3.7 and 4.0. Plan a stepwise migration if you are coming from a
 3.x install.
 
+### 0.3.7 → 0.3.8
+
+- **DoQA 4.1.2**: bumps backend (4.1.14-box), frontend (4.1.6-box),
+  autotest-parser (4.1.3-box).
+- **New env var**: `API_BASE_URL` added per upstream 4.1.2 configs.
+  Defaults to empty (uses internal backend service). Set
+  `apiBaseUrl` if the frontend should reach the API via a different URL.
+
 ### 0.2.x → 0.3.0
 
 - **DoQA 4.1.0**: the chart adds the new `llm` service and updates all vendor

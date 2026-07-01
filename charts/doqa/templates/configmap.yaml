@@ -43,6 +43,8 @@ data:
   MAIL_FROM_NAME: {{ .Values.mail.fromName | quote }}
   MAIL_ISSUE: {{ .Values.mailIssue | quote }}
 
+  API_BASE_URL: {{ .Values.apiBaseUrl | quote }}
+
   BROADCAST_DRIVER: pusher
   PUSHER_APP_HOST: {{ printf "%s-websocket" (include "doqa.fullname" .) | quote }}
   PUSHER_APP_ID: {{ .Values.pusher.appId | quote }}

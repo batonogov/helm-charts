@@ -30,6 +30,8 @@ useSsl: true
 debug: false
 # -- Issue/support email exposed to backend (`MAIL_ISSUE`)
 mailIssue: "support@doqa.app"
+# -- Optional explicit API base URL (`API_BASE_URL`). Leave empty to use internal backend service.
+apiBaseUrl: ""
 
 image:
   # -- Container registry hosting DoQA images
@@ -265,7 +267,7 @@ backend:
     # -- Backend image repository (relative to image.registry)
     repository: doqa/doqa-backend
     # -- Backend image tag
-    tag: 4.1.13-box
+    tag: 4.1.14-box
   # -- Backend replica count
   replicas: 2
   # -- Skip running `php artisan migrate --force` on rollout
@@ -342,7 +344,7 @@ frontend:
     # -- Frontend image repository (relative to image.registry)
     repository: doqa/doqa-frontend
     # -- Frontend image tag
-    tag: 4.1.4-box
+    tag: 4.1.6-box
   # -- Frontend replica count
   replicas: 2
   # -- Resource requests and limits
@@ -363,7 +365,7 @@ autotestParser:
     # -- Autotest parser image repository
     repository: doqa/doqa-parsing-autotests
     # -- Autotest parser image tag
-    tag: 4.1.0-box
+    tag: 4.1.3-box
   # -- Autotest parser replica count
   replicas: 1
   # -- Resource requests and limits
