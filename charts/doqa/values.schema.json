@@ -48,6 +48,10 @@
       "type": "string",
       "description": "Issue/support email exposed to backend."
     },
+    "apiBaseUrl": {
+      "type": "string",
+      "description": "Optional explicit API base URL. Leave empty to use internal backend service."
+    },
     "image": {
       "type": "object",
       "description": "Global image settings.",
