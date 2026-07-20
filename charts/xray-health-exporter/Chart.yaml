@@ -2,9 +2,9 @@ apiVersion: v2
 name: xray-health-exporter
 description: Prometheus exporter for Xray-core tunnel health
 type: application
-version: 0.3.2
+version: 0.3.3
 # renovate: datasource=docker depName=ghcr.io/batonogov/xray-health-exporter extractVersion=^v(?<version>.*)$ versioning=semver
-appVersion: "1.6.2"
+appVersion: "1.6.3"
 kubeVersion: ">=1.32.0-0"
 home: https://github.com/batonogov/xray-health-exporter
 sources:
