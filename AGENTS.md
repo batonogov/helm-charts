@@ -1,79 +1,94 @@
 # AGENTS.md
 
-This file provides guidance to coding agents working with code in this repository.
+Repository-level guidance for coding agents working in this Helm chart monorepo.
 
-## What this repo is
+## Repository map
 
-A monorepo of Helm charts published as a public Helm repository on GitHub Pages. Each chart lives in `charts/<name>/`, is versioned independently per semver, and is released via `chart-releaser-action`. The published index is served from `https://batonogov.github.io/helm-charts/index.yaml`; the actual `.tgz` packages are GitHub Release assets, not stored in `gh-pages`.
+Charts live in `charts/<name>/`, are versioned independently, and are published through GitHub Releases plus the `gh-pages` Helm index at `https://batonogov.github.io/helm-charts/index.yaml`. Release archives are GitHub assets; they are not committed to `gh-pages`.
 
-Currently shipped charts (do **not** hardcode versions here — they drift fast. `Chart.yaml` in each chart is the source of truth for its `appVersion`):
-- `charts/doqa` — DoQA Test Case Management System (TCMS), self-hosted on Kubernetes 1.32+. Upstream `box` version: `curl -s https://doqa.app/downloads/latest.txt` (e.g. `4_1_0`). See "Source of truth" below for the full discovery flow.
-- `charts/xray-health-exporter` — Prometheus exporter for Xray-core tunnel health. Upstream releases are GitHub Releases on `batonogov/xray-health-exporter`; the image lives at `ghcr.io/batonogov/xray-health-exporter` and `renovate.json` auto-bumps `Chart.yaml`'s `appVersion` when a new image tag is pushed. `curl -s https://api.github.com/repos/batonogov/xray-health-exporter/releases/latest | jq -r .tag_name` for the latest, or list GHCR tags via the OCI distribution API.
+Currently shipped charts (do not copy their current versions into this file; `Chart.yaml` and the upstream sources are authoritative):
+
+- `charts/doqa` — self-hosted DoQA TCMS for Kubernetes 1.32+. Use the vendor's **box** artifacts, not the cloud release page, to discover updates.
+- `charts/xray-health-exporter` — Prometheus exporter for Xray-core tunnel health. GHCR `v*` tags are Renovate's source; `Chart.yaml` stores `appVersion` without the `v` prefix.
+
+Repository automation:
+
+- `.github/workflows/lint-test.yaml` — PR chart detection, `ct lint`, and generated README verification.
+- `.github/workflows/release.yaml` — serialized chart publication from `main`.
+- `.github/ct.yaml` — chart-testing policy, including version-increment enforcement.
+- `.pre-commit-config.yaml` and `scripts/` — local formatting, docs, lint, and render checks.
+- `renovate.json` — xray-health-exporter GHCR updates; `.github/dependabot.yml` — GitHub Actions updates.
 
 ## Common commands
 
 ```bash
-# Render a chart's templates (catch logic errors quickly)
-helm lint charts/doqa
-helm template my-release charts/doqa
-helm template my-release charts/doqa -f charts/doqa/ci/test-values.yaml
+# Full local validation. The local hooks run helm-docs, helm lint, and
+# helm template for every chart in addition to repository hygiene checks.
+pre-commit run --all-files
 
-# Regenerate a chart's README.md from values.yaml + README.md.gotmpl.
-# CI fails on PRs if the regenerated README differs from what's committed.
-helm-docs --chart-search-root charts
+# Individual validation stages; each checks all charts.
+scripts/check-helm-docs.sh
+scripts/helm-lint-all.sh
+scripts/helm-template-all.sh
 
-# Lint with chart-testing (mirrors PR CI)
+# Render individual charts with their repository test values.
+helm template test-doqa charts/doqa -f charts/doqa/ci/test-values.yaml >/dev/null
+helm template test-xray charts/xray-health-exporter -f charts/xray-health-exporter/ci/test-values.yaml >/dev/null
+
+# Mirrors the chart-testing portion of PR CI.
 ct lint --config .github/ct.yaml --target-branch main
 ```
 
-There are no unit tests — validation is `ct lint` with chart version increment checks and a `helm-docs` sync check on PRs. End-to-end installation is verified manually against a real cluster. `renovate.json` lets Renovate open automated PRs when the upstream exporter publishes a newer GHCR image tag.
+Do not use bare `helm template ... charts/doqa`: defaults intentionally require `ingress.className`. Use `ci/test-values.yaml`, set an ingress class, or disable the Ingress explicitly. The xray chart likewise needs at least one tunnel/subscription or an `existingConfigSecret`; its test values provide a placeholder.
 
-## Release flow
+There are no unit tests or in-cluster CI tests. PR CI runs `ct lint` for changed charts and, when any chart changed, verifies `helm-docs` output across all charts. End-to-end installation is manual.
 
-A push to `main` triggers `.github/workflows/release.yaml` → `chart-releaser-action` packages every chart whose `version:` in `Chart.yaml` is not yet released, creates a GitHub Release per chart (tag format `<chart>-<version>`, e.g. `doqa-0.1.0`), and updates `gh-pages/index.yaml`. Charts with an unchanged version are skipped.
+## Versioning, generated files, and release flow
 
-**Bump `version:` in the chart's `Chart.yaml` when changing files under that chart directory.** `ct lint` enforces this through `check-version-increment: true`. Don't bump for repo-level files outside `charts/<name>/`.
-
-The `gh-pages` branch must exist before the first release (one-time bootstrap). GitHub Pages settings must point to `gh-pages` / root.
+- Bump `version:` in a chart's `Chart.yaml` for every change under that chart directory detected by `ct list-changed` (currently including `ci/test-values.yaml`). `ct lint` enforces `check-version-increment: true`. Do not bump chart versions for repository-only files such as this one.
+- Keep `values.yaml`, its helm-docs comments, and `values.schema.json` synchronized. Edit narrative documentation in `README.md.gotmpl`, then regenerate `README.md`; do not hand-edit generated value tables.
+- `appVersion` tracks the upstream application. It is not a substitute for the chart version and, for DoQA, does not control the independently pinned component images.
+- A push to `main` runs `chart-releaser-action` with `skip_existing: true` and `mark_as_latest: true`. New chart versions become releases tagged `<chart>-<version>`, and the action updates `gh-pages/index.yaml`; already-published versions are skipped.
 
 ## Chart authoring conventions
 
-- `apiVersion: v2`, `kubeVersion: ">=1.32.0-0"` (target user clusters).
-- `values.yaml` is annotated with helm-docs comments (`# -- description`); `helm-docs` regenerates `README.md` from `values.yaml` + `README.md.gotmpl`. Don't hand-edit `README.md`.
-- Each chart bundles `ci/test-values.yaml` for reproducing the verified test deploy.
-- **No bitnami sub-charts**, anywhere. For PostgreSQL use the CNPG operator (in-tree `Cluster` CR + external alternative). For Redis/RabbitMQ/MinIO/etc. use minimal in-tree Deployment+PVC templates (single replica, no HA — fine for the "newcomer onboarding" sub-chart-replacement role) plus an external alternative under a `<name>.create` flag. Default `create: true` so `helm install <chart>` from a fresh user produces a working stack.
-- Adding a new chart: drop it under `charts/<new-name>/`. `ct list-changed` auto-detects on PR, lint-test workflow runs against it. No `Chart.lock` / `helm dep update` workflow — we don't ship sub-chart dependencies.
+- Use Helm API v2 and the repository's current Kubernetes constraint (`kubeVersion: ">=1.32.0-0"`). The repository-wide minimum is Helm 3.14 because of xray-health-exporter; DoQA also supports Helm 3.13. Helm 4 is supported, while CI exercises a pinned Helm 3 release.
+- Each chart directory includes `ci/test-values.yaml` for reproducible rendering. `.helmignore` excludes `ci/` from release archives.
+- Do not add Bitnami or other sub-chart dependencies. Use an in-tree resource plus an external-service mode where appropriate. CNPG is the PostgreSQL pattern; Redis, RabbitMQ, and MinIO use small in-tree single-replica templates where needed.
+- In-tree dependencies do not remove cluster prerequisites. For example, DoQA's default CNPG `Cluster` needs the CNPG operator, and an enabled Ingress needs a valid `ingress.className` and controller.
+- Add a chart under `charts/<new-name>/`; `ct list-changed` discovers it automatically. This repository intentionally has no `Chart.lock` or `helm dep update` workflow.
 
 ## Working with `.tmp/`
 
-`.tmp/` is gitignored. Use it for ad-hoc recon during chart development — vendor binaries, extracted configs, manifest diffs. Don't commit anything from there.
-
-**Note:** `helm-docs` 1.14.2 crashes if `.tmp/` exists in CWD (`lstat .tmp/charts: no such file or directory`). Workaround: run `cd /tmp && helm-docs --chart-search-root /abs/path/to/charts`. The pre-commit hook runs `helm-docs` before `.tmp/` would normally exist, so CI is unaffected.
+`.tmp/` is gitignored and is the preferred location for vendor binaries, extracted configs, and manifest diffs used during chart development. Never commit its contents.
 
 ## Architecture of `charts/doqa`
 
-This chart deploys the full DoQA stack — 16 Deployments + Service mesh that mirror the vendor's `docker-compose.with-database.yml` (current upstream `box` version is whatever `latest.txt` reports; check it before working on the chart). The vendor does not publish a Helm chart and won't (confirmed with their support); the chart is reverse-engineered from their CLI's behaviour.
+The chart translates the vendor's `docker-compose.with-database.yml` into Kubernetes resources. It currently renders 15 Deployments with repository test values; `telegramBot.enabled=true` adds the optional sixteenth. PostgreSQL is a CNPG `Cluster`, not another Deployment. The chart uses ordinary ClusterIP Services and does not install a service mesh.
+
+The vendor distributes a CLI and Compose configs rather than a Helm chart. Treat the current **box** artifacts as upstream; cloud releases can appear before a corresponding box package.
 
 ### Source of truth
 
-Vendor ships installation as a Go binary (`https://doqa.app/downloads/doqa`, ELF amd64) plus per-version artifacts. The binary itself only contains the `install` subcommand on first run — it self-mutates into a post-install state that exposes `start/stop/update/cert/domain/backup/restore` once `.env`/`docker-compose.yml` exist in cwd. **All real content is in the per-version configs zip, not in the binary.** Pull these directly:
+The per-version config archive is the canonical input for chart updates. Check these endpoints directly:
 
 ```
-https://doqa.app/downloads/latest.txt          → latest box version, format `4_1_0`
+https://doqa.app/downloads/latest.txt          → latest box version, format `<major>_<minor>_<patch>`
 https://doqa.app/downloads/cli_latest.txt      → CLI binary version
 https://doqa.app/downloads/support_versions.json
 https://doqa.app/downloads/configs_<ver>.zip   → .env.install + docker-compose.yml +
                                                   docker-compose.with-database.yml +
                                                   nginx/{Dockerfile,default_no_ssl.conf,default_ssl.conf}
+https://doqa.app/downloads/doqa                → Linux amd64 management CLI
 ```
 
-The CLI **does not modify** the compose file: `./doqa install` copies it byte-identical into the working directory (verified via md5sum). It only patches `.env.install` → `.env` with regex substitutions for `APP_KEY` (`base64:<32>`), `JWT_SECRET`, `DB_PASSWORD`, `RABBITMQ_PASSWORD/ERLANG_COOKIE`, `MINIO_KEY/SECRET`, `PUSHER_APP_SECRET`, `STATISTIC_API_KEY`, `NOTIFICATION_API_KEY` (all `randAlphaNum 32`), plus `APP_URL` / `USE_SSL` from interactive prompts. Therefore: when DoQA ships a new minor version, fetching `configs_<ver>.zip` is sufficient — no need to spin up the CLI to discover anything new.
+The CLI copies the Compose file and materializes `.env` from `.env.install`, filling URLs and generated secrets such as application/JWT, RabbitMQ, MinIO, Pusher, statistic, notification, and LLM keys. Do not use the CLI as a substitute for diffing the archive: new services, environment variables, and nginx routes are visible directly in the zip.
 
-The vendor registry `registry.control.doqa.app` is publicly pullable (anonymous). All component image tags are explicit env vars in `.env.install` (`IMAGE_DOQA_API`, `IMAGE_DOQA_FRONTEND`, etc.) — these are the canonical version pins.
+Vendor component image references are explicit `IMAGE_DOQA_*` variables in `.env.install`; these are the canonical pins. The chart stores their repository/tag pairs independently in `values.yaml` and prefixes them with `image.registry`.
 
 ### How compose maps to the chart
 
-Each vendor compose service has a 1:1 chart counterpart:
+The primary mappings are below. They are not strictly 1:1: in-tree mode consolidates the two Redis services, PostgreSQL is replaced with CNPG or an external service, and manual backup workloads are omitted.
 
 | compose service | chart template | k8s shape |
 |---|---|---|
@@ -94,40 +109,43 @@ Each vendor compose service has a 1:1 chart counterpart:
 | `doqa_redis` | `templates/redis.yaml` | Deployment + Service + PVC |
 | `doqa_rabbitmq` | `templates/rabbitmq.yaml` | Deployment + Service + PVC |
 | `minio` | `templates/minio.yaml` (top block) | Deployment + Service + PVC |
-| `createbuckets` (one-shot in compose) | `templates/minio.yaml` (Job block) | `post-install`/`post-upgrade` Helm hook Job |
-| `redis` (notification-only, second instance in compose) | reused single `redis.yaml` instance with different `REDIS_DB` | — |
+| `createbuckets` (manual Compose profile) | `templates/minio.yaml` (Job block) | `post-install`/`post-upgrade` Helm hook Job |
+| `redis` (notification-only, second instance in compose) | `templates/redis.yaml` | In-tree mode reuses primary Redis; external mode may set `redis.notification.host` separately |
 | `minio_backup`/`minio_restore`/`doqa_backup_postgres`/`doqa_restore_postgres` | **not implemented** — vendor uses `profiles: manual`, invoked via `./doqa backup`/`restore` | — (out of scope) |
 
 `.env.install` splits into three places in the chart:
+
 - **ConfigMap `<release>-env`** — non-secret config (APP_URL, DB_HOST, MAIL_*, MINIO_*, BROADCAST_DRIVER, PUSHER_APP_HOST/ID/KEY/PORT/SCHEME, STATISTIC/NOTIFICATION/LLM_ENDPOINT, QUEUE_WORKERS, etc.). Pulled via `envFrom` into backend/queue/cron/result-parser.
-- **Per-pod `env:` blocks** for components vendor doesn't load `env_file=.env` for: autotest-parser (12 explicit RABBITMQ/JWT/DEBUG envs), statistic (DB+API_KEY), llm (API_KEY + statistic endpoint/key), notification anchor, websocket (5 SOKETI_* envs).
+- **Per-pod `env:` blocks** for components that do not consume the ConfigMap: autotest-parser, statistic, llm, notification/worker, Telegram bot, and websocket. Adding a key to the ConfigMap does not reach these pods; wire every new upstream variable into the relevant template explicitly.
 - **Secrets** — passwords/keys (APP_KEY, JWT_SECRET, DB_PASSWORD, RABBITMQ_PASSWORD/ERLANG_COOKIE, MINIO_KEY/SECRET, MAIL_PASSWORD, PUSHER_APP_SECRET, STATISTIC_API_KEY, NOTIFICATION_API_KEY, LLM_API_KEY, BOT_TOKEN). See "Secret strategy" below.
 
 ### Deliberate departures from vendor compose
 
 These are NOT bugs — the chart re-expresses compose into k8s idioms:
-- **Internal nginx kept** as Deployment+ConfigMap (1:1 with vendor's `default_no_ssl.conf`) instead of expanding all proxy paths into Ingress paths. Ingress just sends everything to nginx Service. Easier to keep in sync with vendor on minor updates.
-- **TLS via cert-manager**, not certbot — vendor's `cert` subcommand and `box/letsencrypt/` directory are replaced by Ingress annotations.
+
+- **Internal nginx kept** as Deployment+ConfigMap, mirroring the vendor route/location structure with Kubernetes-specific upstreams and headers instead of expanding every proxy path into Ingress rules.
+- **TLS terminates at the Ingress**, not vendor certbot. Users can use cert-manager annotations or a pre-provisioned TLS Secret.
 - **`MINIO_BUCKET_URL`** computed as `<scheme>://<appUrl>/<bucket>` (browser hits Ingress→nginx→/doqa proxy→MinIO), vs vendor's `http://minio/doqa` which only works inside compose network.
-- **Bucket creation via Helm post-install hook Job** (`templates/minio.yaml:Job`) instead of vendor's compose `createbuckets` profile. Hook delete-policy includes `hook-failed` so a stuck Job doesn't pin the release.
+- **Bucket creation via Helm post-install hook Job** (`templates/minio.yaml:Job`) instead of vendor's Compose `createbuckets` profile. Hook delete-policy includes `hook-failed` so a completed failed Job is cleaned up.
 - **Backup/restore not implemented** — vendor's `./doqa backup` runs `pg_dump` + `mc mirror` into a zip; in k8s this belongs in a separate CronJob / external tool, not the application chart.
 - **PUSHER_APP_HOST and STATISTIC/NOTIFICATION/LLM_ENDPOINT** hardcoded by vendor to compose `container_name`s; chart computes them from `<release>-<component>` Service names so they survive `nameOverride`/`fullnameOverride`.
 
 ### Updating to a new vendor version
 
-When vendor publishes a new `box` version (check `https://doqa.app/downloads/latest.txt`):
+When the vendor publishes a new **box** version in `latest.txt` and the matching config zip exists:
 
-1. `curl -O https://doqa.app/downloads/configs_<new>.zip && unzip` and **diff against the last shipped version's zip**. Look at: new `IMAGE_DOQA_*` tags, new env keys (`grep -vf old.env new.env`), new compose services, new nginx location blocks.
+1. Download `configs_<new>.zip`, extract it under `.tmp/`, and diff it against the last shipped archive. Check `.env.install`, both Compose files, nginx configs, and the Dockerfile.
 2. Update image tags in `values.yaml` (each component has independent versioning — `doqa-backend` vs `doqa-frontend` vs `doqa-parsing-autotests` etc. ship with **different** SemVer lines).
-3. If new env vars appear in `.env.install`, add them to `templates/configmap.yaml` (non-secret) or to the relevant per-pod env block / Secret.
+3. Route every new environment variable to `templates/configmap.yaml`, the relevant explicit per-pod block, or a Secret. Verify consumption per service; do not assume ConfigMap membership is sufficient.
 4. If new compose services appear, add a new template; if removed, delete one.
 5. If `nginx/default_no_ssl.conf` changes, mirror the diff into `templates/nginx-configmap.yaml`.
-6. Bump `appVersion` in `Chart.yaml` to the new vendor version, bump `version` (semver — minor for additions, major for backward-incompatible env layout).
-7. Sanity check: `./doqa install` in a throwaway `docker run --rm -it` env (Linux amd64), then `docker exec <ctr> env | sort` for each running service and diff against the chart's rendered envs (`helm template ...`). The two should match modulo Service-name vs container-name differences.
+6. Keep `values.schema.json`, helm-docs comments, `README.md.gotmpl`, and generated `README.md` synchronized with value or upgrade changes.
+7. Bump `appVersion` to the new box version and bump chart `version`: patch for compatible fixes/pin changes, minor for additive chart features, major for breaking changes.
+8. Run the full local checks. When practical, install with the CLI in a throwaway Linux amd64 environment and diff each service's effective environment against the rendered chart, allowing for Kubernetes Service names and deliberate departures above.
 
 ### Component inventory
 
-`backend` (php-fpm Laravel, port 8080), `queue` (`queue:work`), `cron` (`schedule:work`), `frontend` (Nuxt :8080), `autotest-parser` (FastAPI :8000, RabbitMQ-driven), `autotest-result-parser` (RabbitMQ consumer, no HTTP), `statistic` (ASGI :3000), `llm` (ASGI :3000), `notification` (ASGI :3000) + `notification-worker` (Celery), `telegram-bot` (optional), `websocket` (Soketi :6001), `nginx` (internal router :80) — Ingress points at the nginx Service which proxies to all backends by path. Vendor images live at `registry.control.doqa.app` and pull anonymously (no `imagePullSecrets` needed by default).
+`backend` (php-fpm Laravel, port 8080), `queue` (`queue:work`), `cron` (`schedule:work`), `frontend` (Nuxt :8080), `autotest-parser` (FastAPI :8000, RabbitMQ-driven), `autotest-result-parser` (RabbitMQ consumer, no HTTP), `statistic` (ASGI :3000), `llm` (ASGI :3000), `notification` (ASGI :3000) + `notification-worker` (Celery), `telegram-bot` (optional), `websocket` (Soketi :6001), and `nginx` (internal router :80). Ingress points to nginx, which routes to the internal services.
 
 ### Stateful dependencies — `<name>.create` flag pattern
 
@@ -138,45 +156,64 @@ Each stateful dep has a flag to switch between in-tree provisioning and external
 | `postgresql.cnpg` | CNPG `Cluster` CR (requires CNPG operator pre-installed) | `postgresql.host`/`port`/etc + `passwordSecret` |
 | `redis` | in-tree Deployment+PVC (single replica) | `redis.host` |
 | `rabbitmq` | in-tree Deployment+PVC + chart-managed admin secret | `rabbitmq.host` + user-supplied `secrets.rabbitmq` |
-| `minio` | in-tree Deployment+PVC + post-install `mc mb` Job | `minio.endpoint` + user-supplied `secrets.minio` |
+| `minio` | in-tree Deployment+PVC + post-install `mc mb` Job | `minio.endpoint` + user-supplied `secrets.minio`; bucket/policy must already exist |
 
-Defaults are all `true` so a stranger doing `helm install` gets a working stack. The `_helpers.tpl` host-resolution functions (`doqa.postgresql.host`, `doqa.redis.host`, etc.) decide between Service-local DNS and the user-supplied value.
+These creation flags default to `true`, but installation still requires the CNPG operator, an IngressClass/controller, and usable storage, or explicit external-service overrides. The `_helpers.tpl` host-resolution functions (`doqa.postgresql.host`, `doqa.redis.host`, etc.) select Service-local DNS or user-supplied endpoints.
 
 ### Secret strategy
 
-`secrets.create=true` (default) makes the chart generate **stable** application secrets via `randAlphaNum 32` + `lookup` (existing values are read back from the live secret on `helm upgrade`, so values don't rotate). The `_helpers.tpl` has six secret-name resolvers. Five are for chart-generated secrets (`doqa.secret.app`, `doqa.secret.apiKeys`, `doqa.secret.pusher`, `doqa.secret.rabbitmq`, `doqa.secret.minio`): when `secrets.create=true` (default) the chart provisions them via `generated-secrets.yaml` (5 Secret objects); when it cannot generate them (i.e. `secrets.create=false`, or `<infra>.create=false` for rabbitmq/minio where the chart doesn't know the external password) these resolvers `required` the matching `Values.secrets.<name>`. This produces a clear `helm install` error instead of a runtime CrashLoop on a missing Secret.
+`secrets.create=true` always provisions three lookup-aware Secrets (app/JWT, API keys, and Pusher). With the default in-tree RabbitMQ and MinIO it also provisions their two infrastructure Secrets, for five total. Existing values are read back during upgrades so they remain stable; fresh offline renders generate new random values and should not be expected to diff deterministically. Secret lengths are key-specific rather than uniformly 32 characters.
 
-The sixth, `doqa.secret.mail`, is a plain passthrough that returns `secrets.mail` (or empty) with no generation or `required` — mail and LDAP passwords are always user-provided (`secrets.mail`, `secrets.ldap`; LDAP has no helper and is referenced directly). Both are optional: `mail` is only consumed when `mail.host` is set, `ldap` only when `ldap.enabled=true`.
+When generation is disabled, or when external RabbitMQ/MinIO is selected, the corresponding existing Secret name is required. CNPG generates its database Secret in in-tree mode; external PostgreSQL and optional Redis authentication reference user-supplied Secrets. SMTP and LDAP passwords plus the Telegram token are also externally supplied. `MAIL_PASSWORD` is emitted when `secrets.mail` is set; LDAP credentials are emitted only for enabled LDAP with a configured secret.
+
+### Upgrade-sensitive names and security contexts
+
+Treat `nameOverride` and `fullnameOverride` as install-time-only values. `nameOverride` participates in immutable Deployment selectors and, unless a full override is set, resource names; changing it can fail upgrades and rename resources. `fullnameOverride` changes resource names directly. Either change can orphan stateful resources/PVCs.
+
+DoQA image USER metadata is heterogeneous. Do not set a global `runAsNonRoot` or fixed UID without checking every currently pinned image. Preserve the safe defaults (`allowPrivilegeEscalation: false`, drop all capabilities), and apply stronger pod/container contexts only to verified images or rebuilt variants.
 
 ### nginx routing
 
 `templates/nginx-configmap.yaml` is hand-written nginx conf that mirrors the vendor's `default_no_ssl.conf`:
+
 - `/` → frontend
 - `/api` → backend
 - `/api/autotests/{report,allure-report-item,junit-report-item,report-inner}` → autotest-parser
 - `/doqa` → MinIO (resolved via `doqa.minio.endpoint` helper, scheme/host trim'd from the URL)
 - `^~ /app/web-socket` → Soketi (websocket upgrade)
 
-The Ingress sends all traffic to the nginx Service; TLS terminates at the Ingress (cert-manager).
+The Ingress sends all traffic to the nginx Service. TLS terminates at the Ingress through either a supplied Secret or an external certificate controller such as cert-manager.
 
 ### Bucket-init Job
 
-`templates/minio.yaml` includes a Helm `post-install,post-upgrade` hook Job that provisions the MinIO bucket. It runs `mc alias set` **non-fatally** (`|| true` — that call only writes the alias locally and does not probe the server), then probes readiness and credential validity with `mc ls doqa` in a `while`/`sleep 2` loop. If the probe fails with an auth/credential error (`access denied`, `403`, `401`, `signature`, `invalid login`, …) the Job **fails fast** (`exit 1`) instead of retrying forever, so bad `secrets.minio`/MINIO keys surface immediately rather than stalling the release. Once reachable it runs `mc mb --ignore-existing` + `mc anonymous set public`. `hook-delete-policy: before-hook-creation,hook-succeeded,hook-failed` ensures a failed Job is cleaned up — without `hook-failed` the release would lock in `pending-install`.
+`templates/minio.yaml` includes a Helm `post-install,post-upgrade` hook Job that provisions the MinIO bucket. It runs `mc alias set` non-fatally because that only writes local configuration, then probes the server with `mc ls`. Authentication errors exit the container instead of looping; the Job then follows its `OnFailure`/`backoffLimit` retry policy. Transient reachability failures retry inside the probe loop. Once reachable it runs `mc mb --ignore-existing` and sets anonymous access. The hook policy cleans up completed succeeded/failed Jobs and replaces an old hook before a new run.
 
-### What does **not** get bundled
+### Out of scope and optional features
 
 - Backup/restore (vendor's `./doqa backup`/`restore` use one-shot containers with `profiles: manual` — out of scope; user runs CronJobs separately if needed).
-- The CNPG operator itself, cert-manager, ingress controllers — all assumed pre-installed cluster-wide.
-- HPA, PDB, NetworkPolicy, ServiceMonitor, topologySpreadConstraints — all implemented behind opt-in flags (`autoscaling.enabled`, `podDisruptionBudget.enabled`, `networkPolicy.enabled`, `serviceMonitor.enabled`, per-component `topologySpreadConstraints`).
+- The CNPG operator, certificate controller, Ingress controller, and StorageClasses are not installed by this chart.
+- HPA, PDB, NetworkPolicy, and ServiceMonitor templates are included but disabled by default. HPA, PDB, and topology-spread settings cover backend/frontend/queue; ServiceMonitor targets the backend.
 
 ### Vendor licensing
 
 DoQA is a paid product. The chart deploys the stack and the UI loads, but creating a super-user is gated by a vendor license key (`https://doqa.app`). End-to-end smoke beyond `/api/v1/info` returning 200 isn't possible without a real key.
 
-### Security context constraints
+### Test deploy values
 
-**All vendor images (`registry.control.doqa.app/*`) and the in-tree dependency images (`redis`, `rabbitmq`, `minio`, `nginx`) run as root (uid=0).** None have a `USER` directive in their Dockerfile. The vendor docker-compose has no `user:` directives. Setting `runAsNonRoot: true` or `runAsUser` != 0 as a default will break `helm install` from scratch. The chart ships `defaultSecurityContext.container` with `allowPrivilegeEscalation: false` and `capabilities: drop: ["ALL"]` — these are safe for root-based images. Users who rebuild vendor images with non-root users can override via `defaultSecurityContext` or per-component `podSecurityContext`/`containerSecurityContext`.
+`charts/doqa/ci/test-values.yaml` renders a traefik + longhorn + cert-manager example. It is repository test input, not portable production configuration. Adjust the hostname, IngressClass, annotations, TLS secret/controller, and StorageClasses for the target cluster.
 
-## Test deploy values
+## Architecture of `charts/xray-health-exporter`
 
-`charts/doqa/ci/test-values.yaml` is pinned to a verified-good combination: traefik ingress, longhorn storage, `letsencrypt` HTTP-01 ClusterIssuer. Adjust the `ingress.className`, storage classes, and `cert-manager.io/cluster-issuer` annotation when reusing it in another environment.
+### Version and image chain
+
+- Renovate watches `ghcr.io/batonogov/xray-health-exporter` Docker tags through the regex marker in `Chart.yaml`.
+- Upstream tags are `v<version>`; `Chart.yaml.appVersion` stores `<version>`. When `image.tag` is empty, `_helpers.tpl` renders `v<appVersion>`.
+- Renovate updates `appVersion`, bumps the chart patch version, and synchronizes both chart/app badges in generated `README.md`. Preserve the marker and `renovate.json` match expressions when editing version metadata.
+
+### Configuration and validation
+
+- The exporter refuses to start without at least one `config.tunnels` or `config.subscriptions` entry, unless `existingConfigSecret` supplies `config.yaml`. Use `ci/test-values.yaml` for repository renders.
+- Subscription URLs commonly contain credentials. Do not put real tokens in committed values or the chart-generated ConfigMap; use `existingConfigSecret`.
+- Pushgateway URLs containing credentials belong in `metricsPush.urlSecret`, not plaintext `metricsPush.url`.
+- `replicaCount > 1` force-enables leader election even if `leaderElection.enabled=false`, preventing duplicate tunnel metrics. Keep the Lease RBAC and ServiceAccount behavior in sync when changing replica logic.
+- The upstream image is designed for UID/GID 10001 and the chart deliberately enforces non-root, read-only-root-filesystem defaults. Preserve `/tmp` as an `emptyDir` if the container filesystem remains read-only.
