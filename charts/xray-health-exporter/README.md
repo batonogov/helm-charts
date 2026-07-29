@@ -2,7 +2,7 @@
 
 Prometheus exporter for Xray-core tunnel health
 
-![Version: 0.3.4](https://img.shields.io/badge/Version-0.3.4-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.7.0](https://img.shields.io/badge/AppVersion-1.7.0-informational?style=flat-square)
+![Version: 0.4.0](https://img.shields.io/badge/Version-0.4.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.7.0](https://img.shields.io/badge/AppVersion-1.7.0-informational?style=flat-square)
 
 **Homepage:** <https://github.com/batonogov/xray-health-exporter>
 
@@ -76,6 +76,40 @@ including current TLS and REALITY parameters.
 
 See the [upstream configuration reference](https://github.com/batonogov/xray-health-exporter/blob/main/docs/configuration.md)
 for the complete schema, VLESS URL compatibility, and validation rules.
+
+### Native Xray JSON configurations
+
+An entry using `xray_config_file` must reference a file mounted into the
+exporter container. Store the native JSON in a Secret in the Helm release
+namespace, then mount that Secret with `extraVolumes` and `extraVolumeMounts`:
+
+```bash
+kubectl create secret generic xray-native-config \
+  --namespace monitoring \
+  --from-file=outbound.json
+```
+
+```yaml
+config:
+  tunnels:
+    - name: native-outbound
+      xray_config_file: /etc/xray/outbound.json
+
+extraVolumes:
+  - name: native-config
+    secret:
+      secretName: xray-native-config
+
+extraVolumeMounts:
+  - name: native-config
+    mountPath: /etc/xray
+    readOnly: true
+```
+
+Avoid the reserved volume names `config` and `tmp`, which the chart uses for
+the exporter configuration and writable temporary directory. Restart the
+exporter pods after updating a referenced native JSON Secret: upstream watches
+the main exporter YAML file, not the referenced Xray JSON files.
 
 ## Prometheus integration
 
@@ -155,6 +189,8 @@ Kubernetes: `>=1.32.0-0`
 | env.XRAY_LOG_LEVEL | string | `"warning"` | Xray-core log level (`debug`/`info`/`warning`/`error`). |
 | existingConfigSecret | string | `""` | Mount an existing Secret containing `config.yaml` instead of rendering one from `.Values.config`. |
 | extraEnv | list | `[]` | Extra environment variables (list of `{name, value}` or `{name, valueFrom}`). |
+| extraVolumeMounts | list | `[]` | Additional volume mounts for the exporter container. Use with `extraVolumes`, for example to mount native Xray JSON files referenced by `config.tunnels[].xray_config_file`. |
+| extraVolumes | list | `[]` | Additional pod volumes. Avoid the reserved names `config` and `tmp`. |
 | fullnameOverride | string | `""` | Fully override the generated release name. |
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy. |
 | image.pullSecrets | list | `[]` | Image pull secrets (list of `{name: <secret>}`). |

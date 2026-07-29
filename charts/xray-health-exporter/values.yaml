@@ -56,6 +56,12 @@ topologySpreadConstraints: []
 # -- Extra environment variables (list of `{name, value}` or `{name, valueFrom}`).
 extraEnv: []
 
+# -- Additional pod volumes. Avoid the reserved names `config` and `tmp`.
+extraVolumes: []
+
+# -- Additional volume mounts for the exporter container. Use with `extraVolumes`, for example to mount native Xray JSON files referenced by `config.tunnels[].xray_config_file`.
+extraVolumeMounts: []
+
 # Built-in environment variables consumed by the exporter binary.
 env:
   # -- Xray-core log level (`debug`/`info`/`warning`/`error`).

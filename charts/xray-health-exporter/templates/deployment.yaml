@@ -1,4 +1,5 @@
 {{- include "xray-health-exporter.validateConfig" . -}}
+{{- include "xray-health-exporter.validateExtraVolumes" . -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -129,6 +130,9 @@ spec:
               readOnly: true
             - name: tmp
               mountPath: /tmp
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
       volumes:
         - name: config
           {{- if .Values.existingConfigSecret }}
@@ -140,6 +144,9 @@ spec:
           {{- end }}
         - name: tmp
           emptyDir: {}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

@@ -79,6 +79,40 @@ including current TLS and REALITY parameters.
 See the [upstream configuration reference](https://github.com/batonogov/xray-health-exporter/blob/main/docs/configuration.md)
 for the complete schema, VLESS URL compatibility, and validation rules.
 
+### Native Xray JSON configurations
+
+An entry using `xray_config_file` must reference a file mounted into the
+exporter container. Store the native JSON in a Secret in the Helm release
+namespace, then mount that Secret with `extraVolumes` and `extraVolumeMounts`:
+
+```bash
+kubectl create secret generic xray-native-config \
+  --namespace monitoring \
+  --from-file=outbound.json
+```
+
+```yaml
+config:
+  tunnels:
+    - name: native-outbound
+      xray_config_file: /etc/xray/outbound.json
+
+extraVolumes:
+  - name: native-config
+    secret:
+      secretName: xray-native-config
+
+extraVolumeMounts:
+  - name: native-config
+    mountPath: /etc/xray
+    readOnly: true
+```
+
+Avoid the reserved volume names `config` and `tmp`, which the chart uses for
+the exporter configuration and writable temporary directory. Restart the
+exporter pods after updating a referenced native JSON Secret: upstream watches
+the main exporter YAML file, not the referenced Xray JSON files.
+
 ## Prometheus integration
 
 Set `metrics.serviceMonitor.enabled=true` to register the exporter with the
