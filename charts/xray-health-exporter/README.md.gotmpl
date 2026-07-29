@@ -10,10 +10,22 @@
 
 ## TL;DR
 
+Create a values file with at least one tunnel or subscription:
+
+```yaml
+# values.yaml
+config:
+  tunnels:
+    - name: edge-1
+      url: "vless://uuid@host1:443?type=tcp&security=reality&pbk=...&sni=google.com"
+```
+
+Then install the chart:
+
 ```bash
 helm repo add batonogov https://batonogov.github.io/helm-charts
 helm install xray batonogov/xray-health-exporter -n monitoring --create-namespace \
-  --set-file config.tunnels=tunnels.yaml
+  -f values.yaml
 ```
 
 ## Prerequisites
@@ -50,16 +62,22 @@ config:
     check_url: https://www.google.com
     check_interval: 30s
     check_timeout: 30s
+    max_backoff: 5m
+    backoff_multiplier: 2.0
   subscriptions:
     - url: https://provider.example.com/subscribe?token=xxx
       update_interval: 1h
   tunnels:
     - name: edge-1
-      url: "vless://uuid@host1:443?type=tcp&security=reality&pbk=...&sni=google.com"
+      url: "vless://uuid@host1:443?type=xhttp&security=reality&pbk=...&sni=example.com&fp=chrome&path=%2Fapi&mode=stream-up"
 ```
 
-See [upstream docs](https://github.com/batonogov/xray-health-exporter#конфигурация)
-for the full schema.
+VLESS share links are passed to the exporter unchanged. Upstream v1.7.0
+supports RAW/TCP, XHTTP, gRPC, WebSocket, HTTPUpgrade, and mKCP transports,
+including current TLS and REALITY parameters.
+
+See the [upstream configuration reference](https://github.com/batonogov/xray-health-exporter/blob/main/docs/configuration.md)
+for the complete schema, VLESS URL compatibility, and validation rules.
 
 ## Prometheus integration
 
@@ -75,9 +93,12 @@ The exporter supports three check methods, configurable globally via
 `env.CHECK_METHOD` or per tunnel via `config.defaults.check_method` /
 tunnel-level `check_method`:
 
-- `http` (default) — HTTP GET against `check_url`
-- `ip` — fetch the tunnel's exit IP via `IP_CHECK_URL`
-- `download` — download a file via `DOWNLOAD_URL` and verify its size
+- `http` (default) — HTTP GET against `check_url`; status `200`, `301`, `302`,
+  or `307` succeeds
+- `ip` — require status `200` from `IP_CHECK_URL` and verify that the tunnel's
+  exit IP differs from the host's public IP
+- `download` — require status `200` from `DOWNLOAD_URL` and receive at least
+  `download_min_size` bytes within `download_timeout`
 
 All three measure latency as TTFB (time to first byte).
 
