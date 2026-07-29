@@ -51,13 +51,29 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
-Image reference helper. Usage: {{ include "doqa.image" (dict "img" .Values.backend.image "root" .) }}
+Image reference helper. Relative repositories use the global image registry,
+while fully qualified repositories (registry host contains "." or ":", or is
+localhost) are rendered unchanged.
+Usage: {{ include "doqa.image" (dict "img" .Values.backend.image "root" .) }}
 */}}
 {{- define "doqa.image" -}}
 {{- $reg := .root.Values.image.registry -}}
-{{- if $reg -}}{{ $reg }}/{{- end -}}
-{{ .img.repository }}:{{ .img.tag }}
+{{- $repo := .img.repository -}}
+{{- $qualified := or (hasPrefix "localhost/" $repo) (regexMatch "^[^/]+[.:][^/]*/" $repo) -}}
+{{- if and $reg (not $qualified) -}}{{ $reg }}/{{- end -}}
+{{ $repo }}:{{ .img.tag }}
 {{- end }}
+
+{{/* User-provided Pod labels, excluding labels reserved by chart selectors. */}}
+{{- define "doqa.podLabels" -}}
+{{- $filtered := dict -}}
+{{- range $k, $v := . -}}
+{{- if and (ne $k "app.kubernetes.io/name") (ne $k "app.kubernetes.io/instance") (ne $k "app.kubernetes.io/component") -}}
+{{- $_ := set $filtered $k $v -}}
+{{- end -}}
+{{- end -}}
+{{- with $filtered -}}{{- toYaml . -}}{{- end -}}
+{{- end -}}
 
 {{- define "doqa.imagePullSecrets" -}}
 {{- with .Values.image.pullSecrets }}

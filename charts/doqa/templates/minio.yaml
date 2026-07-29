@@ -37,6 +37,9 @@ spec:
       labels:
         {{- include "doqa.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: minio
+        {{- with .Values.podLabels }}
+        {{- include "doqa.podLabels" . | nindent 8 }}
+        {{- end }}
       annotations:
         {{- with .Values.extraAnnotations }}
         {{- include "doqa.extraAnnotations" . | nindent 8 }}
@@ -150,13 +153,29 @@ spec:
       labels:
         {{- include "doqa.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: minio-init
+        {{- with .Values.podLabels }}
+        {{- include "doqa.podLabels" . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
       restartPolicy: OnFailure
+      serviceAccountName: {{ include "doqa.serviceAccountName" . }}
       {{- include "doqa.imagePullSecrets" . | nindent 6 }}
+      {{- with .Values.minio.client.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
       - name: mc
         image: "{{ .Values.minio.client.image.repository }}:{{ .Values.minio.client.image.tag }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
+        {{- with .Values.minio.client.containerSecurityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
         env:
         - name: KEY
           valueFrom:
@@ -192,4 +211,18 @@ spec:
           done
           mc mb --ignore-existing doqa/{{ .Values.minio.bucket }}
           mc anonymous set public doqa/{{ .Values.minio.bucket }}
+        resources:
+          {{- toYaml .Values.minio.client.resources | nindent 10 }}
+      {{- with (or .Values.minio.client.nodeSelector .Values.nodeSelector) }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with (or .Values.minio.client.affinity .Values.affinity) }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with (or .Values.minio.client.tolerations .Values.tolerations) }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
 {{- end }}
