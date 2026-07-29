@@ -26,6 +26,9 @@ spec:
       labels:
         {{- include "doqa.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: queue
+        {{- with .Values.podLabels }}
+        {{- include "doqa.podLabels" . | nindent 8 }}
+        {{- end }}
     spec:
       serviceAccountName: {{ include "doqa.serviceAccountName" . }}
       {{- include "doqa.imagePullSecrets" . | nindent 6 }}

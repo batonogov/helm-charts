@@ -1,0 +1,53 @@
+# Render-only profile for validating external infrastructure, existing Secrets,
+# a pre-created ServiceAccount, and fully qualified image overrides.
+
+appUrl: "doqa-external.example.com"
+useSsl: false
+
+ingress:
+  enabled: false
+
+postgresql:
+  cnpg:
+    create: false
+  host: postgresql.database.svc
+  passwordSecret:
+    name: doqa-postgresql
+
+redis:
+  create: false
+  host: redis.cache.svc
+  passwordSecret:
+    name: doqa-redis
+
+rabbitmq:
+  create: false
+  host: rabbitmq.messaging.svc
+
+minio:
+  create: false
+  endpoint: https://s3.storage.example.com
+  bucketUrl: https://objects.example.com/doqa
+
+secrets:
+  create: false
+  app: doqa-app
+  apiKeys: doqa-api-keys
+  pusher: doqa-pusher
+  rabbitmq: doqa-rabbitmq
+  minio: doqa-minio
+
+serviceAccount:
+  create: false
+  name: doqa-runtime
+
+podLabels:
+  deployment-profile: external
+
+nginx:
+  image:
+    repository: registry.example.com/doqa-mirror/service/nginx
+
+websocket:
+  image:
+    repository: registry.example.com/doqa-mirror/service/soketi

@@ -37,6 +37,9 @@ spec:
       labels:
         {{- include "doqa.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: rabbitmq
+        {{- with .Values.podLabels }}
+        {{- include "doqa.podLabels" . | nindent 8 }}
+        {{- end }}
       annotations:
         {{- with .Values.extraAnnotations }}
         {{- include "doqa.extraAnnotations" . | nindent 8 }}

@@ -66,7 +66,8 @@
           "description": "Default image pull policy."
         },
         "pullSecrets": {
-          "$ref": "#/definitions/imagePullSecrets"
+          "$ref": "#/definitions/imagePullSecrets",
+          "description": "Image pull secrets applied to all chart-managed workload pods."
         }
       }
     },
@@ -291,6 +292,24 @@
           "properties": {
             "image": {
               "$ref": "#/definitions/componentImage"
+            },
+            "resources": {
+              "$ref": "#/definitions/resourceRequirements"
+            },
+            "nodeSelector": {
+              "type": "object"
+            },
+            "affinity": {
+              "type": "object"
+            },
+            "tolerations": {
+              "$ref": "#/definitions/tolerations"
+            },
+            "podSecurityContext": {
+              "type": "object"
+            },
+            "containerSecurityContext": {
+              "$ref": "#/definitions/containerSecurityContext"
             }
           }
         },
@@ -642,12 +661,16 @@
         "name": {
           "type": "string",
           "description": "Existing ServiceAccount name when create=false."
+        },
+        "annotations": {
+          "type": "object",
+          "description": "Annotations added to the chart-managed ServiceAccount."
         }
       }
     },
     "defaultSecurityContext": {
       "type": "object",
-      "description": "Default pod and container security contexts applied to Deployments.",
+      "description": "Default pod and container security contexts applied to chart-managed Deployments.",
       "properties": {
         "pod": {
           "type": "object",
@@ -714,6 +737,10 @@
     "podAnnotations": {
       "type": "object",
       "description": "Extra annotations added to all pod templates."
+    },
+    "podLabels": {
+      "type": "object",
+      "description": "Extra labels added to all chart-managed pod templates."
     },
     "extraVolumes": {
       "type": "array",

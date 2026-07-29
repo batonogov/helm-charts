@@ -36,3 +36,9 @@ repos:
         language: script
         pass_filenames: false
         files: ^charts/.*
+      - id: doqa-portability
+        name: doqa portability
+        entry: scripts/check-doqa-portability.sh
+        language: script
+        pass_filenames: false
+        files: ^(charts/doqa/|scripts/check-doqa-portability\.sh$)

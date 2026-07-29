@@ -6,6 +6,22 @@
 appUrl: "doqa.example.com"
 useSsl: true
 
+nodeSelector:
+  kubernetes.io/os: linux
+
+podLabels:
+  deployment-profile: in-tree
+
+defaultSecurityContext:
+  pod:
+    seccompProfile:
+      type: RuntimeDefault
+
+serviceAccount:
+  create: true
+  annotations:
+    example.com/owner: platform
+
 ingress:
   enabled: true
   className: traefik
@@ -37,6 +53,10 @@ rabbitmq:
 
 minio:
   create: true
+  client:
+    podSecurityContext:
+      seccompProfile:
+        type: RuntimeDefault
   storage:
     size: 4Gi
     storageClass: longhorn

@@ -2,10 +2,15 @@
 
 DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
 
-![Version: 0.3.8](https://img.shields.io/badge/Version-0.3.8-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.1.2-box](https://img.shields.io/badge/AppVersion-4.1.2--box-informational?style=flat-square)
+![Version: 0.4.0](https://img.shields.io/badge/Version-0.4.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.1.2-box](https://img.shields.io/badge/AppVersion-4.1.2--box-informational?style=flat-square)
 
 **Homepage:** <https://doqa.app>
 
+> **Community status**: this is an unofficial, independently maintained Helm
+> chart. It is used in production by its maintainer, but it is not developed or
+> supported by the DoQA vendor. Application licensing and vendor support remain
+> with [DoQA](https://doqa.app).
+>
 > **Licensing**: DoQA box-versions require a vendor license key to activate
 > (super-user creation is gated). This chart deploys the stack but does not
 > bypass licensing — request a key from <https://doqa.app>.
@@ -34,9 +39,31 @@ helm install doqa batonogov/doqa -n doqa --create-namespace \
 The DoQA application images live at `registry.control.doqa.app` and pull
 anonymously — no `imagePullSecrets` are required by default.
 
+## Compatibility and support boundaries
+
+| Area | Status | Notes |
+|---|---|---|
+| DoQA Box | Supported | Pinned to `4.1.2-box`; service, environment, image, and nginx mappings follow the vendor `configs_4_1_2.zip` archive |
+| Kubernetes | Supported | `1.32+`, as declared by `Chart.yaml`; manifests use stable Kubernetes APIs |
+| Helm | Tested | Helm `3.16` in CI and Helm 4 locally; Helm `3.13+` is supported |
+| Node platform | Supported | `linux/amd64`; the current vendor images are single-platform amd64 images |
+| Ingress | Configurable | Standard `networking.k8s.io/v1` Ingress; Traefik is the repository test profile, while other controllers use `ingress.className` and annotations |
+| Persistent storage | Configurable | Any CSI StorageClass supporting `ReadWriteOnce`; Longhorn is only the repository test profile |
+| PostgreSQL | Configurable | CloudNativePG by default, or an external PostgreSQL service |
+| Restricted platforms | Not claimed | ARM, OpenShift, IPv6-only clusters, and enforced Pod Security `restricted` have not been validated |
+
+The default security context drops all capabilities and disables privilege
+escalation. It deliberately does not force `runAsNonRoot`, a fixed UID, or a
+read-only root filesystem because the pinned vendor images have heterogeneous
+runtime users. Use `defaultSecurityContext` and per-component overrides only
+after validating the selected images. The MinIO bucket-init Job uses its own
+`minio.client` security contexts plus the configured ServiceAccount, global or
+client-specific scheduling, labels, and annotations. It does not inherit
+`defaultSecurityContext` because the current `mc` image runs as root.
+
 ## Architecture
 
-Components mirror the vendor docker-compose for v4.1.0:
+Components mirror the vendor docker-compose for v4.1.2:
 
 - `backend` (php-fpm Laravel API), `queue` (`queue:work`), `cron` (`schedule:work`)
 - `frontend` (Nuxt SPA)
@@ -44,6 +71,16 @@ Components mirror the vendor docker-compose for v4.1.0:
 - `statistic`, `llm`, `notification` (+ Celery worker), `telegram-bot` (optional)
 - `websocket` (Soketi, Pusher protocol)
 - `nginx` (internal router) → exposed via Ingress
+
+The canonical upstream input is the vendor's
+[`configs_4_1_2.zip`](https://doqa.app/downloads/configs_4_1_2.zip), including
+`.env.install`, both Compose files, and nginx configuration. The DoQA
+application services, environment variables, routes, and application image pins
+stay aligned with that archive. Kubernetes infrastructure is deliberately
+adapted: CNPG or an external PostgreSQL replaces the Compose database, in-tree
+mode consolidates the two Redis services, dependency images are pinned by the
+chart, TLS terminates at the Ingress, and the MinIO bucket is created by a Helm
+hook Job.
 
 Stateful dependencies are provisioned by the chart by default and can be
 swapped to external services with `<component>.create=false`:
@@ -71,6 +108,16 @@ with stable values via `lookup` — they survive `helm upgrade`. Set
 
 The mail and LDAP passwords are always user-provided through `secrets.mail`
 and `secrets.ldap`.
+
+### GitOps and offline rendering
+
+Generated secrets remain stable during direct `helm upgrade` because Helm's
+`lookup` function reads the existing release Secrets. Renderers without live
+cluster access, including `helm template` and offline GitOps rendering
+pipelines, cannot perform that lookup and will generate different random values
+on subsequent renders. For those workflows, set `secrets.create=false` and
+provide stable values through pre-created Secrets, External Secrets, Sealed
+Secrets, or an equivalent secret management system.
 
 ## Requirements
 
@@ -137,7 +184,7 @@ Kubernetes: `>=1.32.0-0`
 | frontend.tolerations | list | `[]` |  |
 | fullnameOverride | string | `""` | Override the full name of resources. SET-ONCE-AT-INSTALL: changing this on an existing release renames every chart-managed resource (Helm drops the old-named objects and creates new ones), orphaning the CNPG Cluster and the redis/rabbitmq/minio PVCs (data loss). Do not change after first install. |
 | image.pullPolicy | string | `"IfNotPresent"` | Default imagePullPolicy |
-| image.pullSecrets | list | `[]` | imagePullSecrets applied to every Deployment |
+| image.pullSecrets | list | `[]` | imagePullSecrets applied to all chart-managed workload pods |
 | image.registry | string | `"registry.control.doqa.app"` | Container registry hosting DoQA images |
 | ingress.annotations | object | `{}` | Extra annotations (e.g. cert-manager.io/cluster-issuer) |
 | ingress.className | string | `""` | REQUIRED when `ingress.enabled=true`. IngressClassName the controller listens on (e.g. nginx, traefik). Empty value fails rendering with a clear error. |
@@ -169,8 +216,14 @@ Kubernetes: `>=1.32.0-0`
 | minio.affinity | object | `{}` | Affinity for MinIO pods. Overrides global affinity |
 | minio.bucket | string | `"doqa"` | Bucket name |
 | minio.bucketUrl | string | `""` | Public bucket URL (defaults to "<scheme>://<appUrl>/<bucket>" when empty, served via internal nginx) |
+| minio.client.affinity | object | `{}` | Affinity for the bucket-init Job. Overrides global affinity |
+| minio.client.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]}}` | Container security context for the bucket-init Job. Kept separate from defaultSecurityContext because the current mc image runs as root |
 | minio.client.image.repository | string | `"quay.io/minio/mc"` | mc client image (used by bucket-init Job) |
 | minio.client.image.tag | string | `"RELEASE.2025-08-13T08-35-41Z"` | mc tag |
+| minio.client.nodeSelector | object | `{}` | Node selector for the bucket-init Job. Overrides global nodeSelector |
+| minio.client.podSecurityContext | object | `{}` | Pod security context for the bucket-init Job |
+| minio.client.resources | object | `{"limits":{"cpu":"100m","memory":"128Mi"},"requests":{"cpu":"10m","memory":"32Mi"}}` | Resource requests and limits for the bucket-init Job |
+| minio.client.tolerations | list | `[]` | Tolerations for the bucket-init Job. Overrides global tolerations |
 | minio.create | bool | `true` | Provision an in-tree MinIO Deployment+PVC + bucket-init Job |
 | minio.endpoint | string | `""` | External MinIO/S3 endpoint (used only when create=false). For in-tree MinIO chart computes internal URL automatically |
 | minio.image.repository | string | `"quay.io/minio/minio"` | MinIO image |
@@ -185,7 +238,7 @@ Kubernetes: `>=1.32.0-0`
 | networkPolicy.enabled | bool | `false` | Enable NetworkPolicy resources. Creates a default-deny-ingress policy and explicit allow rules for all internal traffic paths |
 | nginx.affinity | object | `{}` |  |
 | nginx.clientMaxBodySize | string | `"150M"` | Maximum upload size |
-| nginx.image.repository | string | `"service/nginx"` | Nginx image repository (override to docker.io/nginx if no vendor mirror access) |
+| nginx.image.repository | string | `"service/nginx"` | Vendor nginx image repository, relative to image.registry. A fully qualified repository may be used for an exact private mirror. |
 | nginx.image.tag | string | `"1.23.3-alpine"` | Nginx image tag |
 | nginx.nodeSelector | object | `{}` |  |
 | nginx.replicas | int | `2` | Replica count |
@@ -207,6 +260,7 @@ Kubernetes: `>=1.32.0-0`
 | podDisruptionBudget.enabled | bool | `false` | Create PodDisruptionBudget resources for multi-replica components |
 | podDisruptionBudget.frontend.minAvailable | int | `1` | Minimum number of frontend pods that must remain available during disruptions |
 | podDisruptionBudget.queue.minAvailable | int | `1` | Minimum number of queue pods that must remain available during disruptions |
+| podLabels | object | `{}` | Extra labels added to all chart-managed pod templates. Selector labels are reserved and ignored here. |
 | postgresql.cnpg.create | bool | `true` | Provision a new CNPG `Cluster` resource. Requires CNPG operator in cluster |
 | postgresql.cnpg.imageName | string | `"ghcr.io/cloudnative-pg/postgresql:17"` | CNPG postgres image |
 | postgresql.cnpg.instances | int | `1` | Number of CNPG instances |
@@ -267,6 +321,7 @@ Kubernetes: `>=1.32.0-0`
 | secrets.minio | string | `""` | Existing secret with keys `access-key`, `secret-key`. Default <release>-minio-secrets |
 | secrets.pusher | string | `""` | Existing secret with key `app-secret`. Default <release>-pusher-secret |
 | secrets.rabbitmq | string | `""` | Existing secret with keys `password`, `erlang-cookie`. Default <release>-rabbitmq-secret |
+| serviceAccount.annotations | object | `{}` | Annotations added to the chart-managed ServiceAccount |
 | serviceAccount.create | bool | `false` | Create a dedicated ServiceAccount |
 | serviceAccount.name | string | `""` | Existing ServiceAccount name when create=false |
 | serviceMonitor.enabled | bool | `false` | Create a Prometheus Operator ServiceMonitor for the backend Service |
@@ -297,7 +352,7 @@ Kubernetes: `>=1.32.0-0`
 | topologySpreadConstraints.queue | list | `[]` |  |
 | useSsl | bool | `true` | Whether the public URL is HTTPS. Affects USE_SSL env and bucket URL protocol |
 | websocket.affinity | object | `{}` |  |
-| websocket.image.repository | string | `"service/soketi"` | Soketi image repository (defaults to vendor mirror, override to `quay.io/soketi/soketi`) |
+| websocket.image.repository | string | `"service/soketi"` | Vendor Soketi image repository, relative to image.registry. A fully qualified repository may be used for an exact private mirror. |
 | websocket.image.tag | string | `"16-alpine"` | Soketi image tag |
 | websocket.nodeSelector | object | `{}` |  |
 | websocket.replicas | int | `1` | Replica count |
@@ -310,6 +365,29 @@ This chart targets DoQA 4.1.0+. There is no automatic migration path from
 3.x deployments — vendor changed the queue broker from Redis to RabbitMQ
 between 3.7 and 4.0. Plan a stepwise migration if you are coming from a
 3.x install.
+
+### 0.3.8 → 0.4.0
+
+With unchanged values, this upgrade does not change application images,
+environment variables, nginx routes, Services, PVCs, or the CNPG Cluster.
+Because the existing ConfigMap checksum includes chart metadata, Kubernetes
+will roll the backend, queue, cron, both autotest parsers, and nginx once.
+The backend migration initContainer runs during that rollout; with unchanged
+DoQA 4.1.2 images it has no new application migration to apply. In-tree MinIO
+installs rerun the idempotent bucket-init hook; external MinIO installs do not
+render it.
+
+- Fully qualified nginx and Soketi image repositories now bypass the global
+  DoQA image registry, allowing exact vendor images to be served from private
+  registry mirrors without changing the recommended vendor-registry defaults.
+- The MinIO bucket-init Job now honors the configured ServiceAccount, pod
+  labels and annotations, global or client-specific scheduling,
+  client-specific security contexts, and resource requests/limits.
+- Added `serviceAccount.annotations` and `podLabels` for clusters with identity
+  integrations and admission policies.
+- Documented the upstream source of truth, compatibility boundaries, amd64
+  requirement, and GitOps secret handling. DoQA application pins remain aligned
+  with the vendor `4.1.2` archive.
 
 ### 0.3.7 → 0.3.8
 

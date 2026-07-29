@@ -38,7 +38,7 @@ image:
   registry: registry.control.doqa.app
   # -- Default imagePullPolicy
   pullPolicy: IfNotPresent
-  # -- imagePullSecrets applied to every Deployment
+  # -- imagePullSecrets applied to all chart-managed workload pods
   pullSecrets: []
 
 # Chart-managed secrets. When create=true the chart auto-generates secret values
@@ -191,6 +191,27 @@ minio:
       repository: quay.io/minio/mc
       # -- mc tag
       tag: "RELEASE.2025-08-13T08-35-41Z"
+    # -- Resource requests and limits for the bucket-init Job
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+    # -- Node selector for the bucket-init Job. Overrides global nodeSelector
+    nodeSelector: {}
+    # -- Affinity for the bucket-init Job. Overrides global affinity
+    affinity: {}
+    # -- Tolerations for the bucket-init Job. Overrides global tolerations
+    tolerations: []
+    # -- Pod security context for the bucket-init Job
+    podSecurityContext: {}
+    # -- Container security context for the bucket-init Job. Kept separate from defaultSecurityContext because the current mc image runs as root
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
   storage:
     # -- PVC size for MinIO
     size: 4Gi
@@ -507,7 +528,7 @@ telegramBot:
 # Soketi WebSocket server
 websocket:
   image:
-    # -- Soketi image repository (defaults to vendor mirror, override to `quay.io/soketi/soketi`)
+    # -- Vendor Soketi image repository, relative to image.registry. A fully qualified repository may be used for an exact private mirror.
     repository: service/soketi
     # -- Soketi image tag
     tag: 16-alpine
@@ -528,7 +549,7 @@ websocket:
 # Internal nginx router
 nginx:
   image:
-    # -- Nginx image repository (override to docker.io/nginx if no vendor mirror access)
+    # -- Vendor nginx image repository, relative to image.registry. A fully qualified repository may be used for an exact private mirror.
     repository: service/nginx
     # -- Nginx image tag
     tag: 1.23.3-alpine
@@ -595,9 +616,12 @@ serviceAccount:
   create: false
   # -- Existing ServiceAccount name when create=false
   name: ""
+  # -- Annotations added to the chart-managed ServiceAccount
+  annotations: {}
 
-# Default security context applied to all Deployments. Each component can override
-# via its own `podSecurityContext` / `containerSecurityContext` keys.
+# Default security context applied to chart-managed Deployments. Each component
+# can override via its own `podSecurityContext` / `containerSecurityContext`
+# keys. The MinIO bucket-init Job uses `minio.client.*SecurityContext` instead.
 # Example hardening:
 #   defaultSecurityContext:
 #     pod:
@@ -646,6 +670,8 @@ extraLabels: {}
 extraAnnotations: {}
 # -- Extra annotations to add to all pod templates. Per-component overrides are not supported — use this single map.
 podAnnotations: {}
+# -- Extra labels added to all chart-managed pod templates. Selector labels are reserved and ignored here.
+podLabels: {}
 # -- Extra volumes to add to all Deployments
 extraVolumes: []
 # -- Extra volume mounts to add to all containers
