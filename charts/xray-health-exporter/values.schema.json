@@ -159,6 +159,51 @@
         }
       }
     },
+    "extraVolumes": {
+      "type": "array",
+      "description": "Additional pod volumes. Avoid the reserved names config and tmp.",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "extraVolumeMounts": {
+      "type": "array",
+      "description": "Additional volume mounts for the exporter container. Use with extraVolumes to mount native Xray JSON files.",
+      "items": {
+        "type": "object",
+        "required": ["name", "mountPath"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "mountPath": {
+            "type": "string",
+            "minLength": 1
+          },
+          "subPath": {
+            "type": "string"
+          },
+          "subPathExpr": {
+            "type": "string"
+          },
+          "readOnly": {
+            "type": "boolean"
+          },
+          "mountPropagation": {
+            "type": "string",
+            "enum": ["None", "HostToContainer", "Bidirectional"]
+          }
+        }
+      }
+    },
     "env": {
       "type": "object",
       "description": "Built-in environment variables consumed by the exporter binary.",
@@ -170,8 +215,8 @@
         },
         "LOG_LEVEL": {
           "type": "string",
-          "enum": ["debug", "info", "warning", "error"],
-          "description": "Exporter log level. Replaces the deprecated DEBUG=true flag."
+          "enum": ["debug", "info", "warn", "warning", "error"],
+          "description": "Exporter log level. Both warn and warning are accepted. Replaces the deprecated DEBUG=true flag."
         },
         "LOG_FORMAT": {
           "type": "string",
@@ -291,6 +336,15 @@
               "type": "string",
               "description": "Default timeout per check (e.g. 30s, 1m)."
             },
+            "max_backoff": {
+              "type": "string",
+              "description": "Maximum interval between checks after repeated failures (Go duration)."
+            },
+            "backoff_multiplier": {
+              "type": "number",
+              "minimum": 1.0,
+              "description": "Exponential backoff growth factor after failures."
+            },
             "check_method": {
               "type": "string",
               "enum": ["http", "ip", "download"],
@@ -325,7 +379,7 @@
         },
         "tunnels": {
           "type": "array",
-          "description": "Static tunnels. Each entry needs either url (VLESS) or xray_config_file.",
+          "description": "Static tunnels. Each entry needs either url (a VLESS share link) or xray_config_file.",
           "items": {
             "type": "object"
           }

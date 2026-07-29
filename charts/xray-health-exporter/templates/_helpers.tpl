@@ -134,3 +134,29 @@ no subscriptions, and no externally-managed Secret.
 {{- fail "xray-health-exporter: provide at least one entry in .Values.config.tunnels or .Values.config.subscriptions, or set .Values.existingConfigSecret. The exporter refuses to start otherwise." -}}
 {{- end -}}
 {{- end }}
+
+{{/*
+Validate user-supplied volumes before Kubernetes rejects the Deployment.
+The chart owns `config` and `tmp`; every extra mount must reference a declared
+extra volume.
+*/}}
+{{- define "xray-health-exporter.validateExtraVolumes" -}}
+{{- $volumeNames := dict -}}
+{{- range .Values.extraVolumes -}}
+  {{- if or (eq .name "config") (eq .name "tmp") -}}
+    {{- fail (printf "xray-health-exporter: extraVolumes name %q is reserved by the chart; choose another name." .name) -}}
+  {{- end -}}
+  {{- if hasKey $volumeNames .name -}}
+    {{- fail (printf "xray-health-exporter: extraVolumes contains duplicate name %q." .name) -}}
+  {{- end -}}
+  {{- $_ := set $volumeNames .name true -}}
+{{- end -}}
+{{- range .Values.extraVolumeMounts -}}
+  {{- if or (eq .name "config") (eq .name "tmp") -}}
+    {{- fail (printf "xray-health-exporter: extraVolumeMounts name %q is reserved by the chart; choose another name." .name) -}}
+  {{- end -}}
+  {{- if not (hasKey $volumeNames .name) -}}
+    {{- fail (printf "xray-health-exporter: extraVolumeMounts entry %q has no matching extraVolumes entry." .name) -}}
+  {{- end -}}
+{{- end -}}
+{{- end }}

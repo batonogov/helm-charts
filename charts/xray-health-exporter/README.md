@@ -2,16 +2,28 @@
 
 Prometheus exporter for Xray-core tunnel health
 
-![Version: 0.3.3](https://img.shields.io/badge/Version-0.3.3-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.6.3](https://img.shields.io/badge/AppVersion-1.6.3-informational?style=flat-square)
+![Version: 0.4.0](https://img.shields.io/badge/Version-0.4.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.7.0](https://img.shields.io/badge/AppVersion-1.7.0-informational?style=flat-square)
 
 **Homepage:** <https://github.com/batonogov/xray-health-exporter>
 
 ## TL;DR
 
+Create a values file with at least one tunnel or subscription:
+
+```yaml
+# values.yaml
+config:
+  tunnels:
+    - name: edge-1
+      url: "vless://uuid@host1:443?type=tcp&security=reality&pbk=...&sni=google.com"
+```
+
+Then install the chart:
+
 ```bash
 helm repo add batonogov https://batonogov.github.io/helm-charts
 helm install xray batonogov/xray-health-exporter -n monitoring --create-namespace \
-  --set-file config.tunnels=tunnels.yaml
+  -f values.yaml
 ```
 
 ## Prerequisites
@@ -48,16 +60,56 @@ config:
     check_url: https://www.google.com
     check_interval: 30s
     check_timeout: 30s
+    max_backoff: 5m
+    backoff_multiplier: 2.0
   subscriptions:
     - url: https://provider.example.com/subscribe?token=xxx
       update_interval: 1h
   tunnels:
     - name: edge-1
-      url: "vless://uuid@host1:443?type=tcp&security=reality&pbk=...&sni=google.com"
+      url: "vless://uuid@host1:443?type=xhttp&security=reality&pbk=...&sni=example.com&fp=chrome&path=%2Fapi&mode=stream-up"
 ```
 
-See [upstream docs](https://github.com/batonogov/xray-health-exporter#конфигурация)
-for the full schema.
+VLESS share links are passed to the exporter unchanged. Upstream v1.7.0
+supports RAW/TCP, XHTTP, gRPC, WebSocket, HTTPUpgrade, and mKCP transports,
+including current TLS and REALITY parameters.
+
+See the [upstream configuration reference](https://github.com/batonogov/xray-health-exporter/blob/main/docs/configuration.md)
+for the complete schema, VLESS URL compatibility, and validation rules.
+
+### Native Xray JSON configurations
+
+An entry using `xray_config_file` must reference a file mounted into the
+exporter container. Store the native JSON in a Secret in the Helm release
+namespace, then mount that Secret with `extraVolumes` and `extraVolumeMounts`:
+
+```bash
+kubectl create secret generic xray-native-config \
+  --namespace monitoring \
+  --from-file=outbound.json
+```
+
+```yaml
+config:
+  tunnels:
+    - name: native-outbound
+      xray_config_file: /etc/xray/outbound.json
+
+extraVolumes:
+  - name: native-config
+    secret:
+      secretName: xray-native-config
+
+extraVolumeMounts:
+  - name: native-config
+    mountPath: /etc/xray
+    readOnly: true
+```
+
+Avoid the reserved volume names `config` and `tmp`, which the chart uses for
+the exporter configuration and writable temporary directory. Restart the
+exporter pods after updating a referenced native JSON Secret: upstream watches
+the main exporter YAML file, not the referenced Xray JSON files.
 
 ## Prometheus integration
 
@@ -73,9 +125,12 @@ The exporter supports three check methods, configurable globally via
 `env.CHECK_METHOD` or per tunnel via `config.defaults.check_method` /
 tunnel-level `check_method`:
 
-- `http` (default) — HTTP GET against `check_url`
-- `ip` — fetch the tunnel's exit IP via `IP_CHECK_URL`
-- `download` — download a file via `DOWNLOAD_URL` and verify its size
+- `http` (default) — HTTP GET against `check_url`; status `200`, `301`, `302`,
+  or `307` succeeds
+- `ip` — require status `200` from `IP_CHECK_URL` and verify that the tunnel's
+  exit IP differs from the host's public IP
+- `download` — require status `200` from `DOWNLOAD_URL` and receive at least
+  `download_min_size` bytes within `download_timeout`
 
 All three measure latency as TTFB (time to first byte).
 
@@ -118,20 +173,24 @@ Kubernetes: `>=1.32.0-0`
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | affinity | object | `{}` | Affinity rules for the pod. |
-| config.defaults | object | `{"check_interval":"30s","check_timeout":"30s","check_url":"https://www.google.com"}` | Global tunnel-check defaults applied when an entry omits the field. |
+| config.defaults | object | `{"backoff_multiplier":2,"check_interval":"30s","check_timeout":"30s","check_url":"https://www.google.com","max_backoff":"5m"}` | Global tunnel-check defaults applied when an entry omits the field. |
+| config.defaults.backoff_multiplier | float | `2` | Exponential backoff growth factor after failures (must be at least 1.0). |
+| config.defaults.max_backoff | string | `"5m"` | Maximum interval between checks after repeated failures (Go duration). |
 | config.subscriptions | list | `[]` | Subscription URLs that auto-discover tunnels. See upstream README for schema. WARNING: subscription URLs typically embed access tokens — they are rendered into a plain ConfigMap. Use `existingConfigSecret` to source `config.yaml` from a Secret instead. |
-| config.tunnels | list | `[]` | Static tunnels. Each entry needs either `url` (VLESS) or `xray_config_file`. At least one tunnel or one subscription is required (or set `existingConfigSecret`); otherwise the exporter refuses to start. |
+| config.tunnels | list | `[]` | Static tunnels. Each entry needs either `url` (a VLESS share link) or `xray_config_file`. At least one tunnel or one subscription is required (or set `existingConfigSecret`); otherwise the exporter refuses to start. |
 | env.CHECK_METHOD | string | `"http"` | Default health-check method used when a tunnel omits `check_method`. `http` (HTTP GET), `ip` (IP echo via `IP_CHECK_URL`), or `download` (file download via `DOWNLOAD_URL`). |
 | env.DOWNLOAD_MIN_SIZE | string | `"51200"` | Minimum downloaded bytes for the `download` method to be considered successful. |
 | env.DOWNLOAD_TIMEOUT | string | `"60s"` | Timeout for the `download` check method (Go duration, e.g. `60s`, `2m`). |
 | env.DOWNLOAD_URL | string | `"https://proof.ovh.net/files/1Mb.dat"` | File URL for the `download` check method. |
 | env.IP_CHECK_URL | string | `"https://api.ipify.org?format=text"` | IP-echo URL for the `ip` check method. |
 | env.LOG_FORMAT | string | `"text"` | Exporter log format (`text` or `json`). |
-| env.LOG_LEVEL | string | `"info"` | Exporter log level (`debug`/`info`/`warning`/`error`). Replaces the deprecated `DEBUG=true` flag. |
+| env.LOG_LEVEL | string | `"info"` | Exporter log level (`debug`/`info`/`warn`/`warning`/`error`). Replaces the deprecated `DEBUG=true` flag. |
 | env.RUN_ONCE | string | `"false"` | One-shot mode. If `true`, run a single check cycle, print metrics to stdout, and exit. Disable for long-running Deployments (useful only for CronJob-style usage). |
 | env.XRAY_LOG_LEVEL | string | `"warning"` | Xray-core log level (`debug`/`info`/`warning`/`error`). |
 | existingConfigSecret | string | `""` | Mount an existing Secret containing `config.yaml` instead of rendering one from `.Values.config`. |
 | extraEnv | list | `[]` | Extra environment variables (list of `{name, value}` or `{name, valueFrom}`). |
+| extraVolumeMounts | list | `[]` | Additional volume mounts for the exporter container. Use with `extraVolumes`, for example to mount native Xray JSON files referenced by `config.tunnels[].xray_config_file`. |
+| extraVolumes | list | `[]` | Additional pod volumes. Avoid the reserved names `config` and `tmp`. |
 | fullnameOverride | string | `""` | Fully override the generated release name. |
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy. |
 | image.pullSecrets | list | `[]` | Image pull secrets (list of `{name: <secret>}`). |

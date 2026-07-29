@@ -56,11 +56,17 @@ topologySpreadConstraints: []
 # -- Extra environment variables (list of `{name, value}` or `{name, valueFrom}`).
 extraEnv: []
 
+# -- Additional pod volumes. Avoid the reserved names `config` and `tmp`.
+extraVolumes: []
+
+# -- Additional volume mounts for the exporter container. Use with `extraVolumes`, for example to mount native Xray JSON files referenced by `config.tunnels[].xray_config_file`.
+extraVolumeMounts: []
+
 # Built-in environment variables consumed by the exporter binary.
 env:
   # -- Xray-core log level (`debug`/`info`/`warning`/`error`).
   XRAY_LOG_LEVEL: warning
-  # -- Exporter log level (`debug`/`info`/`warning`/`error`). Replaces the deprecated `DEBUG=true` flag.
+  # -- Exporter log level (`debug`/`info`/`warn`/`warning`/`error`). Replaces the deprecated `DEBUG=true` flag.
   LOG_LEVEL: info
   # -- Exporter log format (`text` or `json`).
   LOG_FORMAT: text
@@ -141,9 +147,13 @@ config:
     check_url: https://www.google.com
     check_interval: 30s
     check_timeout: 30s
+    # -- Maximum interval between checks after repeated failures (Go duration).
+    max_backoff: 5m
+    # -- Exponential backoff growth factor after failures (must be at least 1.0).
+    backoff_multiplier: 2.0
   # -- Subscription URLs that auto-discover tunnels. See upstream README for schema. WARNING: subscription URLs typically embed access tokens — they are rendered into a plain ConfigMap. Use `existingConfigSecret` to source `config.yaml` from a Secret instead.
   subscriptions: []
-  # -- Static tunnels. Each entry needs either `url` (VLESS) or `xray_config_file`. At least one tunnel or one subscription is required (or set `existingConfigSecret`); otherwise the exporter refuses to start.
+  # -- Static tunnels. Each entry needs either `url` (a VLESS share link) or `xray_config_file`. At least one tunnel or one subscription is required (or set `existingConfigSecret`); otherwise the exporter refuses to start.
   tunnels: []
 
 # -- Mount an existing Secret containing `config.yaml` instead of rendering one from `.Values.config`.

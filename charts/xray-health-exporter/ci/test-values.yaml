@@ -4,6 +4,15 @@ replicaCount: 1
 leaderElection:
   enabled: false
 
+extraVolumes:
+  - name: native-configs
+    emptyDir: {}
+
+extraVolumeMounts:
+  - name: native-configs
+    mountPath: /etc/xray
+    readOnly: true
+
 config:
   defaults:
     check_url: https://www.google.com
