@@ -453,6 +453,16 @@
             "skipMigrate": {
               "type": "boolean",
               "description": "Skip running php artisan migrate --force on rollout."
+            },
+            "migrate": {
+              "type": "object",
+              "description": "Migration initContainer tuning.",
+              "properties": {
+                "waitForRabbitmq": {
+                  "type": "boolean",
+                  "description": "Wait for RabbitMQ AMQP readiness before running migrations (mirrors vendor 4.2.0 compose dependency)."
+                }
+              }
             }
           }
         }

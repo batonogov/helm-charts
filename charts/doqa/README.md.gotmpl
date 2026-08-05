@@ -45,7 +45,7 @@ anonymously — no `imagePullSecrets` are required by default.
 
 | Area | Status | Notes |
 |---|---|---|
-| DoQA Box | Supported | Pinned to `4.1.2-box`; service, environment, image, and nginx mappings follow the vendor `configs_4_1_2.zip` archive |
+| DoQA Box | Supported | Pinned to `4.2.0-box`; service, environment, image, and nginx mappings follow the vendor `configs_4_2_0.zip` archive |
 | Kubernetes | Supported | `1.32+`, as declared by `Chart.yaml`; manifests use stable Kubernetes APIs |
 | Helm | Tested | Helm `3.16` in CI and Helm 4 locally; Helm `3.13+` is supported |
 | Node platform | Supported | `linux/amd64`; the current vendor images are single-platform amd64 images |
@@ -65,7 +65,7 @@ client-specific scheduling, labels, and annotations. It does not inherit
 
 ## Architecture
 
-Components mirror the vendor docker-compose for v4.1.2:
+Components mirror the vendor docker-compose for v4.2.0:
 
 - `backend` (php-fpm Laravel API), `queue` (`queue:work`), `cron` (`schedule:work`)
 - `frontend` (Nuxt SPA)
@@ -75,7 +75,7 @@ Components mirror the vendor docker-compose for v4.1.2:
 - `nginx` (internal router) → exposed via Ingress
 
 The canonical upstream input is the vendor's
-[`configs_4_1_2.zip`](https://doqa.app/downloads/configs_4_1_2.zip), including
+[`configs_4_2_0.zip`](https://doqa.app/downloads/configs_4_2_0.zip), including
 `.env.install`, both Compose files, and nginx configuration. The DoQA
 application services, environment variables, routes, and application image pins
 stay aligned with that archive. Kubernetes infrastructure is deliberately
@@ -131,6 +131,21 @@ This chart targets DoQA 4.1.0+. There is no automatic migration path from
 3.x deployments — vendor changed the queue broker from Redis to RabbitMQ
 between 3.7 and 4.0. Plan a stepwise migration if you are coming from a
 3.x install.
+
+### 0.4.0 → 0.5.0
+
+- **DoQA 4.2.0**: bumps backend (4.2.4-box), frontend (4.2.4-box),
+  autotest-parser (4.2.0-box), autotest-result-parser (4.2.0-box),
+  notification (4.2.1-box), and llm (4.2.1-box). statistic (3.0.0-box)
+  and telegram-bot (1.0.1-box) are unchanged.
+- **Migration ordering**: vendor 4.2.0 added a compose dependency on
+  RabbitMQ for the migration step because some migrations dispatch jobs.
+  The chart now runs a `wait-for-rabbitmq` initContainer that probes the
+  AMQP port before `php artisan migrate`. Disable it with
+  `backend.migrate.waitForRabbitmq=false`.
+- **nginx upload limit**: `nginx.clientMaxBodySize` now defaults to `0`
+  (unlimited), matching the vendor 4.2.0 nginx configuration. Set it back
+  to a byte size (e.g. `150M`) to restore an explicit cap.
 
 ### 0.3.8 → 0.4.0
 

@@ -288,11 +288,16 @@ backend:
     # -- Backend image repository (relative to image.registry)
     repository: doqa/doqa-backend
     # -- Backend image tag
-    tag: 4.1.14-box
+    tag: 4.2.4-box
   # -- Backend replica count
   replicas: 2
   # -- Skip running `php artisan migrate --force` on rollout
   skipMigrate: false
+  migrate:
+    # -- Wait for RabbitMQ AMQP readiness before running migrations. Vendor
+    # 4.2.0 added a compose dependency on rabbitmq because some migrations
+    # dispatch jobs; the chart mirrors that by probing the broker first.
+    waitForRabbitmq: true
   # -- Resource requests and limits
   resources:
     requests:
@@ -365,7 +370,7 @@ frontend:
     # -- Frontend image repository (relative to image.registry)
     repository: doqa/doqa-frontend
     # -- Frontend image tag
-    tag: 4.1.6-box
+    tag: 4.2.4-box
   # -- Frontend replica count
   replicas: 2
   # -- Resource requests and limits
@@ -386,7 +391,7 @@ autotestParser:
     # -- Autotest parser image repository
     repository: doqa/doqa-parsing-autotests
     # -- Autotest parser image tag
-    tag: 4.1.3-box
+    tag: 4.2.0-box
   # -- Autotest parser replica count
   replicas: 1
   # -- Resource requests and limits
@@ -407,7 +412,7 @@ autotestResultParser:
     # -- Result parser image repository
     repository: doqa/doqa-autotest-result-parser
     # -- Result parser image tag
-    tag: 2.0.0-box
+    tag: 4.2.0-box
   # -- Result parser replica count
   replicas: 1
   # -- Resource requests and limits
@@ -449,7 +454,7 @@ llm:
     # -- LLM image repository
     repository: doqa/doqa-llm
     # -- LLM image tag
-    tag: 1.0.5-box
+    tag: 4.2.1-box
   # -- Replica count
   replicas: 1
   # -- Resource requests and limits
@@ -470,7 +475,7 @@ notification:
     # -- Notification image repository
     repository: doqa/doqa-notify
     # -- Notification image tag
-    tag: 2.0.2-box
+    tag: 4.2.1-box
   # -- API replica count
   replicas: 1
   # -- Resource requests and limits
@@ -555,8 +560,8 @@ nginx:
     tag: 1.23.3-alpine
   # -- Replica count
   replicas: 2
-  # -- Maximum upload size
-  clientMaxBodySize: 150M
+  # -- Maximum upload size. `0` disables the limit (matches vendor 4.2.0 nginx).
+  clientMaxBodySize: "0"
   # -- Resource requests and limits
   resources:
     requests:
