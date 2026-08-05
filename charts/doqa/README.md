@@ -2,7 +2,7 @@
 
 DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
 
-![Version: 0.4.0](https://img.shields.io/badge/Version-0.4.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.1.2-box](https://img.shields.io/badge/AppVersion-4.1.2--box-informational?style=flat-square)
+![Version: 0.5.0](https://img.shields.io/badge/Version-0.5.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.2.0-box](https://img.shields.io/badge/AppVersion-4.2.0--box-informational?style=flat-square)
 
 **Homepage:** <https://doqa.app>
 
@@ -43,7 +43,7 @@ anonymously — no `imagePullSecrets` are required by default.
 
 | Area | Status | Notes |
 |---|---|---|
-| DoQA Box | Supported | Pinned to `4.1.2-box`; service, environment, image, and nginx mappings follow the vendor `configs_4_1_2.zip` archive |
+| DoQA Box | Supported | Pinned to `4.2.0-box`; service, environment, image, and nginx mappings follow the vendor `configs_4_2_0.zip` archive |
 | Kubernetes | Supported | `1.32+`, as declared by `Chart.yaml`; manifests use stable Kubernetes APIs |
 | Helm | Tested | Helm `3.16` in CI and Helm 4 locally; Helm `3.13+` is supported |
 | Node platform | Supported | `linux/amd64`; the current vendor images are single-platform amd64 images |
@@ -63,7 +63,7 @@ client-specific scheduling, labels, and annotations. It does not inherit
 
 ## Architecture
 
-Components mirror the vendor docker-compose for v4.1.2:
+Components mirror the vendor docker-compose for v4.2.0:
 
 - `backend` (php-fpm Laravel API), `queue` (`queue:work`), `cron` (`schedule:work`)
 - `frontend` (Nuxt SPA)
@@ -73,7 +73,7 @@ Components mirror the vendor docker-compose for v4.1.2:
 - `nginx` (internal router) → exposed via Ingress
 
 The canonical upstream input is the vendor's
-[`configs_4_1_2.zip`](https://doqa.app/downloads/configs_4_1_2.zip), including
+[`configs_4_2_0.zip`](https://doqa.app/downloads/configs_4_2_0.zip), including
 `.env.install`, both Compose files, and nginx configuration. The DoQA
 application services, environment variables, routes, and application image pins
 stay aligned with that archive. Kubernetes infrastructure is deliberately
@@ -143,21 +143,22 @@ Kubernetes: `>=1.32.0-0`
 | autoscaling.queue.targetCPUUtilizationPercentage | int | `80` | Target CPU utilization percentage for queue HPA |
 | autotestParser.affinity | object | `{}` |  |
 | autotestParser.image.repository | string | `"doqa/doqa-parsing-autotests"` | Autotest parser image repository |
-| autotestParser.image.tag | string | `"4.1.3-box"` | Autotest parser image tag |
+| autotestParser.image.tag | string | `"4.2.0-box"` | Autotest parser image tag |
 | autotestParser.nodeSelector | object | `{}` |  |
 | autotestParser.replicas | int | `1` | Autotest parser replica count |
 | autotestParser.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
 | autotestParser.tolerations | list | `[]` |  |
 | autotestResultParser.affinity | object | `{}` |  |
 | autotestResultParser.image.repository | string | `"doqa/doqa-autotest-result-parser"` | Result parser image repository |
-| autotestResultParser.image.tag | string | `"2.0.0-box"` | Result parser image tag |
+| autotestResultParser.image.tag | string | `"4.2.0-box"` | Result parser image tag |
 | autotestResultParser.nodeSelector | object | `{}` |  |
 | autotestResultParser.replicas | int | `1` | Result parser replica count |
 | autotestResultParser.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
 | autotestResultParser.tolerations | list | `[]` |  |
 | backend.affinity | object | `{}` |  |
 | backend.image.repository | string | `"doqa/doqa-backend"` | Backend image repository (relative to image.registry) |
-| backend.image.tag | string | `"4.1.14-box"` | Backend image tag |
+| backend.image.tag | string | `"4.2.4-box"` | Backend image tag |
+| backend.migrate.waitForRabbitmq | bool | `true` | Wait for RabbitMQ AMQP readiness before running migrations. Vendor 4.2.0 added a compose dependency on rabbitmq because some migrations dispatch jobs; the chart mirrors that by probing the broker first. |
 | backend.nodeSelector | object | `{}` |  |
 | backend.replicas | int | `2` | Backend replica count |
 | backend.resources | object | `{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}}` | Resource requests and limits |
@@ -177,7 +178,7 @@ Kubernetes: `>=1.32.0-0`
 | extraVolumes | list | `[]` | Extra volumes to add to all Deployments |
 | frontend.affinity | object | `{}` |  |
 | frontend.image.repository | string | `"doqa/doqa-frontend"` | Frontend image repository (relative to image.registry) |
-| frontend.image.tag | string | `"4.1.6-box"` | Frontend image tag |
+| frontend.image.tag | string | `"4.2.4-box"` | Frontend image tag |
 | frontend.nodeSelector | object | `{}` |  |
 | frontend.replicas | int | `2` | Frontend replica count |
 | frontend.resources | object | `{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}}` | Resource requests and limits |
@@ -200,7 +201,7 @@ Kubernetes: `>=1.32.0-0`
 | ldap.username | string | `""` | Bind DN of the technical account |
 | llm.affinity | object | `{}` |  |
 | llm.image.repository | string | `"doqa/doqa-llm"` | LLM image repository |
-| llm.image.tag | string | `"1.0.5-box"` | LLM image tag |
+| llm.image.tag | string | `"4.2.1-box"` | LLM image tag |
 | llm.nodeSelector | object | `{}` |  |
 | llm.replicas | int | `1` | Replica count |
 | llm.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
@@ -237,7 +238,7 @@ Kubernetes: `>=1.32.0-0`
 | nameOverride | string | `""` | Override the chart name part of resource names. SET-ONCE-AT-INSTALL: `app.kubernetes.io/name` (derived from this) lands in every Deployment's `.spec.selector`, which Kubernetes treats as immutable. Changing nameOverride on an existing release makes the upgrade fail with `field is immutable` on all Deployments until the value is reverted or the release is reinstalled. nameOverride also feeds doqa.fullname (when fullnameOverride is unset), so it additionally renames every chart-managed resource and orphans the redis/rabbitmq/minio PVCs. |
 | networkPolicy.enabled | bool | `false` | Enable NetworkPolicy resources. Creates a default-deny-ingress policy and explicit allow rules for all internal traffic paths |
 | nginx.affinity | object | `{}` |  |
-| nginx.clientMaxBodySize | string | `"150M"` | Maximum upload size |
+| nginx.clientMaxBodySize | string | `"0"` | Maximum upload size. `0` disables the limit (matches vendor 4.2.0 nginx). |
 | nginx.image.repository | string | `"service/nginx"` | Vendor nginx image repository, relative to image.registry. A fully qualified repository may be used for an exact private mirror. |
 | nginx.image.tag | string | `"1.23.3-alpine"` | Nginx image tag |
 | nginx.nodeSelector | object | `{}` |  |
@@ -247,7 +248,7 @@ Kubernetes: `>=1.32.0-0`
 | nodeSelector | object | `{}` | Default node selector applied to all components. Per-component values override this. |
 | notification.affinity | object | `{}` |  |
 | notification.image.repository | string | `"doqa/doqa-notify"` | Notification image repository |
-| notification.image.tag | string | `"2.0.2-box"` | Notification image tag |
+| notification.image.tag | string | `"4.2.1-box"` | Notification image tag |
 | notification.nodeSelector | object | `{}` |  |
 | notification.replicas | int | `1` | API replica count |
 | notification.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
@@ -365,6 +366,21 @@ This chart targets DoQA 4.1.0+. There is no automatic migration path from
 3.x deployments — vendor changed the queue broker from Redis to RabbitMQ
 between 3.7 and 4.0. Plan a stepwise migration if you are coming from a
 3.x install.
+
+### 0.4.0 → 0.5.0
+
+- **DoQA 4.2.0**: bumps backend (4.2.4-box), frontend (4.2.4-box),
+  autotest-parser (4.2.0-box), autotest-result-parser (4.2.0-box),
+  notification (4.2.1-box), and llm (4.2.1-box). statistic (3.0.0-box)
+  and telegram-bot (1.0.1-box) are unchanged.
+- **Migration ordering**: vendor 4.2.0 added a compose dependency on
+  RabbitMQ for the migration step because some migrations dispatch jobs.
+  The chart now runs a `wait-for-rabbitmq` initContainer that probes the
+  AMQP port before `php artisan migrate`. Disable it with
+  `backend.migrate.waitForRabbitmq=false`.
+- **nginx upload limit**: `nginx.clientMaxBodySize` now defaults to `0`
+  (unlimited), matching the vendor 4.2.0 nginx configuration. Set it back
+  to a byte size (e.g. `150M`) to restore an explicit cap.
 
 ### 0.3.8 → 0.4.0
 

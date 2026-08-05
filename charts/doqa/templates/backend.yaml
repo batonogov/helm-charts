@@ -35,6 +35,22 @@ spec:
       {{- include "doqa.podSecurityContext" (dict "component" .Values.backend "root" .) | nindent 6 }}
       {{- if not .Values.backend.skipMigrate }}
       initContainers:
+      {{- if .Values.backend.migrate.waitForRabbitmq }}
+      - name: wait-for-rabbitmq
+        image: {{ include "doqa.image" (dict "img" .Values.backend.image "root" .) | quote }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        {{- include "doqa.containerSecurityContext" (dict "component" .Values.backend "root" .) | nindent 8 }}
+        env:
+        - name: RABBITMQ_HOST
+          value: {{ include "doqa.rabbitmq.host" . | quote }}
+        - name: RABBITMQ_PORT
+          value: {{ .Values.rabbitmq.port | quote }}
+        command:
+        - sh
+        - -c
+        - |
+          php -r 'for($i=0;$i<90;$i++){$f=@fsockopen(getenv("RABBITMQ_HOST"),(int)getenv("RABBITMQ_PORT"),$e,$n,2);if($f){fclose($f);exit(0);}echo "waiting for rabbitmq\n";sleep(2);}exit(1);'
+      {{- end }}
       - name: migrate
         image: {{ include "doqa.image" (dict "img" .Values.backend.image "root" .) | quote }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
