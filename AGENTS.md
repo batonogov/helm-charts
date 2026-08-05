@@ -136,12 +136,13 @@ When the vendor publishes a new **box** version in `latest.txt` and the matching
 
 1. Download `configs_<new>.zip`, extract it under `.tmp/`, and diff it against the last shipped archive. Check `.env.install`, both Compose files, nginx configs, and the Dockerfile.
 2. Update image tags in `values.yaml` (each component has independent versioning — `doqa-backend` vs `doqa-frontend` vs `doqa-parsing-autotests` etc. ship with **different** SemVer lines).
-3. Route every new environment variable to `templates/configmap.yaml`, the relevant explicit per-pod block, or a Secret. Verify consumption per service; do not assume ConfigMap membership is sufficient.
-4. If new compose services appear, add a new template; if removed, delete one.
-5. If `nginx/default_no_ssl.conf` changes, mirror the diff into `templates/nginx-configmap.yaml`.
-6. Keep `values.schema.json`, helm-docs comments, `README.md.gotmpl`, and generated `README.md` synchronized with value or upgrade changes.
-7. Bump `appVersion` to the new box version and bump chart `version`: patch for compatible fixes/pin changes, minor for additive chart features, major for breaking changes.
-8. Run the full local checks. When practical, install with the CLI in a throwaway Linux amd64 environment and diff each service's effective environment against the rendered chart, allowing for Kubernetes Service names and deliberate departures above.
+3. Audit image compatibility: run `scripts/audit-doqa-images.sh <old_values.yaml> <new_values.yaml>` (e.g. `git show main:charts/doqa/values.yaml` vs the working tree) to confirm no component image changed its `Env`/`Entrypoint`/`Cmd` contract — a newly required env var or changed startup command the chart does not account for. This inspects the images themselves (configs only, no layer pull) and catches runtime contract changes the config zip does not surface.
+4. Route every new environment variable to `templates/configmap.yaml`, the relevant explicit per-pod block, or a Secret. Verify consumption per service; do not assume ConfigMap membership is sufficient.
+5. If new compose services appear, add a new template; if removed, delete one.
+6. If `nginx/default_no_ssl.conf` changes, mirror the diff into `templates/nginx-configmap.yaml`.
+7. Keep `values.schema.json`, helm-docs comments, `README.md.gotmpl`, and generated `README.md` synchronized with value or upgrade changes.
+8. Bump `appVersion` to the new box version and bump chart `version`: patch for compatible fixes/pin changes, minor for additive chart features, major for breaking changes.
+9. Run the full local checks. When practical, install with the CLI in a throwaway Linux amd64 environment and diff each service's effective environment against the rendered chart, allowing for Kubernetes Service names and deliberate departures above.
 
 ### Component inventory
 
