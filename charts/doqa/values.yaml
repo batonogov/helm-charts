@@ -288,7 +288,7 @@ backend:
     # -- Backend image repository (relative to image.registry)
     repository: doqa/doqa-backend
     # -- Backend image tag
-    tag: 4.2.4-box
+    tag: 4.2.9-box
   # -- Backend replica count
   replicas: 2
   # -- Skip running `php artisan migrate --force` on rollout
@@ -370,7 +370,7 @@ frontend:
     # -- Frontend image repository (relative to image.registry)
     repository: doqa/doqa-frontend
     # -- Frontend image tag
-    tag: 4.2.4-box
+    tag: 4.2.8-box
   # -- Frontend replica count
   replicas: 2
   # -- Resource requests and limits
@@ -391,7 +391,7 @@ autotestParser:
     # -- Autotest parser image repository
     repository: doqa/doqa-parsing-autotests
     # -- Autotest parser image tag
-    tag: 4.2.0-box
+    tag: 4.2.1-box
   # -- Autotest parser replica count
   replicas: 1
   # -- Resource requests and limits
@@ -412,7 +412,7 @@ autotestResultParser:
     # -- Result parser image repository
     repository: doqa/doqa-autotest-result-parser
     # -- Result parser image tag
-    tag: 4.2.0-box
+    tag: 4.2.1-box
   # -- Result parser replica count
   replicas: 1
   # -- Resource requests and limits
