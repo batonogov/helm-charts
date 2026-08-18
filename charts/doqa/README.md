@@ -2,7 +2,7 @@
 
 DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
 
-![Version: 0.5.0](https://img.shields.io/badge/Version-0.5.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.2.0-box](https://img.shields.io/badge/AppVersion-4.2.0--box-informational?style=flat-square)
+![Version: 0.5.1](https://img.shields.io/badge/Version-0.5.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.2.0-box](https://img.shields.io/badge/AppVersion-4.2.0--box-informational?style=flat-square)
 
 **Homepage:** <https://doqa.app>
 
@@ -143,21 +143,21 @@ Kubernetes: `>=1.32.0-0`
 | autoscaling.queue.targetCPUUtilizationPercentage | int | `80` | Target CPU utilization percentage for queue HPA |
 | autotestParser.affinity | object | `{}` |  |
 | autotestParser.image.repository | string | `"doqa/doqa-parsing-autotests"` | Autotest parser image repository |
-| autotestParser.image.tag | string | `"4.2.0-box"` | Autotest parser image tag |
+| autotestParser.image.tag | string | `"4.2.1-box"` | Autotest parser image tag |
 | autotestParser.nodeSelector | object | `{}` |  |
 | autotestParser.replicas | int | `1` | Autotest parser replica count |
 | autotestParser.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
 | autotestParser.tolerations | list | `[]` |  |
 | autotestResultParser.affinity | object | `{}` |  |
 | autotestResultParser.image.repository | string | `"doqa/doqa-autotest-result-parser"` | Result parser image repository |
-| autotestResultParser.image.tag | string | `"4.2.0-box"` | Result parser image tag |
+| autotestResultParser.image.tag | string | `"4.2.1-box"` | Result parser image tag |
 | autotestResultParser.nodeSelector | object | `{}` |  |
 | autotestResultParser.replicas | int | `1` | Result parser replica count |
 | autotestResultParser.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
 | autotestResultParser.tolerations | list | `[]` |  |
 | backend.affinity | object | `{}` |  |
 | backend.image.repository | string | `"doqa/doqa-backend"` | Backend image repository (relative to image.registry) |
-| backend.image.tag | string | `"4.2.4-box"` | Backend image tag |
+| backend.image.tag | string | `"4.2.9-box"` | Backend image tag |
 | backend.migrate.waitForRabbitmq | bool | `true` | Wait for RabbitMQ AMQP readiness before running migrations. Vendor 4.2.0 added a compose dependency on rabbitmq because some migrations dispatch jobs; the chart mirrors that by probing the broker first. |
 | backend.nodeSelector | object | `{}` |  |
 | backend.replicas | int | `2` | Backend replica count |
@@ -178,7 +178,7 @@ Kubernetes: `>=1.32.0-0`
 | extraVolumes | list | `[]` | Extra volumes to add to all Deployments |
 | frontend.affinity | object | `{}` |  |
 | frontend.image.repository | string | `"doqa/doqa-frontend"` | Frontend image repository (relative to image.registry) |
-| frontend.image.tag | string | `"4.2.4-box"` | Frontend image tag |
+| frontend.image.tag | string | `"4.2.8-box"` | Frontend image tag |
 | frontend.nodeSelector | object | `{}` |  |
 | frontend.replicas | int | `2` | Frontend replica count |
 | frontend.resources | object | `{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}}` | Resource requests and limits |
