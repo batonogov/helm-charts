@@ -184,7 +184,7 @@ minio:
     # -- MinIO image
     repository: quay.io/minio/minio
     # -- MinIO tag
-    tag: "RELEASE.2025-04-22T22-12-26Z"
+    tag: "RELEASE.2025-09-07T16-13-09Z"
   client:
     image:
       # -- mc client image (used by bucket-init Job)

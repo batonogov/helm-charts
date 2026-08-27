@@ -2,7 +2,7 @@
 
 DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
 
-![Version: 0.6.0](https://img.shields.io/badge/Version-0.6.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.2.1-box](https://img.shields.io/badge/AppVersion-4.2.1--box-informational?style=flat-square)
+![Version: 0.6.1](https://img.shields.io/badge/Version-0.6.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.2.1-box](https://img.shields.io/badge/AppVersion-4.2.1--box-informational?style=flat-square)
 
 **Homepage:** <https://doqa.app>
 
@@ -228,7 +228,7 @@ Kubernetes: `>=1.32.0-0`
 | minio.create | bool | `true` | Provision an in-tree MinIO Deployment+PVC + bucket-init Job |
 | minio.endpoint | string | `""` | External MinIO/S3 endpoint (used only when create=false). For in-tree MinIO chart computes internal URL automatically |
 | minio.image.repository | string | `"quay.io/minio/minio"` | MinIO image |
-| minio.image.tag | string | `"RELEASE.2025-04-22T22-12-26Z"` | MinIO tag |
+| minio.image.tag | string | `"RELEASE.2025-09-07T16-13-09Z"` | MinIO tag |
 | minio.nodeSelector | object | `{}` | Node selector for MinIO pods. Overrides global nodeSelector |
 | minio.region | string | `"ru-1"` | Region |
 | minio.resources | object | `{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}}` | Resource requests and limits |
