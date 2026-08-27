@@ -33,12 +33,29 @@ spec:
       serviceAccountName: {{ include "doqa.serviceAccountName" . }}
       {{- include "doqa.imagePullSecrets" . | nindent 6 }}
       {{- include "doqa.podSecurityContext" (dict "component" .Values.queue "root" .) | nindent 6 }}
+      {{- if .Values.queue.waitForRabbitmq }}
+      initContainers:
+      - name: wait-for-rabbitmq
+        image: {{ include "doqa.image" (dict "img" .Values.backend.image "root" .) | quote }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        {{- include "doqa.containerSecurityContext" (dict "component" .Values.queue "root" .) | nindent 8 }}
+        env:
+        - name: RABBITMQ_HOST
+          value: {{ include "doqa.rabbitmq.host" . | quote }}
+        - name: RABBITMQ_PORT
+          value: {{ .Values.rabbitmq.port | quote }}
+        command:
+        - sh
+        - -c
+        - |
+          php -r 'for($i=0;$i<90;$i++){$f=@fsockopen(getenv("RABBITMQ_HOST"),(int)getenv("RABBITMQ_PORT"),$e,$n,2);if($f){fclose($f);exit(0);}echo "waiting for rabbitmq\n";sleep(2);}exit(1);'
+      {{- end }}
       containers:
       - name: queue
         image: {{ include "doqa.image" (dict "img" .Values.backend.image "root" .) | quote }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         {{- include "doqa.containerSecurityContext" (dict "component" .Values.queue "root" .) | nindent 8 }}
-        command: ["php", "artisan", "queue:work", "--queue=high,default"]
+        command: ["php", "artisan", "queue:work", "--queue=requirements,default,import,llm-bulk"]
         envFrom:
           {{- include "doqa.backendEnvFrom" . | nindent 10 }}
         env:
