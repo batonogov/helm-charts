@@ -50,6 +50,12 @@ spec:
     spec:
       serviceAccountName: {{ include "doqa.serviceAccountName" . }}
       {{- include "doqa.imagePullSecrets" . | nindent 6 }}
+      # The node name is written to mnesia as rabbit@<hostname>. Without a
+      # stable hostname the pod gets a new name on every recreation and the
+      # broker starts as a different node that cannot see the previous data,
+      # making the PVC useless. Mirrors the vendor 4.2.1 `hostname:` fix;
+      # do not change after install.
+      hostname: {{ $fullName }}-rabbitmq
       {{- include "doqa.podSecurityContext" (dict "component" .Values.rabbitmq "root" .) | nindent 6 }}
       containers:
       - name: rabbitmq

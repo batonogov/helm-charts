@@ -486,7 +486,16 @@
     "queue": {
       "description": "Queue worker component.",
       "allOf": [
-        { "$ref": "#/definitions/workload" }
+        { "$ref": "#/definitions/workload" },
+        {
+          "type": "object",
+          "properties": {
+            "waitForRabbitmq": {
+              "type": "boolean",
+              "description": "Wait for RabbitMQ AMQP readiness before starting the worker (mirrors vendor 4.2.1 compose dependency)."
+            }
+          }
+        }
       ]
     },
     "cron": {

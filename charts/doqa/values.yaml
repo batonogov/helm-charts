@@ -28,7 +28,7 @@ appFrontendUrl: ""
 useSsl: true
 # -- Enable verbose debug logging
 debug: false
-# -- Issue/support email exposed to backend (`MAIL_ISSUE`)
+# -- Issue/support email exposed to backend (`ISSUE_MAIL`)
 mailIssue: "support@doqa.app"
 # -- Optional explicit API base URL (`API_BASE_URL`). Leave empty to use internal backend service.
 apiBaseUrl: ""
@@ -288,7 +288,7 @@ backend:
     # -- Backend image repository (relative to image.registry)
     repository: doqa/doqa-backend
     # -- Backend image tag
-    tag: 4.2.9-box
+    tag: 4.2.10-box
   # -- Backend replica count
   replicas: 2
   # -- Skip running `php artisan migrate --force` on rollout
@@ -334,10 +334,14 @@ topologySpreadConstraints:
   #     matchLabels:
   #       app.kubernetes.io/component: queue
 
-# Queue worker (`queue:work --queue=high,default`)
+# Queue worker (`queue:work --queue=requirements,default,import,llm-bulk`)
 queue:
   # -- Queue worker replica count
   replicas: 3
+  # -- Wait for RabbitMQ AMQP readiness before starting the worker. Vendor
+  # 4.2.1 added a compose dependency on rabbitmq for the queue service; the
+  # chart mirrors that by probing the broker first.
+  waitForRabbitmq: true
   # -- Resource requests and limits
   resources:
     requests:
@@ -370,7 +374,7 @@ frontend:
     # -- Frontend image repository (relative to image.registry)
     repository: doqa/doqa-frontend
     # -- Frontend image tag
-    tag: 4.2.8-box
+    tag: 4.2.9-box
   # -- Frontend replica count
   replicas: 2
   # -- Resource requests and limits

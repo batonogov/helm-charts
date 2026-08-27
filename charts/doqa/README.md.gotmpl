@@ -132,6 +132,24 @@ This chart targets DoQA 4.1.0+. There is no automatic migration path from
 between 3.7 and 4.0. Plan a stepwise migration if you are coming from a
 3.x install.
 
+### 0.5.1 → 0.6.0
+
+- **DoQA 4.2.1**: bumps backend (4.2.10-box) and frontend (4.2.9-box).
+  All other component pins are unchanged.
+- **Queue names**: the worker now consumes `requirements,default,import,llm-bulk`
+  instead of `high,default`, following the vendor 4.2.1 compose change.
+- **RabbitMQ readiness for the queue worker**: vendor 4.2.1 added a compose
+  dependency on RabbitMQ for the queue service. The chart now runs a
+  `wait-for-rabbitmq` initContainer on the queue Deployment. Disable it with
+  `queue.waitForRabbitmq=false`.
+- **RabbitMQ node identity**: the in-tree RabbitMQ pod now sets a stable
+  `hostname` so the broker restarts as the same Erlang node after pod
+  recreation and keeps its mnesia data on the PVC. Before this change every
+  pod recreation silently discarded unprocessed messages. Do not change
+  the hostname after install.
+- **`ISSUE_MAIL`**: vendor renamed `MAIL_ISSUE` to `ISSUE_MAIL`; the ConfigMap
+  key follows. The `mailIssue` value is unchanged.
+
 ### 0.4.0 → 0.5.0
 
 - **DoQA 4.2.0**: bumps backend (4.2.4-box), frontend (4.2.4-box),

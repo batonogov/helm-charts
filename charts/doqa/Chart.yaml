@@ -2,8 +2,8 @@ apiVersion: v2
 name: doqa
 description: DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
 type: application
-version: 0.5.1
-appVersion: "4.2.0-box"
+version: 0.6.0
+appVersion: "4.2.1-box"
 kubeVersion: ">=1.32.0-0"
 home: https://doqa.app
 sources:

@@ -2,7 +2,7 @@
 
 DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
 
-![Version: 0.5.1](https://img.shields.io/badge/Version-0.5.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.2.0-box](https://img.shields.io/badge/AppVersion-4.2.0--box-informational?style=flat-square)
+![Version: 0.6.0](https://img.shields.io/badge/Version-0.6.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.2.1-box](https://img.shields.io/badge/AppVersion-4.2.1--box-informational?style=flat-square)
 
 **Homepage:** <https://doqa.app>
 
@@ -157,7 +157,7 @@ Kubernetes: `>=1.32.0-0`
 | autotestResultParser.tolerations | list | `[]` |  |
 | backend.affinity | object | `{}` |  |
 | backend.image.repository | string | `"doqa/doqa-backend"` | Backend image repository (relative to image.registry) |
-| backend.image.tag | string | `"4.2.9-box"` | Backend image tag |
+| backend.image.tag | string | `"4.2.10-box"` | Backend image tag |
 | backend.migrate.waitForRabbitmq | bool | `true` | Wait for RabbitMQ AMQP readiness before running migrations. Vendor 4.2.0 added a compose dependency on rabbitmq because some migrations dispatch jobs; the chart mirrors that by probing the broker first. |
 | backend.nodeSelector | object | `{}` |  |
 | backend.replicas | int | `2` | Backend replica count |
@@ -178,7 +178,7 @@ Kubernetes: `>=1.32.0-0`
 | extraVolumes | list | `[]` | Extra volumes to add to all Deployments |
 | frontend.affinity | object | `{}` |  |
 | frontend.image.repository | string | `"doqa/doqa-frontend"` | Frontend image repository (relative to image.registry) |
-| frontend.image.tag | string | `"4.2.8-box"` | Frontend image tag |
+| frontend.image.tag | string | `"4.2.9-box"` | Frontend image tag |
 | frontend.nodeSelector | object | `{}` |  |
 | frontend.replicas | int | `2` | Frontend replica count |
 | frontend.resources | object | `{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}}` | Resource requests and limits |
@@ -213,7 +213,7 @@ Kubernetes: `>=1.32.0-0`
 | mail.mailer | string | `"smtp"` | Mailer driver |
 | mail.port | int | `587` | SMTP port |
 | mail.username | string | `""` | SMTP user |
-| mailIssue | string | `"support@doqa.app"` | Issue/support email exposed to backend (`MAIL_ISSUE`) |
+| mailIssue | string | `"support@doqa.app"` | Issue/support email exposed to backend (`ISSUE_MAIL`) |
 | minio.affinity | object | `{}` | Affinity for MinIO pods. Overrides global affinity |
 | minio.bucket | string | `"doqa"` | Bucket name |
 | minio.bucketUrl | string | `""` | Public bucket URL (defaults to "<scheme>://<appUrl>/<bucket>" when empty, served via internal nginx) |
@@ -282,6 +282,7 @@ Kubernetes: `>=1.32.0-0`
 | queue.replicas | int | `3` | Queue worker replica count |
 | queue.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
 | queue.tolerations | list | `[]` |  |
+| queue.waitForRabbitmq | bool | `true` | Wait for RabbitMQ AMQP readiness before starting the worker. Vendor 4.2.1 added a compose dependency on rabbitmq for the queue service; the chart mirrors that by probing the broker first. |
 | rabbitmq.affinity | object | `{}` | Affinity for RabbitMQ pods. Overrides global affinity |
 | rabbitmq.create | bool | `true` | Provision an in-tree RabbitMQ Deployment+PVC |
 | rabbitmq.host | string | `""` | External RabbitMQ host (used only when create=false) |
@@ -366,6 +367,24 @@ This chart targets DoQA 4.1.0+. There is no automatic migration path from
 3.x deployments — vendor changed the queue broker from Redis to RabbitMQ
 between 3.7 and 4.0. Plan a stepwise migration if you are coming from a
 3.x install.
+
+### 0.5.1 → 0.6.0
+
+- **DoQA 4.2.1**: bumps backend (4.2.10-box) and frontend (4.2.9-box).
+  All other component pins are unchanged.
+- **Queue names**: the worker now consumes `requirements,default,import,llm-bulk`
+  instead of `high,default`, following the vendor 4.2.1 compose change.
+- **RabbitMQ readiness for the queue worker**: vendor 4.2.1 added a compose
+  dependency on RabbitMQ for the queue service. The chart now runs a
+  `wait-for-rabbitmq` initContainer on the queue Deployment. Disable it with
+  `queue.waitForRabbitmq=false`.
+- **RabbitMQ node identity**: the in-tree RabbitMQ pod now sets a stable
+  `hostname` so the broker restarts as the same Erlang node after pod
+  recreation and keeps its mnesia data on the PVC. Before this change every
+  pod recreation silently discarded unprocessed messages. Do not change
+  the hostname after install.
+- **`ISSUE_MAIL`**: vendor renamed `MAIL_ISSUE` to `ISSUE_MAIL`; the ConfigMap
+  key follows. The `mailIssue` value is unchanged.
 
 ### 0.4.0 → 0.5.0
 
