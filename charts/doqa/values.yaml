@@ -288,7 +288,7 @@ backend:
     # -- Backend image repository (relative to image.registry)
     repository: doqa/doqa-backend
     # -- Backend image tag
-    tag: 4.2.10-box
+    tag: 4.2.12-box
   # -- Backend replica count
   replicas: 2
   # -- Skip running `php artisan migrate --force` on rollout

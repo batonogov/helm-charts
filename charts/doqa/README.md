@@ -2,7 +2,7 @@
 
 DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
 
-![Version: 0.6.1](https://img.shields.io/badge/Version-0.6.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.2.1-box](https://img.shields.io/badge/AppVersion-4.2.1--box-informational?style=flat-square)
+![Version: 0.6.2](https://img.shields.io/badge/Version-0.6.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.2.2-box](https://img.shields.io/badge/AppVersion-4.2.2--box-informational?style=flat-square)
 
 **Homepage:** <https://doqa.app>
 
@@ -157,7 +157,7 @@ Kubernetes: `>=1.32.0-0`
 | autotestResultParser.tolerations | list | `[]` |  |
 | backend.affinity | object | `{}` |  |
 | backend.image.repository | string | `"doqa/doqa-backend"` | Backend image repository (relative to image.registry) |
-| backend.image.tag | string | `"4.2.10-box"` | Backend image tag |
+| backend.image.tag | string | `"4.2.12-box"` | Backend image tag |
 | backend.migrate.waitForRabbitmq | bool | `true` | Wait for RabbitMQ AMQP readiness before running migrations. Vendor 4.2.0 added a compose dependency on rabbitmq because some migrations dispatch jobs; the chart mirrors that by probing the broker first. |
 | backend.nodeSelector | object | `{}` |  |
 | backend.replicas | int | `2` | Backend replica count |
