@@ -1,0 +1,79 @@
+{{- if eq (.Values.cron.mode | default "resident") "resident" -}}
+# Resident scheduler (vendor parity): a single long-lived Deployment running
+# `php artisan schedule:work`, exactly like the vendor docker-compose service
+# `doqa_cron`. The process stays alive across minutes and fires due tasks
+# in-process; it is never bounded by a job deadline. Only ONE scheduler may run
+# at a time — this mode is mutually exclusive with the per-minute CronJob
+# (`cron.mode: cronjob`).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "doqa.fullname" . }}-cron
+  labels:
+    {{- include "doqa.labels" . | nindent 4 }}
+    app.kubernetes.io/component: cron
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "doqa.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: cron
+  template:
+    metadata:
+      annotations:
+        checksum/env: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.extraAnnotations }}
+        {{- include "doqa.extraAnnotations" . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "doqa.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: cron
+        {{- with .Values.podLabels }}
+        {{- include "doqa.podLabels" . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "doqa.serviceAccountName" . }}
+      {{- include "doqa.imagePullSecrets" . | nindent 6 }}
+      {{- include "doqa.podSecurityContext" (dict "component" .Values.cron "root" .) | nindent 6 }}
+      containers:
+      - name: cron
+        image: {{ include "doqa.image" (dict "img" .Values.backend.image "root" .) | quote }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        {{- include "doqa.containerSecurityContext" (dict "component" .Values.cron "root" .) | nindent 8 }}
+        command: ["php", "artisan", "schedule:work"]
+        envFrom:
+          {{- include "doqa.backendEnvFrom" . | nindent 10 }}
+        env:
+          {{- include "doqa.backendSecretEnv" . | nindent 10 }}
+        resources:
+          {{- toYaml .Values.cron.resources | nindent 10 }}
+        {{- with .Values.extraVolumeMounts }}
+        volumeMounts:
+{{- range . }}
+          - {{ toYaml . | nindent 14 }}
+{{- end }}
+        {{- end }}
+      {{- with .Values.extraVolumes }}
+      volumes:
+{{- range . }}
+        - {{ toYaml . | nindent 12 }}
+{{- end }}
+      {{- end }}
+      {{- with (or .Values.cron.nodeSelector .Values.nodeSelector) }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with (or .Values.cron.affinity .Values.affinity) }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with (or .Values.cron.tolerations .Values.tolerations) }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

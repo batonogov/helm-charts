@@ -354,8 +354,21 @@ queue:
   tolerations: []
   affinity: {}
 
-# Cron / scheduled jobs (`schedule:work`). Single replica is mandatory
+# Cron / scheduled jobs. Single replica is mandatory.
 cron:
+  # -- Scheduler mode:
+  #   resident (default) — long-lived Deployment running `php artisan schedule:work`,
+  #     exactly like the vendor docker-compose. The scheduler process stays alive
+  #     and fires due tasks in-process every minute; it is NOT bounded by any
+  #     deadline, which is the vendor's production behaviour. A hung inline task
+  #     (e.g. the hourly `bin:delete-old-items`) stalls subsequent tasks until it
+  #     returns, but the scheduler itself is never killed.
+  #   cronjob — per-minute CronJob running `php artisan schedule:run`. Each run is
+  #     a fresh Job bounded by `activeDeadlineSeconds`; a hung hourly task is
+  #     killed at the deadline and tasks due during that window are skipped until
+  #     the next run. Use this if you prefer strict per-run bounds over vendor
+  #     parity.
+  mode: resident
   # -- CronJob schedule (Laravel "run per minute" pattern)
   schedule: "* * * * *"
   # -- Prevent overlapping cron runs (hourly jobs can take longer than a minute)

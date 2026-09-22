@@ -499,9 +499,14 @@
       ]
     },
     "cron": {
-      "description": "CronJob component running `php artisan schedule:run` (Laravel per-minute scheduler pattern).",
+      "description": "Scheduled jobs. `mode: resident` runs a long-lived `schedule:work` Deployment (vendor parity); `mode: cronjob` runs a per-minute `schedule:run` CronJob bounded by `activeDeadlineSeconds`.",
       "type": "object",
       "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["resident", "cronjob"],
+          "description": "Scheduler mode. `resident` (default) = Deployment running `php artisan schedule:work` like the vendor docker-compose (no deadline, process survives hung tasks). `cronjob` = per-minute CronJob running `php artisan schedule:run` (bounded by `activeDeadlineSeconds`, hung tasks are killed and skipped)."
+        },
         "schedule": {
           "type": "string",
           "description": "Cron expression. Default `* * * * *` (every minute, required for Laravel schedule:run)."

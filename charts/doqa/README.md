@@ -2,7 +2,7 @@
 
 DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
 
-![Version: 0.7.0](https://img.shields.io/badge/Version-0.7.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.2.2-box](https://img.shields.io/badge/AppVersion-4.2.2--box-informational?style=flat-square)
+![Version: 0.7.1](https://img.shields.io/badge/Version-0.7.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.2.2-box](https://img.shields.io/badge/AppVersion-4.2.2--box-informational?style=flat-square)
 
 **Homepage:** <https://doqa.app>
 
@@ -65,7 +65,7 @@ client-specific scheduling, labels, and annotations. It does not inherit
 
 Components mirror the vendor docker-compose for v4.2.0:
 
-- `backend` (php-fpm Laravel API), `queue` (`queue:work`), `cron` (CronJob running `schedule:run` per minute)
+- `backend` (php-fpm Laravel API), `queue` (`queue:work`), `cron` (resident `schedule:work` Deployment by default — vendor parity; or per-minute `schedule:run` CronJob via `cron.mode: cronjob`)
 - `frontend` (Nuxt SPA)
 - `autotest-parser`, `autotest-result-parser` (RabbitMQ-driven)
 - `statistic`, `llm`, `notification` (+ Celery worker), `telegram-bot` (optional)
@@ -169,6 +169,7 @@ Kubernetes: `>=1.32.0-0`
 | cron.backoffLimit | int | `0` | Do not retry a failed `schedule:run` (the next minute reruns it) |
 | cron.concurrencyPolicy | string | `"Forbid"` | Prevent overlapping cron runs (hourly jobs can take longer than a minute) |
 | cron.failedJobsHistoryLimit | int | `3` |  |
+| cron.mode | string | `"resident"` | Scheduler mode:   resident (default) — long-lived Deployment running `php artisan schedule:work`,     exactly like the vendor docker-compose. The scheduler process stays alive     and fires due tasks in-process every minute; it is NOT bounded by any     deadline, which is the vendor's production behaviour. A hung inline task     (e.g. the hourly `bin:delete-old-items`) stalls subsequent tasks until it     returns, but the scheduler itself is never killed.   cronjob — per-minute CronJob running `php artisan schedule:run`. Each run is     a fresh Job bounded by `activeDeadlineSeconds`; a hung hourly task is     killed at the deadline and tasks due during that window are skipped until     the next run. Use this if you prefer strict per-run bounds over vendor     parity. |
 | cron.nodeSelector | object | `{}` |  |
 | cron.resources | object | `{"limits":{"cpu":"250m","memory":"512Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
 | cron.schedule | string | `"* * * * *"` | CronJob schedule (Laravel "run per minute" pattern) |
@@ -373,6 +374,30 @@ This chart targets DoQA 4.1.0+. There is no automatic migration path from
 3.x deployments — vendor changed the queue broker from Redis to RabbitMQ
 between 3.7 and 4.0. Plan a stepwise migration if you are coming from a
 3.x install.
+
+### 0.7.0 → 0.7.1
+
+- **New `cron.mode` value (default: `resident`)** — the scheduler can now run
+  either way:
+  - `resident` (default, vendor parity): a single long-lived Deployment runs
+    `php artisan schedule:work`, exactly like the vendor docker-compose
+    `doqa_cron` service. The process survives restarts of the cluster only via
+    the Deployment controller, is never bounded by a job deadline, and a hung
+    inline task (e.g. the hourly `bin:delete-old-items` that stalls on a
+    RabbitMQ/Postgres socket) blocks subsequent tasks but never kills the
+    scheduler.
+  - `cronjob`: the 0.7.0 behaviour — a per-minute CronJob runs
+    `php artisan schedule:run`; each run is a fresh Job bounded by
+    `activeDeadlineSeconds`, so a hung hourly task is killed at the deadline
+    and tasks due during that window are skipped.
+  - **Upgrading**: if you were on 0.7.0's CronJob and keep the default
+    `resident`, Helm will delete the `doqa-cron` CronJob and create a
+    `doqa-cron` Deployment (same name, different kind — the old kind is
+    removed automatically). If you want to stay on the CronJob, set
+    `cron.mode: cronjob` explicitly.
+  - Note: `schedule:work` must run exactly once — both modes render the same
+    `doqa-cron` name (Deployment vs CronJob), and the templates are mutually
+    exclusive via `cron.mode`.
 
 ### 0.6.x → 0.7.0
 
