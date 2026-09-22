@@ -21,7 +21,7 @@ data:
             proxy_set_header Host               $http_host;
             proxy_set_header X-Real-IP          $remote_addr;
             proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto  $scheme;
+            proxy_set_header X-Forwarded-Proto  $http_x_forwarded_proto;
             proxy_pass                          http://{{ $fullName }}-frontend:8080;
         }
 
@@ -30,7 +30,7 @@ data:
             proxy_set_header Host               $http_host;
             proxy_set_header X-Real-IP          $remote_addr;
             proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto  $scheme;
+            proxy_set_header X-Forwarded-Proto  $http_x_forwarded_proto;
             proxy_pass                          http://{{ $fullName }}-backend:8080;
         }
 
@@ -39,7 +39,7 @@ data:
             proxy_set_header Host               $http_host;
             proxy_set_header X-Real-IP          $remote_addr;
             proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto  $scheme;
+            proxy_set_header X-Forwarded-Proto  $http_x_forwarded_proto;
             proxy_pass                          http://{{ $fullName }}-autotest-parser:8000;
         }
 
@@ -48,7 +48,7 @@ data:
             proxy_set_header Host               $http_host;
             proxy_set_header X-Real-IP          $remote_addr;
             proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto  $scheme;
+            proxy_set_header X-Forwarded-Proto  $http_x_forwarded_proto;
             proxy_pass                          http://{{ $fullName }}-autotest-parser:8000;
         }
 
@@ -57,7 +57,7 @@ data:
             proxy_set_header Host               $http_host;
             proxy_set_header X-Real-IP          $remote_addr;
             proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto  $scheme;
+            proxy_set_header X-Forwarded-Proto  $http_x_forwarded_proto;
             proxy_pass                          http://{{ $fullName }}-autotest-parser:8000;
         }
 
@@ -66,7 +66,7 @@ data:
             proxy_set_header Host               $http_host;
             proxy_set_header X-Real-IP          $remote_addr;
             proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto  $scheme;
+            proxy_set_header X-Forwarded-Proto  $http_x_forwarded_proto;
             proxy_pass                          http://{{ $fullName }}-autotest-parser:8000;
         }
 
@@ -75,7 +75,7 @@ data:
             proxy_set_header Host               {{ $minioHost }};
             proxy_set_header X-Real-IP          $remote_addr;
             proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto  $scheme;
+            proxy_set_header X-Forwarded-Proto  $http_x_forwarded_proto;
             proxy_ssl_verify                    off;
             proxy_ssl_session_reuse             on;
             proxy_pass                          {{ $minioEndpoint }};
@@ -88,7 +88,7 @@ data:
             proxy_set_header Host               $host;
             proxy_set_header X-Real-IP          $remote_addr;
             proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto  $scheme;
+            proxy_set_header X-Forwarded-Proto  $http_x_forwarded_proto;
             proxy_pass                          http://{{ $fullName }}-websocket:{{ .Values.pusher.port | int }}/app/web-socket;
         }
 

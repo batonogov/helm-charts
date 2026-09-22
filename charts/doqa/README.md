@@ -2,7 +2,7 @@
 
 DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
 
-![Version: 0.6.3](https://img.shields.io/badge/Version-0.6.3-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.2.2-box](https://img.shields.io/badge/AppVersion-4.2.2--box-informational?style=flat-square)
+![Version: 0.7.0](https://img.shields.io/badge/Version-0.7.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.2.2-box](https://img.shields.io/badge/AppVersion-4.2.2--box-informational?style=flat-square)
 
 **Homepage:** <https://doqa.app>
 
@@ -65,7 +65,7 @@ client-specific scheduling, labels, and annotations. It does not inherit
 
 Components mirror the vendor docker-compose for v4.2.0:
 
-- `backend` (php-fpm Laravel API), `queue` (`queue:work`), `cron` (`schedule:work`)
+- `backend` (php-fpm Laravel API), `queue` (`queue:work`), `cron` (CronJob running `schedule:run` per minute)
 - `frontend` (Nuxt SPA)
 - `autotest-parser`, `autotest-result-parser` (RabbitMQ-driven)
 - `statistic`, `llm`, `notification` (+ Celery worker), `telegram-bot` (optional)
@@ -164,13 +164,19 @@ Kubernetes: `>=1.32.0-0`
 | backend.resources | object | `{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}}` | Resource requests and limits |
 | backend.skipMigrate | bool | `false` |  |
 | backend.tolerations | list | `[]` |  |
+| cron.activeDeadlineSeconds | int | `300` | Max time a single `schedule:run` may live; hourly jobs run inline, so keep this well above 50s (vendor default killed them at the deadline) |
 | cron.affinity | object | `{}` |  |
+| cron.backoffLimit | int | `0` | Do not retry a failed `schedule:run` (the next minute reruns it) |
+| cron.concurrencyPolicy | string | `"Forbid"` | Prevent overlapping cron runs (hourly jobs can take longer than a minute) |
+| cron.failedJobsHistoryLimit | int | `3` |  |
 | cron.nodeSelector | object | `{}` |  |
-| cron.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
+| cron.resources | object | `{"limits":{"cpu":"250m","memory":"512Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
+| cron.schedule | string | `"* * * * *"` | CronJob schedule (Laravel "run per minute" pattern) |
+| cron.successfulJobsHistoryLimit | int | `1` |  |
 | cron.tolerations | list | `[]` |  |
 | debug | bool | `false` | Enable verbose debug logging |
-| defaultSecurityContext.container.allowPrivilegeEscalation | bool | `false` |  |
-| defaultSecurityContext.container.capabilities.drop[0] | string | `"ALL"` |  |
+| defaultSecurityContext.container.allowPrivilegeEscalation | bool | `true` |  |
+| defaultSecurityContext.container.capabilities.drop | list | `[]` |  |
 | defaultSecurityContext.pod | object | `{}` |  |
 | extraAnnotations | object | `{}` | Extra annotations added to every resource. Keys with a `checksum/` prefix (e.g. `checksum/env`, `checksum/config`) are chart-managed and reserved; any such key supplied here is silently dropped at render time to avoid colliding with the chart's own checksum annotations. |
 | extraLabels | object | `{}` | Extra labels added to every resource |
@@ -204,7 +210,7 @@ Kubernetes: `>=1.32.0-0`
 | llm.image.tag | string | `"4.2.1-box"` | LLM image tag |
 | llm.nodeSelector | object | `{}` |  |
 | llm.replicas | int | `1` | Replica count |
-| llm.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
+| llm.resources | object | `{"limits":{"cpu":"250m","memory":"1Gi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
 | llm.tolerations | list | `[]` |  |
 | mail.encryption | string | `"tls"` | Encryption (tls/ssl/null) |
 | mail.fromAddress | string | `""` | Sender address |
@@ -367,6 +373,44 @@ This chart targets DoQA 4.1.0+. There is no automatic migration path from
 3.x deployments — vendor changed the queue broker from Redis to RabbitMQ
 between 3.7 and 4.0. Plan a stepwise migration if you are coming from a
 3.x install.
+
+### 0.6.x → 0.7.0
+
+- **`cron` is now a CronJob** (was a Deployment running `schedule:work`).
+  It runs `php artisan schedule:run` every minute — the pattern Laravel's
+  official Docker docs recommend for containerized schedulers. This is what
+  production DoQA installs (e.g. the Tacita cluster) actually run; the
+  `schedule:work` Deployment held a process whose inline hourly jobs could
+  never be bounded by a deadline.
+  - New values: `cron.schedule` (default `* * * * *`),
+    `cron.concurrencyPolicy` (`Forbid`), `cron.activeDeadlineSeconds`
+    (`300`), `cron.backoffLimit` (`0`),
+    `cron.successfulJobsHistoryLimit` (`1`),
+    `cron.failedJobsHistoryLimit` (`3`).
+  - **Upgrading**: Helm drops the old `doqa-cron` Deployment and creates
+    the CronJob. Existing per-minute jobs are unaffected.
+  - `cron.activeDeadlineSeconds` default raised from 50 to 300: DoQA
+    hourly jobs (test-case status recalculation, etc.) run inline inside
+    `schedule:run` and exceeded 50s, so the Job was killed mid-run and
+    statuses were not applied. Lower it back only if you know your
+    schedule fits.
+- **`nginx`: pass through `X-Forwarded-Proto`** — the internal nginx
+  router now sets `proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto`
+  instead of hardcoding `$scheme`. With TLS terminating at the ingress
+  (Traefik/nginx-ingress), `$scheme` is always `http` on the internal
+  router, which made the frontend build `http://` absolute URLs and
+  caused a redirect loop for HSTS clients.
+- **`defaultSecurityContext` is now permissive by default**
+  (`allowPrivilegeEscalation: true`, `capabilities.drop: []`). DoQA
+  vendor images run nginx + php-fpm inside the container and need to
+  chown/mkdir their working dirs; the previous restrictive default
+  crashed them on start. Tighten per-component via
+  `<component>.containerSecurityContext` if your Pod Security
+  Admission requires it.
+- **`llm.resources.limits.memory` default raised 256Mi → 1Gi** and
+  **`cron.resources.limits.memory` 256Mi → 512Mi** — both OOMKilled at
+  the old defaults in production (llm peaks ~332Mi at boot; cron with
+  inline hourly jobs peaks well above 256Mi).
 
 ### 0.5.1 → 0.6.0
 

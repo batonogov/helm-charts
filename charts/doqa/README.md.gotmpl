@@ -67,7 +67,7 @@ client-specific scheduling, labels, and annotations. It does not inherit
 
 Components mirror the vendor docker-compose for v4.2.0:
 
-- `backend` (php-fpm Laravel API), `queue` (`queue:work`), `cron` (`schedule:work`)
+- `backend` (php-fpm Laravel API), `queue` (`queue:work`), `cron` (CronJob running `schedule:run` per minute)
 - `frontend` (Nuxt SPA)
 - `autotest-parser`, `autotest-result-parser` (RabbitMQ-driven)
 - `statistic`, `llm`, `notification` (+ Celery worker), `telegram-bot` (optional)
@@ -131,6 +131,44 @@ This chart targets DoQA 4.1.0+. There is no automatic migration path from
 3.x deployments — vendor changed the queue broker from Redis to RabbitMQ
 between 3.7 and 4.0. Plan a stepwise migration if you are coming from a
 3.x install.
+
+### 0.6.x → 0.7.0
+
+- **`cron` is now a CronJob** (was a Deployment running `schedule:work`).
+  It runs `php artisan schedule:run` every minute — the pattern Laravel's
+  official Docker docs recommend for containerized schedulers. This is what
+  production DoQA installs (e.g. the Tacita cluster) actually run; the
+  `schedule:work` Deployment held a process whose inline hourly jobs could
+  never be bounded by a deadline.
+  - New values: `cron.schedule` (default `* * * * *`),
+    `cron.concurrencyPolicy` (`Forbid`), `cron.activeDeadlineSeconds`
+    (`300`), `cron.backoffLimit` (`0`),
+    `cron.successfulJobsHistoryLimit` (`1`),
+    `cron.failedJobsHistoryLimit` (`3`).
+  - **Upgrading**: Helm drops the old `doqa-cron` Deployment and creates
+    the CronJob. Existing per-minute jobs are unaffected.
+  - `cron.activeDeadlineSeconds` default raised from 50 to 300: DoQA
+    hourly jobs (test-case status recalculation, etc.) run inline inside
+    `schedule:run` and exceeded 50s, so the Job was killed mid-run and
+    statuses were not applied. Lower it back only if you know your
+    schedule fits.
+- **`nginx`: pass through `X-Forwarded-Proto`** — the internal nginx
+  router now sets `proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto`
+  instead of hardcoding `$scheme`. With TLS terminating at the ingress
+  (Traefik/nginx-ingress), `$scheme` is always `http` on the internal
+  router, which made the frontend build `http://` absolute URLs and
+  caused a redirect loop for HSTS clients.
+- **`defaultSecurityContext` is now permissive by default**
+  (`allowPrivilegeEscalation: true`, `capabilities.drop: []`). DoQA
+  vendor images run nginx + php-fpm inside the container and need to
+  chown/mkdir their working dirs; the previous restrictive default
+  crashed them on start. Tighten per-component via
+  `<component>.containerSecurityContext` if your Pod Security
+  Admission requires it.
+- **`llm.resources.limits.memory` default raised 256Mi → 1Gi** and
+  **`cron.resources.limits.memory` 256Mi → 512Mi** — both OOMKilled at
+  the old defaults in production (llm peaks ~332Mi at boot; cron with
+  inline hourly jobs peaks well above 256Mi).
 
 ### 0.5.1 → 0.6.0
 

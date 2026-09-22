@@ -499,10 +499,45 @@
       ]
     },
     "cron": {
-      "description": "Cron and scheduled jobs component.",
-      "allOf": [
-        { "$ref": "#/definitions/workloadCommon" }
-      ]
+      "description": "CronJob component running `php artisan schedule:run` (Laravel per-minute scheduler pattern).",
+      "type": "object",
+      "properties": {
+        "schedule": {
+          "type": "string",
+          "description": "Cron expression. Default `* * * * *` (every minute, required for Laravel schedule:run)."
+        },
+        "concurrencyPolicy": {
+          "type": "string",
+          "enum": ["Allow", "Forbid", "Replace"],
+          "description": "CronJob concurrency policy. Forbid prevents overlapping runs (hourly jobs can take >1m)."
+        },
+        "activeDeadlineSeconds": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Max lifetime of a single `schedule:run` Job. Hourly jobs run inline, so this must exceed their runtime (50s kills them)."
+        },
+        "backoffLimit": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Retries for a failed run; the next minute reruns the scheduler, so 0 is the default."
+        },
+        "successfulJobsHistoryLimit": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "failedJobsHistoryLimit": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "resources": {
+          "$ref": "#/definitions/resourceRequirements"
+        },
+        "nodeSelector": { "type": "object" },
+        "affinity": { "type": "object" },
+        "tolerations": { "$ref": "#/definitions/tolerations" },
+        "podSecurityContext": { "type": "object" },
+        "containerSecurityContext": { "type": "object" }
+      }
     },
     "frontend": {
       "description": "Frontend Nuxt SPA component.",

@@ -1,71 +1,72 @@
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: batch/v1
+kind: CronJob
 metadata:
   name: {{ include "doqa.fullname" . }}-cron
   labels:
     {{- include "doqa.labels" . | nindent 4 }}
     app.kubernetes.io/component: cron
 spec:
-  replicas: 1
-  strategy:
-    type: Recreate
-  selector:
-    matchLabels:
-      {{- include "doqa.selectorLabels" . | nindent 6 }}
-      app.kubernetes.io/component: cron
-  template:
-    metadata:
-      annotations:
-        checksum/env: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
-        {{- with .Values.extraAnnotations }}
-        {{- include "doqa.extraAnnotations" . | nindent 8 }}
-        {{- end }}
-        {{- with .Values.podAnnotations }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
-      labels:
-        {{- include "doqa.selectorLabels" . | nindent 8 }}
-        app.kubernetes.io/component: cron
-        {{- with .Values.podLabels }}
-        {{- include "doqa.podLabels" . | nindent 8 }}
-        {{- end }}
+  schedule: {{ .Values.cron.schedule | default "* * * * *" | quote }}
+  concurrencyPolicy: {{ .Values.cron.concurrencyPolicy | default "Forbid" | quote }}
+  successfulJobsHistoryLimit: {{ .Values.cron.successfulJobsHistoryLimit | default 1 | int }}
+  failedJobsHistoryLimit: {{ .Values.cron.failedJobsHistoryLimit | default 3 | int }}
+  jobTemplate:
     spec:
-      serviceAccountName: {{ include "doqa.serviceAccountName" . }}
-      {{- include "doqa.imagePullSecrets" . | nindent 6 }}
-      {{- include "doqa.podSecurityContext" (dict "component" .Values.cron "root" .) | nindent 6 }}
-      containers:
-      - name: cron
-        image: {{ include "doqa.image" (dict "img" .Values.backend.image "root" .) | quote }}
-        imagePullPolicy: {{ .Values.image.pullPolicy }}
-        {{- include "doqa.containerSecurityContext" (dict "component" .Values.cron "root" .) | nindent 8 }}
-        command: ["php", "artisan", "schedule:work"]
-        envFrom:
-          {{- include "doqa.backendEnvFrom" . | nindent 10 }}
-        env:
-          {{- include "doqa.backendSecretEnv" . | nindent 10 }}
-        resources:
-          {{- toYaml .Values.cron.resources | nindent 10 }}
-        {{- with .Values.extraVolumeMounts }}
-        volumeMounts:
+      activeDeadlineSeconds: {{ .Values.cron.activeDeadlineSeconds | default 300 | int }}
+      backoffLimit: {{ .Values.cron.backoffLimit | default 0 | int }}
+      template:
+        metadata:
+          annotations:
+            checksum/env: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+            {{- with .Values.extraAnnotations }}
+            {{- include "doqa.extraAnnotations" . | nindent 12 }}
+            {{- end }}
+            {{- with .Values.podAnnotations }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          labels:
+            {{- include "doqa.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: cron
+            {{- with .Values.podLabels }}
+            {{- include "doqa.podLabels" . | nindent 12 }}
+            {{- end }}
+        spec:
+          serviceAccountName: {{ include "doqa.serviceAccountName" . }}
+          {{- include "doqa.imagePullSecrets" . | nindent 10 }}
+          {{- include "doqa.podSecurityContext" (dict "component" .Values.cron "root" .) | nindent 10 }}
+          containers:
+          - name: cron
+            image: {{ include "doqa.image" (dict "img" .Values.backend.image "root" .) | quote }}
+            imagePullPolicy: {{ .Values.image.pullPolicy }}
+            {{- include "doqa.containerSecurityContext" (dict "component" .Values.cron "root" .) | nindent 12 }}
+            command: ["php", "artisan", "schedule:run"]
+            envFrom:
+              {{- include "doqa.backendEnvFrom" . | nindent 14 }}
+            env:
+              {{- include "doqa.backendSecretEnv" . | nindent 14 }}
+            resources:
+              {{- toYaml .Values.cron.resources | nindent 14 }}
+            {{- with .Values.extraVolumeMounts }}
+            volumeMounts:
 {{- range . }}
-          - {{ toYaml . | nindent 12 }}
+              - {{ toYaml . | nindent 16 }}
 {{- end }}
-        {{- end }}
-      {{- with .Values.extraVolumes }}
-      volumes:
+            {{- end }}
+          {{- with .Values.extraVolumes }}
+          volumes:
 {{- range . }}
-        - {{ toYaml . | nindent 10 }}
+            - {{ toYaml . | nindent 12 }}
 {{- end }}
-      {{- end }}
-      {{- with (or .Values.cron.nodeSelector .Values.nodeSelector) }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with (or .Values.cron.affinity .Values.affinity) }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with (or .Values.cron.tolerations .Values.tolerations) }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+          {{- end }}
+          {{- with (or .Values.cron.nodeSelector .Values.nodeSelector) }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with (or .Values.cron.affinity .Values.affinity) }}
+          affinity:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with (or .Values.cron.tolerations .Values.tolerations) }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}

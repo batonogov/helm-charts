@@ -356,6 +356,17 @@ queue:
 
 # Cron / scheduled jobs (`schedule:work`). Single replica is mandatory
 cron:
+  # -- CronJob schedule (Laravel "run per minute" pattern)
+  schedule: "* * * * *"
+  # -- Prevent overlapping cron runs (hourly jobs can take longer than a minute)
+  concurrencyPolicy: Forbid
+  # -- Max time a single `schedule:run` may live; hourly jobs run inline,
+  # so keep this well above 50s (vendor default killed them at the deadline)
+  activeDeadlineSeconds: 300
+  # -- Do not retry a failed `schedule:run` (the next minute reruns it)
+  backoffLimit: 0
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
   # -- Resource requests and limits
   resources:
     requests:
@@ -363,7 +374,7 @@ cron:
       memory: 128Mi
     limits:
       cpu: 250m
-      memory: 256Mi
+      memory: 512Mi
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -468,7 +479,7 @@ llm:
       memory: 128Mi
     limits:
       cpu: 250m
-      memory: 256Mi
+      memory: 1Gi
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -644,9 +655,13 @@ serviceAccount:
 defaultSecurityContext:
   pod: {}
   container:
-    allowPrivilegeEscalation: false
+    # DoQA images (nginx, php-fpm) start unprivileged services inside the
+    # container and need to chown/mkdir their working dirs, so the default
+    # is permissive. Tighten per-component via
+    # `<component>.containerSecurityContext` if your PSA requires it.
+    allowPrivilegeEscalation: true
     capabilities:
-      drop: ["ALL"]
+      drop: []
 
 serviceMonitor:
   # -- Create a Prometheus Operator ServiceMonitor for the backend Service
