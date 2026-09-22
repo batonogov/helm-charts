@@ -32,6 +32,10 @@ spec:
             {{- include "doqa.podLabels" . | nindent 12 }}
             {{- end }}
         spec:
+          # Job pod templates only accept Never/OnFailure -- Always (the
+          # default when this is unset) is rejected by the API server for
+          # batch/v1 Jobs.
+          restartPolicy: Never
           serviceAccountName: {{ include "doqa.serviceAccountName" . }}
           {{- include "doqa.imagePullSecrets" . | nindent 10 }}
           {{- include "doqa.podSecurityContext" (dict "component" .Values.cron "root" .) | nindent 10 }}
