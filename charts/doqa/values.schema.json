@@ -678,6 +678,10 @@
             "clientMaxBodySize": {
               "type": "string",
               "description": "Maximum upload size."
+            },
+            "proxyReadTimeout": {
+              "type": "string",
+              "description": "proxy_read_timeout for all locations. nginx default is 60s; raise if backend endpoints legitimately take longer."
             }
           }
         }

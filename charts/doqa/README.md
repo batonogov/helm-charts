@@ -2,7 +2,7 @@
 
 DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
 
-![Version: 0.7.1](https://img.shields.io/badge/Version-0.7.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.2.2-box](https://img.shields.io/badge/AppVersion-4.2.2--box-informational?style=flat-square)
+![Version: 0.7.2](https://img.shields.io/badge/Version-0.7.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.2.2-box](https://img.shields.io/badge/AppVersion-4.2.2--box-informational?style=flat-square)
 
 **Homepage:** <https://doqa.app>
 
@@ -160,8 +160,14 @@ Kubernetes: `>=1.32.0-0`
 | backend.image.tag | string | `"4.2.12-box"` | Backend image tag |
 | backend.migrate.waitForRabbitmq | bool | `true` | Wait for RabbitMQ AMQP readiness before running migrations. Vendor 4.2.0 added a compose dependency on rabbitmq because some migrations dispatch jobs; the chart mirrors that by probing the broker first. |
 | backend.nodeSelector | object | `{}` |  |
+| backend.phpFpm.enabled | bool | `true` | Replace the vendor image's php-fpm.conf to raise pm.max_children. The vendor default of 5 saturates under moderate concurrency; a saturated pool keeps accepting connections into the kernel backlog (so tcpSocket probes stay green) while real requests hang -- see the livenessProbe/readinessProbe comment in templates/backend.yaml. |
+| backend.phpFpm.maxChildren | int | `20` | Hard ceiling on concurrent workers. Size against backend.resources.limits.memory: each worker settles around 80-100Mi RSS in practice, so 20 workers wants a memory limit in the low gigabytes, not the vendor's default 512Mi. |
+| backend.phpFpm.maxSpareServers | int | `10` |  |
+| backend.phpFpm.minSpareServers | int | `3` |  |
+| backend.phpFpm.pm | string | `"dynamic"` | php-fpm `pm` mode. Only `dynamic` is supported by this override. |
+| backend.phpFpm.startServers | int | `5` |  |
 | backend.replicas | int | `2` | Backend replica count |
-| backend.resources | object | `{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}}` | Resource requests and limits |
+| backend.resources | object | `{"limits":{"cpu":"2000m","memory":"2Gi"},"requests":{"cpu":"500m","memory":"384Mi"}}` | Resource requests and limits. Sized for phpFpm.maxChildren=20 above (measured ~80-100Mi RSS per worker in production); lower this together with phpFpm.maxChildren if you disable phpFpm.enabled to fall back to the vendor's pm.max_children=5. |
 | backend.skipMigrate | bool | `false` |  |
 | backend.tolerations | list | `[]` |  |
 | cron.activeDeadlineSeconds | int | `300` | Max time a single `schedule:run` may live; hourly jobs run inline, so keep this well above 50s (vendor default killed them at the deadline) |
@@ -249,6 +255,7 @@ Kubernetes: `>=1.32.0-0`
 | nginx.image.repository | string | `"service/nginx"` | Vendor nginx image repository, relative to image.registry. A fully qualified repository may be used for an exact private mirror. |
 | nginx.image.tag | string | `"1.23.3-alpine"` | Nginx image tag |
 | nginx.nodeSelector | object | `{}` |  |
+| nginx.proxyReadTimeout | string | `"120s"` | proxy_read_timeout for all locations. nginx's own default is 60s; some backend endpoints (e.g. PATCH on a checklist with many linked items) occasionally exceed that even though the request eventually succeeds server-side -- the router gives up first and the user sees a spurious 504 with no indication the write may still land. Raised with headroom rather than tuned to a specific observed duration. |
 | nginx.replicas | int | `2` | Replica count |
 | nginx.resources | object | `{"limits":{"cpu":"50m","memory":"64Mi"},"requests":{"cpu":"25m","memory":"32Mi"}}` | Resource requests and limits |
 | nginx.tolerations | list | `[]` |  |
@@ -374,6 +381,36 @@ This chart targets DoQA 4.1.0+. There is no automatic migration path from
 3.x deployments — vendor changed the queue broker from Redis to RabbitMQ
 between 3.7 and 4.0. Plan a stepwise migration if you are coming from a
 3.x install.
+
+### 0.7.1 → 0.7.2
+
+- **New `backend.phpFpm` (default: `enabled: true`, `maxChildren: 20`)** —
+  replaces the vendor image's `/usr/local/etc/php-fpm.conf` wholesale. The
+  vendor file hardcodes `pm.max_children = 5` in a `[www]` block that comes
+  *after* its own `include=etc/php-fpm.d/*.conf`, so that trailing block
+  wins over anything dropped into `php-fpm.d/*.conf` — a per-directory
+  override is silently a no-op. `backend.phpFpm.enabled: false` restores
+  the vendor's file untouched (`pm.max_children` back to 5). Size
+  `backend.resources.limits.memory` to `phpFpm.maxChildren` — each worker
+  settles around 80-100Mi RSS in practice; the new default backend
+  resources (`2Gi`/`2000m` limits) are sized for `maxChildren: 20`.
+- **`backend` readiness/liveness switched from `tcpSocket` to `exec` +
+  `curl`** — a `tcpSocket` probe only proves the kernel accepts a TCP
+  connection into the listen backlog, not that a php-fpm worker is free to
+  answer it. A pool saturated at `pm.max_children` keeps queuing
+  connections with the probe staying green while every real request hangs
+  — this was reproduced in production (one of four replicas hung for over
+  an hour, both probes green throughout). `curl` without `-f` treats any
+  HTTP response (including 404/401) as success and only fails on the
+  `--max-time 5` transport timeout, which is what a saturated/hung pool
+  actually produces. There is no dedicated health route in the app to use
+  with `httpGet` instead.
+- **New `nginx.proxyReadTimeout` (default: `120s`)** — nginx's own default
+  is 60s. Some backend endpoints (e.g. `PATCH` on a checklist with many
+  linked items) occasionally exceed that even though the write eventually
+  succeeds server-side; the router gave up first and returned a spurious
+  504 with no indication the request may still land. Applies at the
+  `server` block, so it covers every proxied location uniformly.
 
 ### 0.7.0 → 0.7.1
 

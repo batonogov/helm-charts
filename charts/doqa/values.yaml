@@ -610,6 +610,13 @@ nginx:
   replicas: 2
   # -- Maximum upload size. `0` disables the limit (matches vendor 4.2.0 nginx).
   clientMaxBodySize: "0"
+  # -- proxy_read_timeout for all locations. nginx's own default is 60s;
+  # some backend endpoints (e.g. PATCH on a checklist with many linked
+  # items) occasionally exceed that even though the request eventually
+  # succeeds server-side -- the router gives up first and the user sees a
+  # spurious 504 with no indication the write may still land. Raised with
+  # headroom rather than tuned to a specific observed duration.
+  proxyReadTimeout: 120s
   # -- Resource requests and limits
   resources:
     requests:
