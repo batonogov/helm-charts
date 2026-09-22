@@ -298,14 +298,34 @@ backend:
     # 4.2.0 added a compose dependency on rabbitmq because some migrations
     # dispatch jobs; the chart mirrors that by probing the broker first.
     waitForRabbitmq: true
-  # -- Resource requests and limits
+  phpFpm:
+    # -- Replace the vendor image's php-fpm.conf to raise pm.max_children.
+    # The vendor default of 5 saturates under moderate concurrency; a
+    # saturated pool keeps accepting connections into the kernel backlog
+    # (so tcpSocket probes stay green) while real requests hang -- see the
+    # livenessProbe/readinessProbe comment in templates/backend.yaml.
+    enabled: true
+    # -- php-fpm `pm` mode. Only `dynamic` is supported by this override.
+    pm: dynamic
+    # -- Hard ceiling on concurrent workers. Size against
+    # backend.resources.limits.memory: each worker settles around 80-100Mi
+    # RSS in practice, so 20 workers wants a memory limit in the low
+    # gigabytes, not the vendor's default 512Mi.
+    maxChildren: 20
+    startServers: 5
+    minSpareServers: 3
+    maxSpareServers: 10
+  # -- Resource requests and limits. Sized for phpFpm.maxChildren=20 above
+  # (measured ~80-100Mi RSS per worker in production); lower this together
+  # with phpFpm.maxChildren if you disable phpFpm.enabled to fall back to
+  # the vendor's pm.max_children=5.
   resources:
     requests:
-      cpu: 250m
-      memory: 256Mi
-    limits:
       cpu: 500m
-      memory: 512Mi
+      memory: 384Mi
+    limits:
+      cpu: 2000m
+      memory: 2Gi
   nodeSelector: {}
   tolerations: []
   affinity: {}
