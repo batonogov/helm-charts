@@ -439,11 +439,11 @@ between 3.7 and 4.0. Plan a stepwise migration if you are coming from a
 ### 0.6.x → 0.7.0
 
 - **`cron` is now a CronJob** (was a Deployment running `schedule:work`).
-  It runs `php artisan schedule:run` every minute — the pattern Laravel's
-  official Docker docs recommend for containerized schedulers. This is what
-  production DoQA installs (e.g. the Tacita cluster) actually run; the
-  `schedule:work` Deployment held a process whose inline hourly jobs could
-  never be bounded by a deadline.
+  It runs `php artisan schedule:run` every minute — the pattern generally
+  recommended for containerized Laravel schedulers. Note: this turned out
+  to not match the vendor's own docker-compose (see 0.7.1 below, which
+  makes `resident` — the original `schedule:work` Deployment — the
+  default again).
   - New values: `cron.schedule` (default `* * * * *`),
     `cron.concurrencyPolicy` (`Forbid`), `cron.activeDeadlineSeconds`
     (`300`), `cron.backoffLimit` (`0`),
