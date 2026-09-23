@@ -463,6 +463,41 @@
                   "description": "Wait for RabbitMQ AMQP readiness before running migrations (mirrors vendor 4.2.0 compose dependency)."
                 }
               }
+            },
+            "phpFpm": {
+              "type": "object",
+              "description": "Override the vendor image's php-fpm.conf (pm.max_children=5 by default, not otherwise configurable -- see chart README).",
+              "properties": {
+                "enabled": {
+                  "type": "boolean",
+                  "description": "Mount a chart-managed php-fpm.conf instead of the vendor image's built-in one."
+                },
+                "pm": {
+                  "type": "string",
+                  "enum": ["dynamic"],
+                  "description": "php-fpm pm mode. Only dynamic is supported by this override."
+                },
+                "maxChildren": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "pm.max_children. Size backend.resources.limits.memory to match."
+                },
+                "startServers": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "pm.start_servers."
+                },
+                "minSpareServers": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "pm.min_spare_servers."
+                },
+                "maxSpareServers": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "pm.max_spare_servers."
+                }
+              }
             }
           }
         }
@@ -499,10 +534,50 @@
       ]
     },
     "cron": {
-      "description": "Cron and scheduled jobs component.",
-      "allOf": [
-        { "$ref": "#/definitions/workloadCommon" }
-      ]
+      "description": "Scheduled jobs. `mode: resident` runs a long-lived `schedule:work` Deployment (vendor parity); `mode: cronjob` runs a per-minute `schedule:run` CronJob bounded by `activeDeadlineSeconds`.",
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["resident", "cronjob"],
+          "description": "Scheduler mode. `resident` (default) = Deployment running `php artisan schedule:work` like the vendor docker-compose (no deadline, process survives hung tasks). `cronjob` = per-minute CronJob running `php artisan schedule:run` (bounded by `activeDeadlineSeconds`, hung tasks are killed and skipped)."
+        },
+        "schedule": {
+          "type": "string",
+          "description": "Cron expression. Default `* * * * *` (every minute, required for Laravel schedule:run)."
+        },
+        "concurrencyPolicy": {
+          "type": "string",
+          "enum": ["Allow", "Forbid", "Replace"],
+          "description": "CronJob concurrency policy. Forbid prevents overlapping runs (hourly jobs can take >1m)."
+        },
+        "activeDeadlineSeconds": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Max lifetime of a single `schedule:run` Job. Hourly jobs run inline, so this must exceed their runtime (50s kills them)."
+        },
+        "backoffLimit": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Retries for a failed run; the next minute reruns the scheduler, so 0 is the default."
+        },
+        "successfulJobsHistoryLimit": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "failedJobsHistoryLimit": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "resources": {
+          "$ref": "#/definitions/resourceRequirements"
+        },
+        "nodeSelector": { "type": "object" },
+        "affinity": { "type": "object" },
+        "tolerations": { "$ref": "#/definitions/tolerations" },
+        "podSecurityContext": { "type": "object" },
+        "containerSecurityContext": { "type": "object" }
+      }
     },
     "frontend": {
       "description": "Frontend Nuxt SPA component.",
@@ -603,6 +678,10 @@
             "clientMaxBodySize": {
               "type": "string",
               "description": "Maximum upload size."
+            },
+            "proxyReadTimeout": {
+              "type": "string",
+              "description": "proxy_read_timeout for all locations. nginx default is 60s; raise if backend endpoints legitimately take longer."
             }
           }
         }

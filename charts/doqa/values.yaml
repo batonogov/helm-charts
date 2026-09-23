@@ -298,14 +298,34 @@ backend:
     # 4.2.0 added a compose dependency on rabbitmq because some migrations
     # dispatch jobs; the chart mirrors that by probing the broker first.
     waitForRabbitmq: true
-  # -- Resource requests and limits
+  phpFpm:
+    # -- Replace the vendor image's php-fpm.conf to raise pm.max_children.
+    # The vendor default of 5 saturates under moderate concurrency; a
+    # saturated pool keeps accepting connections into the kernel backlog
+    # (so tcpSocket probes stay green) while real requests hang -- see the
+    # livenessProbe/readinessProbe comment in templates/backend.yaml.
+    enabled: true
+    # -- php-fpm `pm` mode. Only `dynamic` is supported by this override.
+    pm: dynamic
+    # -- Hard ceiling on concurrent workers. Size against
+    # backend.resources.limits.memory: each worker settles around 80-100Mi
+    # RSS in practice, so 20 workers wants a memory limit in the low
+    # gigabytes, not the vendor's default 512Mi.
+    maxChildren: 20
+    startServers: 5
+    minSpareServers: 3
+    maxSpareServers: 10
+  # -- Resource requests and limits. Sized for phpFpm.maxChildren=20 above
+  # (measured ~80-100Mi RSS per worker in production); lower this together
+  # with phpFpm.maxChildren if you disable phpFpm.enabled to fall back to
+  # the vendor's pm.max_children=5.
   resources:
     requests:
-      cpu: 250m
-      memory: 256Mi
-    limits:
       cpu: 500m
-      memory: 512Mi
+      memory: 384Mi
+    limits:
+      cpu: 2000m
+      memory: 2Gi
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -354,8 +374,32 @@ queue:
   tolerations: []
   affinity: {}
 
-# Cron / scheduled jobs (`schedule:work`). Single replica is mandatory
+# Cron / scheduled jobs. Single replica is mandatory.
 cron:
+  # -- Scheduler mode:
+  #   resident (default) — long-lived Deployment running `php artisan schedule:work`,
+  #     exactly like the vendor docker-compose. The scheduler process stays alive
+  #     and fires due tasks in-process every minute; it is NOT bounded by any
+  #     deadline, which is the vendor's production behaviour. A hung inline task
+  #     (e.g. the hourly `bin:delete-old-items`) stalls subsequent tasks until it
+  #     returns, but the scheduler itself is never killed.
+  #   cronjob — per-minute CronJob running `php artisan schedule:run`. Each run is
+  #     a fresh Job bounded by `activeDeadlineSeconds`; a hung hourly task is
+  #     killed at the deadline and tasks due during that window are skipped until
+  #     the next run. Use this if you prefer strict per-run bounds over vendor
+  #     parity.
+  mode: resident
+  # -- CronJob schedule (Laravel "run per minute" pattern)
+  schedule: "* * * * *"
+  # -- Prevent overlapping cron runs (hourly jobs can take longer than a minute)
+  concurrencyPolicy: Forbid
+  # -- Max time a single `schedule:run` may live; hourly jobs run inline,
+  # so keep this well above 50s (vendor default killed them at the deadline)
+  activeDeadlineSeconds: 300
+  # -- Do not retry a failed `schedule:run` (the next minute reruns it)
+  backoffLimit: 0
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
   # -- Resource requests and limits
   resources:
     requests:
@@ -363,7 +407,7 @@ cron:
       memory: 128Mi
     limits:
       cpu: 250m
-      memory: 256Mi
+      memory: 512Mi
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -468,7 +512,7 @@ llm:
       memory: 128Mi
     limits:
       cpu: 250m
-      memory: 256Mi
+      memory: 1Gi
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -566,6 +610,13 @@ nginx:
   replicas: 2
   # -- Maximum upload size. `0` disables the limit (matches vendor 4.2.0 nginx).
   clientMaxBodySize: "0"
+  # -- proxy_read_timeout for all locations. nginx's own default is 60s;
+  # some backend endpoints (e.g. PATCH on a checklist with many linked
+  # items) occasionally exceed that even though the request eventually
+  # succeeds server-side -- the router gives up first and the user sees a
+  # spurious 504 with no indication the write may still land. Raised with
+  # headroom rather than tuned to a specific observed duration.
+  proxyReadTimeout: 120s
   # -- Resource requests and limits
   resources:
     requests:
@@ -644,9 +695,13 @@ serviceAccount:
 defaultSecurityContext:
   pod: {}
   container:
-    allowPrivilegeEscalation: false
+    # DoQA images (nginx, php-fpm) start unprivileged services inside the
+    # container and need to chown/mkdir their working dirs, so the default
+    # is permissive. Tighten per-component via
+    # `<component>.containerSecurityContext` if your PSA requires it.
+    allowPrivilegeEscalation: true
     capabilities:
-      drop: ["ALL"]
+      drop: []
 
 serviceMonitor:
   # -- Create a Prometheus Operator ServiceMonitor for the backend Service

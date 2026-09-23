@@ -1,0 +1,41 @@
+{{- if .Values.backend.phpFpm.enabled -}}
+# Replaces the vendor image's /usr/local/etc/php-fpm.conf wholesale. The
+# vendor file does `include=etc/php-fpm.d/*.conf` and then, in the SAME
+# file, right after the include, redefines [www] with pm.max_children=5 --
+# that trailing block loads last and wins over anything dropped into
+# php-fpm.d/*.conf, so a values-only override via that directory is a no-op.
+# Content is byte-identical to the vendor's file except the four pm.*
+# lines. `listen` MUST stay exactly /var/run/php/php-fpm.sock -- the
+# container's own nginx (/etc/nginx/http.d/default.conf) fastcgi_pass's to
+# that exact socket path. Re-diff against the image if the backend image
+# tag is ever bumped.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "doqa.fullname" . }}-backend-fpm-pool
+  labels:
+    {{- include "doqa.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+data:
+  php-fpm.conf: |
+    [global]
+    include=etc/php-fpm.d/*.conf
+    [global]
+    pid = /var/run/php-fpm.pid
+    error_log = /proc/self/fd/2
+
+    [www]
+    listen = /var/run/php/php-fpm.sock
+    listen.owner = www-data
+    listen.group = www-data
+    listen.mode = 0660
+
+    user = www-data
+    group = www-data
+
+    pm = {{ .Values.backend.phpFpm.pm }}
+    pm.max_children = {{ .Values.backend.phpFpm.maxChildren | int }}
+    pm.start_servers = {{ .Values.backend.phpFpm.startServers | int }}
+    pm.min_spare_servers = {{ .Values.backend.phpFpm.minSpareServers | int }}
+    pm.max_spare_servers = {{ .Values.backend.phpFpm.maxSpareServers | int }}
+{{- end }}
