@@ -150,6 +150,11 @@ between 3.7 and 4.0. Plan a stepwise migration if you are coming from a
   `autotestsWorker.workerProcesses` parallel `autotests:work` consumers per
   pod; the new single-replica `llm-bulk-queue` Deployment
   (`llmBulkQueue.*` values) consumes `llm-bulk` with a 3660s timeout.
+  The autotests-worker declares its 8 RabbitMQ queues with durable/no-args
+  parameters on startup; if the broker contains hand-redeclared legacy
+  queues with different parameters, the worker will fail with
+  `PRECONDITION_FAILED` — stock queues created by previous chart/vendor
+  versions are unaffected.
 - **New generated secret**: `INTERNAL_SYSTEM_KEY` (vendor
   `GENERATE_SECRET_KEY`) is added to the chart-managed app Secret. With
   `secrets.create=true` it is generated automatically on upgrade; with
