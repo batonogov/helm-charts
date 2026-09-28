@@ -23,6 +23,7 @@ data:
   REDIS_DB: {{ .Values.redis.db | quote }}
 
   QUEUE_WORKERS: {{ .Values.queue.replicas | quote }}
+  QUEUE_BATCHING_CONNECTION: pgsql
 
   RABBITMQ_HOST: {{ include "doqa.rabbitmq.host" . | quote }}
   RABBITMQ_PORT: {{ .Values.rabbitmq.port | quote }}
@@ -33,6 +34,7 @@ data:
   MINIO_BUCKET: {{ .Values.minio.bucket | quote }}
   MINIO_REGION: {{ .Values.minio.region | quote }}
   MINIO_BUCKET_URL: {{ include "doqa.bucketUrl" . | quote }}
+  MINIO_USE_PATH_STYLE: "true"
 
   MAIL_MAILER: {{ .Values.mail.mailer | quote }}
   MAIL_HOST: {{ .Values.mail.host | quote }}
@@ -55,6 +57,7 @@ data:
   STATISTIC_ENDPOINT: {{ printf "http://%s-statistic:3000/" (include "doqa.fullname" .) | quote }}
   NOTIFICATION_ENDPOINT: {{ printf "http://%s-notification:3000/" (include "doqa.fullname" .) | quote }}
   LLM_ENDPOINT: {{ printf "http://%s-llm:3000/" (include "doqa.fullname" .) | quote }}
+  AUTOTEST_PARSER_SERVICE_URL: {{ printf "http://%s-autotest-parser:8000" (include "doqa.fullname" .) | quote }}
 
   BOT_NAME: {{ .Values.telegramBot.botName | quote }}
 

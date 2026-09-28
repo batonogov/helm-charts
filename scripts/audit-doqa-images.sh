@@ -46,7 +46,6 @@ REPOSITORIES="
 doqa/doqa-backend
 doqa/doqa-frontend
 doqa/doqa-parsing-autotests
-doqa/doqa-autotest-result-parser
 doqa/doqa-statistic
 doqa/doqa-notify
 doqa/doqa-llm

@@ -64,7 +64,7 @@ There are no unit tests or in-cluster CI tests. PR CI runs `ct lint` for changed
 
 ## Architecture of `charts/doqa`
 
-The chart translates the vendor's `docker-compose.with-database.yml` into Kubernetes resources. It currently renders 15 Deployments with repository test values; `telegramBot.enabled=true` adds the optional sixteenth. PostgreSQL is a CNPG `Cluster`, not another Deployment. The chart uses ordinary ClusterIP Services and does not install a service mesh.
+The chart translates the vendor's `docker-compose.with-database.yml` into Kubernetes resources. It currently renders 16 Deployments with repository test values; `telegramBot.enabled=true` adds the optional seventeenth. PostgreSQL is a CNPG `Cluster`, not another Deployment. The chart uses ordinary ClusterIP Services and does not install a service mesh.
 
 The vendor distributes a CLI and Compose configs rather than a Helm chart. Treat the current **box** artifacts as upstream; cloud releases can appear before a corresponding box package.
 
@@ -93,11 +93,12 @@ The primary mappings are below. They are not strictly 1:1: in-tree mode consolid
 | compose service | chart template | k8s shape |
 |---|---|---|
 | `doqa_php-fpm` | `templates/backend.yaml` | Deployment + Service (:8080), `migrate --force` initContainer |
-| `doqa_queue` | `templates/queue.yaml` | Deployment, `queue:work --queue=high,default` |
+| `doqa_queue` | `templates/queue.yaml` | Deployment, `queue:work --queue=default,search,requirements,autotests-domain,outbound-webhooks,import` |
+| `doqa_autotests` | `templates/autotests-worker.yaml` | Deployment, backend image; declares all RabbitMQ queues, then runs `AUTOTESTS_WORKER_PROCESSES` parallel `autotests:work` consumers |
+| `doqa_llm_bulk_queue` | `templates/llm-bulk-queue.yaml` | Deployment, backend image, `queue:work rabbitmq --queue=llm-bulk --timeout=3660` (one replica) |
 | `doqa_cron` | `templates/cron.yaml` | Deployment, `schedule:work` (one replica, `Recreate` strategy) |
 | `doqa_frontend` | `templates/frontend.yaml` | Deployment + Service (:8080) |
 | `doqa_autotest_parser` | `templates/autotest-parser.yaml` | Deployment + Service (:8000), explicit env (no envFrom) |
-| `doqa_autotest_result_parser` | `templates/autotest-result-parser.yaml` | Deployment, no Service |
 | `service-statistic` | `templates/statistic.yaml` | Deployment + Service (:3000), explicit env |
 | `service-llm` | `templates/llm.yaml` | Deployment + Service (:3000), explicit env |
 | `service-notification` | `templates/notification.yaml` (api block) | Deployment + Service (:3000) |
@@ -115,9 +116,9 @@ The primary mappings are below. They are not strictly 1:1: in-tree mode consolid
 
 `.env.install` splits into three places in the chart:
 
-- **ConfigMap `<release>-env`** — non-secret config (APP_URL, DB_HOST, MAIL_*, MINIO_*, BROADCAST_DRIVER, PUSHER_APP_HOST/ID/KEY/PORT/SCHEME, STATISTIC/NOTIFICATION/LLM_ENDPOINT, QUEUE_WORKERS, etc.). Pulled via `envFrom` into backend/queue/cron/result-parser.
+- **ConfigMap `<release>-env`** — non-secret config (APP_URL, DB_HOST, MAIL_*, MINIO_* incl. MINIO_USE_PATH_STYLE, BROADCAST_DRIVER, PUSHER_APP_HOST/ID/KEY/PORT/SCHEME, STATISTIC/NOTIFICATION/LLM_ENDPOINT, AUTOTEST_PARSER_SERVICE_URL, QUEUE_WORKERS, QUEUE_BATCHING_CONNECTION, etc.). Pulled via `envFrom` into backend/queue/cron and the backend-image worker Deployments (autotests-worker, llm-bulk-queue).
 - **Per-pod `env:` blocks** for components that do not consume the ConfigMap: autotest-parser, statistic, llm, notification/worker, Telegram bot, and websocket. Adding a key to the ConfigMap does not reach these pods; wire every new upstream variable into the relevant template explicitly.
-- **Secrets** — passwords/keys (APP_KEY, JWT_SECRET, DB_PASSWORD, RABBITMQ_PASSWORD/ERLANG_COOKIE, MINIO_KEY/SECRET, MAIL_PASSWORD, PUSHER_APP_SECRET, STATISTIC_API_KEY, NOTIFICATION_API_KEY, LLM_API_KEY, BOT_TOKEN). See "Secret strategy" below.
+- **Secrets** — passwords/keys (APP_KEY, JWT_SECRET, INTERNAL_SYSTEM_KEY, DB_PASSWORD, RABBITMQ_PASSWORD/ERLANG_COOKIE, MINIO_KEY/SECRET, MAIL_PASSWORD, PUSHER_APP_SECRET, STATISTIC_API_KEY, NOTIFICATION_API_KEY, LLM_API_KEY, BOT_TOKEN). See "Secret strategy" below.
 
 ### Deliberate departures from vendor compose
 
@@ -128,7 +129,7 @@ These are NOT bugs — the chart re-expresses compose into k8s idioms:
 - **`MINIO_BUCKET_URL`** computed as `<scheme>://<appUrl>/<bucket>` (browser hits Ingress→nginx→/doqa proxy→MinIO), vs vendor's `http://minio/doqa` which only works inside compose network.
 - **Bucket creation via Helm post-install hook Job** (`templates/minio.yaml:Job`) instead of vendor's Compose `createbuckets` profile. Hook delete-policy includes `hook-failed` so a completed failed Job is cleaned up.
 - **Backup/restore not implemented** — vendor's `./doqa backup` runs `pg_dump` + `mc mirror` into a zip; in k8s this belongs in a separate CronJob / external tool, not the application chart.
-- **PUSHER_APP_HOST and STATISTIC/NOTIFICATION/LLM_ENDPOINT** hardcoded by vendor to compose `container_name`s; chart computes them from `<release>-<component>` Service names so they survive `nameOverride`/`fullnameOverride`.
+- **PUSHER_APP_HOST, STATISTIC/NOTIFICATION/LLM_ENDPOINT, and AUTOTEST_PARSER_SERVICE_URL** hardcoded by vendor to compose `container_name`s; chart computes them from `<release>-<component>` Service names so they survive `nameOverride`/`fullnameOverride`.
 
 ### Updating to a new vendor version
 
@@ -146,7 +147,7 @@ When the vendor publishes a new **box** version in `latest.txt` and the matching
 
 ### Component inventory
 
-`backend` (php-fpm Laravel, port 8080), `queue` (`queue:work`), `cron` (`schedule:work`), `frontend` (Nuxt :8080), `autotest-parser` (FastAPI :8000, RabbitMQ-driven), `autotest-result-parser` (RabbitMQ consumer, no HTTP), `statistic` (ASGI :3000), `llm` (ASGI :3000), `notification` (ASGI :3000) + `notification-worker` (Celery), `telegram-bot` (optional), `websocket` (Soketi :6001), and `nginx` (internal router :80). Ingress points to nginx, which routes to the internal services.
+`backend` (php-fpm Laravel, port 8080), `queue` (`queue:work`), `autotests-worker` (backend image, declares the RabbitMQ queues then runs parallel `autotests:work` consumers), `llm-bulk-queue` (backend image, long-timeout `llm-bulk` consumer), `cron` (`schedule:work`), `frontend` (Nuxt :8080), `autotest-parser` (FastAPI :8000, RabbitMQ-driven), `statistic` (ASGI :3000), `llm` (ASGI :3000), `notification` (ASGI :3000) + `notification-worker` (Celery), `telegram-bot` (optional), `websocket` (Soketi :6001), and `nginx` (internal router :80). Ingress points to nginx, which routes to the internal services.
 
 ### Stateful dependencies — `<name>.create` flag pattern
 
