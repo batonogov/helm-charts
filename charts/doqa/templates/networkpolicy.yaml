@@ -183,7 +183,11 @@ spec:
         - podSelector:
             matchLabels:
               {{- $selectorLabels | nindent 14 }}
-              app.kubernetes.io/component: autotest-result-parser
+              app.kubernetes.io/component: autotests-worker
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: llm-bulk-queue
         - podSelector:
             matchLabels:
               {{- $selectorLabels | nindent 14 }}
@@ -236,6 +240,14 @@ spec:
         - podSelector:
             matchLabels:
               {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: autotests-worker
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: llm-bulk-queue
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
               app.kubernetes.io/component: statistic
         - podSelector:
             matchLabels:
@@ -253,7 +265,7 @@ spec:
         - port: 6379
           protocol: TCP
 ---
-# Allow backend/queue/cron/autotest-parser/autotest-result-parser -> rabbitmq
+# Allow backend/queue/cron/autotest-parser/autotests-worker/llm-bulk-queue -> rabbitmq
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -288,12 +300,16 @@ spec:
         - podSelector:
             matchLabels:
               {{- $selectorLabels | nindent 14 }}
-              app.kubernetes.io/component: autotest-result-parser
+              app.kubernetes.io/component: autotests-worker
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: llm-bulk-queue
       ports:
         - port: 5672
           protocol: TCP
 ---
-# Allow backend -> minio (for file uploads)
+# Allow backend/autotest-parser/autotests-worker -> minio (file uploads, report artifacts)
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -313,6 +329,14 @@ spec:
             matchLabels:
               {{- $selectorLabels | nindent 14 }}
               app.kubernetes.io/component: backend
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: autotest-parser
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: autotests-worker
       ports:
         - port: 9000
           protocol: TCP

@@ -2,7 +2,7 @@
 
 DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
 
-![Version: 0.6.3](https://img.shields.io/badge/Version-0.6.3-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.2.2-box](https://img.shields.io/badge/AppVersion-4.2.2--box-informational?style=flat-square)
+![Version: 0.7.0](https://img.shields.io/badge/Version-0.7.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.3.1-box](https://img.shields.io/badge/AppVersion-4.3.1--box-informational?style=flat-square)
 
 **Homepage:** <https://doqa.app>
 
@@ -43,7 +43,7 @@ anonymously — no `imagePullSecrets` are required by default.
 
 | Area | Status | Notes |
 |---|---|---|
-| DoQA Box | Supported | Pinned to `4.2.0-box`; service, environment, image, and nginx mappings follow the vendor `configs_4_2_0.zip` archive |
+| DoQA Box | Supported | Pinned to `4.3.1-box`; service, environment, image, and nginx mappings follow the vendor `configs_4_3_1.zip` archive |
 | Kubernetes | Supported | `1.32+`, as declared by `Chart.yaml`; manifests use stable Kubernetes APIs |
 | Helm | Tested | Helm `3.16` in CI and Helm 4 locally; Helm `3.13+` is supported |
 | Node platform | Supported | `linux/amd64`; the current vendor images are single-platform amd64 images |
@@ -63,17 +63,19 @@ client-specific scheduling, labels, and annotations. It does not inherit
 
 ## Architecture
 
-Components mirror the vendor docker-compose for v4.2.0:
+Components mirror the vendor docker-compose for v4.3.1:
 
 - `backend` (php-fpm Laravel API), `queue` (`queue:work`), `cron` (`schedule:work`)
+- `autotests-worker` (`autotests:work`, declares the RabbitMQ queues),
+  `llm-bulk-queue` (`queue:work` on the long-timeout `llm-bulk` queue)
 - `frontend` (Nuxt SPA)
-- `autotest-parser`, `autotest-result-parser` (RabbitMQ-driven)
+- `autotest-parser` (FastAPI, RabbitMQ-driven)
 - `statistic`, `llm`, `notification` (+ Celery worker), `telegram-bot` (optional)
 - `websocket` (Soketi, Pusher protocol)
 - `nginx` (internal router) → exposed via Ingress
 
 The canonical upstream input is the vendor's
-[`configs_4_2_0.zip`](https://doqa.app/downloads/configs_4_2_0.zip), including
+[`configs_4_3_1.zip`](https://doqa.app/downloads/configs_4_3_1.zip), including
 `.env.install`, both Compose files, and nginx configuration. The DoQA
 application services, environment variables, routes, and application image pins
 stay aligned with that archive. Kubernetes infrastructure is deliberately
@@ -100,7 +102,7 @@ with stable values via `lookup` — they survive `helm upgrade`. Set
 
 | Secret | Keys |
 |---|---|
-| `<release>-app-secrets` | `app-key`, `jwt-secret` |
+| `<release>-app-secrets` | `app-key`, `jwt-secret`, `internal-system-key` |
 | `<release>-api-keys` | `statistic-api-key`, `notification-api-key`, `llm-api-key` |
 | `<release>-pusher-secret` | `app-secret` |
 | `<release>-rabbitmq-secret` | `password`, `erlang-cookie` |
@@ -143,21 +145,22 @@ Kubernetes: `>=1.32.0-0`
 | autoscaling.queue.targetCPUUtilizationPercentage | int | `80` | Target CPU utilization percentage for queue HPA |
 | autotestParser.affinity | object | `{}` |  |
 | autotestParser.image.repository | string | `"doqa/doqa-parsing-autotests"` | Autotest parser image repository |
-| autotestParser.image.tag | string | `"4.2.1-box"` | Autotest parser image tag |
+| autotestParser.image.tag | string | `"4.3.0-box"` | Autotest parser image tag |
 | autotestParser.nodeSelector | object | `{}` |  |
 | autotestParser.replicas | int | `1` | Autotest parser replica count |
 | autotestParser.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
 | autotestParser.tolerations | list | `[]` |  |
-| autotestResultParser.affinity | object | `{}` |  |
-| autotestResultParser.image.repository | string | `"doqa/doqa-autotest-result-parser"` | Result parser image repository |
-| autotestResultParser.image.tag | string | `"4.2.1-box"` | Result parser image tag |
-| autotestResultParser.nodeSelector | object | `{}` |  |
-| autotestResultParser.replicas | int | `1` | Result parser replica count |
-| autotestResultParser.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
-| autotestResultParser.tolerations | list | `[]` |  |
+| autotestsWorker.affinity | object | `{}` |  |
+| autotestsWorker.nodeSelector | object | `{}` |  |
+| autotestsWorker.prefetch | int | `10` | RabbitMQ prefetch per `autotests:work` process (vendor AUTOTESTS_PREFETCH) |
+| autotestsWorker.replicas | int | `3` | Autotests worker replica count (vendor scales it with QUEUE_WORKERS) |
+| autotestsWorker.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
+| autotestsWorker.tolerations | list | `[]` |  |
+| autotestsWorker.waitForRabbitmq | bool | `true` | Wait for RabbitMQ AMQP readiness before starting the worker. Vendor 4.3.1 gates the autotests service on a healthy broker; the chart mirrors that by probing the broker first. |
+| autotestsWorker.workerProcesses | int | `3` | Parallel `autotests:work` processes per pod (vendor AUTOTESTS_WORKER_PROCESSES) |
 | backend.affinity | object | `{}` |  |
 | backend.image.repository | string | `"doqa/doqa-backend"` | Backend image repository (relative to image.registry) |
-| backend.image.tag | string | `"4.2.12-box"` | Backend image tag |
+| backend.image.tag | string | `"4.3.1-box"` | Backend image tag |
 | backend.migrate.waitForRabbitmq | bool | `true` | Wait for RabbitMQ AMQP readiness before running migrations. Vendor 4.2.0 added a compose dependency on rabbitmq because some migrations dispatch jobs; the chart mirrors that by probing the broker first. |
 | backend.nodeSelector | object | `{}` |  |
 | backend.replicas | int | `2` | Backend replica count |
@@ -178,7 +181,7 @@ Kubernetes: `>=1.32.0-0`
 | extraVolumes | list | `[]` | Extra volumes to add to all Deployments |
 | frontend.affinity | object | `{}` |  |
 | frontend.image.repository | string | `"doqa/doqa-frontend"` | Frontend image repository (relative to image.registry) |
-| frontend.image.tag | string | `"4.2.9-box"` | Frontend image tag |
+| frontend.image.tag | string | `"4.3.0-box"` | Frontend image tag |
 | frontend.nodeSelector | object | `{}` |  |
 | frontend.replicas | int | `2` | Frontend replica count |
 | frontend.resources | object | `{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}}` | Resource requests and limits |
@@ -201,11 +204,17 @@ Kubernetes: `>=1.32.0-0`
 | ldap.username | string | `""` | Bind DN of the technical account |
 | llm.affinity | object | `{}` |  |
 | llm.image.repository | string | `"doqa/doqa-llm"` | LLM image repository |
-| llm.image.tag | string | `"4.2.1-box"` | LLM image tag |
+| llm.image.tag | string | `"4.3.0-box"` | LLM image tag |
 | llm.nodeSelector | object | `{}` |  |
 | llm.replicas | int | `1` | Replica count |
 | llm.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
 | llm.tolerations | list | `[]` |  |
+| llmBulkQueue.affinity | object | `{}` |  |
+| llmBulkQueue.nodeSelector | object | `{}` |  |
+| llmBulkQueue.replicas | int | `1` | LLM bulk queue worker replica count (vendor runs a single replica) |
+| llmBulkQueue.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
+| llmBulkQueue.tolerations | list | `[]` |  |
+| llmBulkQueue.waitForRabbitmq | bool | `true` | Wait for RabbitMQ AMQP readiness before starting the worker. Vendor 4.3.1 gates the llm-bulk service on a healthy broker; the chart mirrors that by probing the broker first. |
 | mail.encryption | string | `"tls"` | Encryption (tls/ssl/null) |
 | mail.fromAddress | string | `""` | Sender address |
 | mail.fromName | string | `"DoQA"` | Sender display name |
@@ -248,7 +257,7 @@ Kubernetes: `>=1.32.0-0`
 | nodeSelector | object | `{}` | Default node selector applied to all components. Per-component values override this. |
 | notification.affinity | object | `{}` |  |
 | notification.image.repository | string | `"doqa/doqa-notify"` | Notification image repository |
-| notification.image.tag | string | `"4.2.1-box"` | Notification image tag |
+| notification.image.tag | string | `"4.3.0-box"` | Notification image tag |
 | notification.nodeSelector | object | `{}` |  |
 | notification.replicas | int | `1` | API replica count |
 | notification.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
@@ -316,7 +325,7 @@ Kubernetes: `>=1.32.0-0`
 | redis.storage.storageClass | string | `""` | StorageClass for Redis PVC |
 | redis.tolerations | list | `[]` | Tolerations for Redis pods. Overrides global tolerations |
 | secrets.apiKeys | string | `""` | Existing secret with keys `statistic-api-key`, `notification-api-key`, `llm-api-key`. Default <release>-api-keys |
-| secrets.app | string | `""` | Existing secret with keys `app-key`, `jwt-secret`. Default <release>-app-secrets |
+| secrets.app | string | `""` | Existing secret with keys `app-key`, `jwt-secret`, `internal-system-key`. Default <release>-app-secrets |
 | secrets.create | bool | `true` | Generate chart-managed secrets with random values |
 | secrets.ldap | string | `""` | Existing secret with key `password`. Required only when ldap.enabled=true |
 | secrets.mail | string | `""` | Existing secret with key `password`. Required only when mail.host is set and SMTP needs auth |
@@ -333,7 +342,7 @@ Kubernetes: `>=1.32.0-0`
 | serviceMonitor.scrapeTimeout | string | `""` | Scrape timeout (Prometheus duration format, e.g. 10s, 30s) |
 | statistic.affinity | object | `{}` |  |
 | statistic.image.repository | string | `"doqa/doqa-statistic"` | Statistic image repository |
-| statistic.image.tag | string | `"3.0.0-box"` | Statistic image tag |
+| statistic.image.tag | string | `"4.3.0-box"` | Statistic image tag |
 | statistic.nodeSelector | object | `{}` |  |
 | statistic.replicas | int | `1` | Replica count |
 | statistic.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
@@ -342,7 +351,7 @@ Kubernetes: `>=1.32.0-0`
 | telegramBot.botName | string | `""` | Bot username (BOT_NAME) |
 | telegramBot.enabled | bool | `false` | Enable telegram bot |
 | telegramBot.image.repository | string | `"doqa/doqa-telegram-bot"` | Telegram bot image repository |
-| telegramBot.image.tag | string | `"1.0.1-box"` | Telegram bot image tag |
+| telegramBot.image.tag | string | `"4.3.0-box"` | Telegram bot image tag |
 | telegramBot.nodeSelector | object | `{}` |  |
 | telegramBot.replicas | int | `1` | Replica count |
 | telegramBot.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
@@ -367,6 +376,33 @@ This chart targets DoQA 4.1.0+. There is no automatic migration path from
 3.x deployments — vendor changed the queue broker from Redis to RabbitMQ
 between 3.7 and 4.0. Plan a stepwise migration if you are coming from a
 3.x install.
+
+### 0.6.x → 0.7.0
+
+- **DoQA 4.3.1**: bumps backend (4.3.1-box), frontend (4.3.0-box),
+  autotest-parser (4.3.0-box), statistic (4.3.0-box), notification
+  (4.3.0-box), llm (4.3.0-box), and telegram-bot (4.3.0-box).
+- **`autotestResultParser` removed**: vendor 4.3.1 deleted the
+  `doqa_autotest_result_parser` service. The chart drops the
+  `autotest-result-parser` Deployment and the whole `autotestResultParser`
+  values section; remove it from your values files.
+- **New worker Deployments**: vendor 4.3.1 split the queue topology.
+  `queue` now consumes `default,search,requirements,autotests-domain,outbound-webhooks,import`;
+  the new `autotests-worker` Deployment (`autotestsWorker.*` values, backend
+  image) declares all RabbitMQ queues and runs
+  `autotestsWorker.workerProcesses` parallel `autotests:work` consumers per
+  pod; the new single-replica `llm-bulk-queue` Deployment
+  (`llmBulkQueue.*` values) consumes `llm-bulk` with a 3660s timeout.
+- **New generated secret**: `INTERNAL_SYSTEM_KEY` (vendor
+  `GENERATE_SECRET_KEY`) is added to the chart-managed app Secret. With
+  `secrets.create=true` it is generated automatically on upgrade; with
+  `secrets.create=false` or `secrets.app` pointing at a pre-existing secret,
+  add the new `internal-system-key` key yourself.
+- **New ConfigMap keys**: `MINIO_USE_PATH_STYLE=true`,
+  `QUEUE_BATCHING_CONNECTION=pgsql`, and `AUTOTEST_PARSER_SERVICE_URL`
+  (computed from the autotest-parser Service name).
+- **autotest-parser** now receives explicit `MINIO_*` credentials and
+  `INTERNAL_SYSTEM_KEY`, matching the vendor 4.3.1 compose environment.
 
 ### 0.5.1 → 0.6.0
 

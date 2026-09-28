@@ -1,18 +1,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "doqa.fullname" . }}-queue
+  name: {{ include "doqa.fullname" . }}-llm-bulk-queue
   labels:
     {{- include "doqa.labels" . | nindent 4 }}
-    app.kubernetes.io/component: queue
+    app.kubernetes.io/component: llm-bulk-queue
 spec:
-  {{- if not .Values.autoscaling.enabled }}
-  replicas: {{ .Values.queue.replicas }}
-  {{- end }}
+  replicas: {{ .Values.llmBulkQueue.replicas }}
   selector:
     matchLabels:
       {{- include "doqa.selectorLabels" . | nindent 6 }}
-      app.kubernetes.io/component: queue
+      app.kubernetes.io/component: llm-bulk-queue
   template:
     metadata:
       annotations:
@@ -25,20 +23,20 @@ spec:
         {{- end }}
       labels:
         {{- include "doqa.selectorLabels" . | nindent 8 }}
-        app.kubernetes.io/component: queue
+        app.kubernetes.io/component: llm-bulk-queue
         {{- with .Values.podLabels }}
         {{- include "doqa.podLabels" . | nindent 8 }}
         {{- end }}
     spec:
       serviceAccountName: {{ include "doqa.serviceAccountName" . }}
       {{- include "doqa.imagePullSecrets" . | nindent 6 }}
-      {{- include "doqa.podSecurityContext" (dict "component" .Values.queue "root" .) | nindent 6 }}
-      {{- if .Values.queue.waitForRabbitmq }}
+      {{- include "doqa.podSecurityContext" (dict "component" .Values.llmBulkQueue "root" .) | nindent 6 }}
+      {{- if .Values.llmBulkQueue.waitForRabbitmq }}
       initContainers:
       - name: wait-for-rabbitmq
         image: {{ include "doqa.image" (dict "img" .Values.backend.image "root" .) | quote }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
-        {{- include "doqa.containerSecurityContext" (dict "component" .Values.queue "root" .) | nindent 8 }}
+        {{- include "doqa.containerSecurityContext" (dict "component" .Values.llmBulkQueue "root" .) | nindent 8 }}
         env:
         - name: RABBITMQ_HOST
           value: {{ include "doqa.rabbitmq.host" . | quote }}
@@ -51,17 +49,19 @@ spec:
           php -r 'for($i=0;$i<90;$i++){$f=@fsockopen(getenv("RABBITMQ_HOST"),(int)getenv("RABBITMQ_PORT"),$e,$n,2);if($f){fclose($f);exit(0);}echo "waiting for rabbitmq\n";sleep(2);}exit(1);'
       {{- end }}
       containers:
-      - name: queue
+      - name: llm-bulk-queue
         image: {{ include "doqa.image" (dict "img" .Values.backend.image "root" .) | quote }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
-        {{- include "doqa.containerSecurityContext" (dict "component" .Values.queue "root" .) | nindent 8 }}
-        command: ["php", "artisan", "queue:work", "--queue=default,search,requirements,autotests-domain,outbound-webhooks,import"]
+        {{- include "doqa.containerSecurityContext" (dict "component" .Values.llmBulkQueue "root" .) | nindent 8 }}
+        # Vendor 4.3.1 `doqa_llm_bulk_queue`: bulk AI generation jobs get their
+        # own queue with a long timeout.
+        command: ["php", "artisan", "queue:work", "rabbitmq", "--queue=llm-bulk", "--sleep=3", "--tries=1", "--timeout=3660"]
         envFrom:
           {{- include "doqa.backendEnvFrom" . | nindent 10 }}
         env:
           {{- include "doqa.backendSecretEnv" . | nindent 10 }}
         resources:
-          {{- toYaml .Values.queue.resources | nindent 10 }}
+          {{- toYaml .Values.llmBulkQueue.resources | nindent 10 }}
         {{- with .Values.extraVolumeMounts }}
         volumeMounts:
 {{- range . }}
@@ -74,19 +74,15 @@ spec:
         - {{ toYaml . | nindent 10 }}
 {{- end }}
       {{- end }}
-      {{- with (or .Values.queue.nodeSelector .Values.nodeSelector) }}
+      {{- with (or .Values.llmBulkQueue.nodeSelector .Values.nodeSelector) }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with (or .Values.queue.affinity .Values.affinity) }}
+      {{- with (or .Values.llmBulkQueue.affinity .Values.affinity) }}
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with (or .Values.queue.tolerations .Values.tolerations) }}
+      {{- with (or .Values.llmBulkQueue.tolerations .Values.tolerations) }}
       tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.topologySpreadConstraints.queue }}
-      topologySpreadConstraints:
         {{- toYaml . | nindent 8 }}
       {{- end }}

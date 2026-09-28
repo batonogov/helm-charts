@@ -1,18 +1,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "doqa.fullname" . }}-queue
+  name: {{ include "doqa.fullname" . }}-autotests-worker
   labels:
     {{- include "doqa.labels" . | nindent 4 }}
-    app.kubernetes.io/component: queue
+    app.kubernetes.io/component: autotests-worker
 spec:
-  {{- if not .Values.autoscaling.enabled }}
-  replicas: {{ .Values.queue.replicas }}
-  {{- end }}
+  replicas: {{ .Values.autotestsWorker.replicas }}
   selector:
     matchLabels:
       {{- include "doqa.selectorLabels" . | nindent 6 }}
-      app.kubernetes.io/component: queue
+      app.kubernetes.io/component: autotests-worker
   template:
     metadata:
       annotations:
@@ -25,20 +23,20 @@ spec:
         {{- end }}
       labels:
         {{- include "doqa.selectorLabels" . | nindent 8 }}
-        app.kubernetes.io/component: queue
+        app.kubernetes.io/component: autotests-worker
         {{- with .Values.podLabels }}
         {{- include "doqa.podLabels" . | nindent 8 }}
         {{- end }}
     spec:
       serviceAccountName: {{ include "doqa.serviceAccountName" . }}
       {{- include "doqa.imagePullSecrets" . | nindent 6 }}
-      {{- include "doqa.podSecurityContext" (dict "component" .Values.queue "root" .) | nindent 6 }}
-      {{- if .Values.queue.waitForRabbitmq }}
+      {{- include "doqa.podSecurityContext" (dict "component" .Values.autotestsWorker "root" .) | nindent 6 }}
+      {{- if .Values.autotestsWorker.waitForRabbitmq }}
       initContainers:
       - name: wait-for-rabbitmq
         image: {{ include "doqa.image" (dict "img" .Values.backend.image "root" .) | quote }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
-        {{- include "doqa.containerSecurityContext" (dict "component" .Values.queue "root" .) | nindent 8 }}
+        {{- include "doqa.containerSecurityContext" (dict "component" .Values.autotestsWorker "root" .) | nindent 8 }}
         env:
         - name: RABBITMQ_HOST
           value: {{ include "doqa.rabbitmq.host" . | quote }}
@@ -51,17 +49,24 @@ spec:
           php -r 'for($i=0;$i<90;$i++){$f=@fsockopen(getenv("RABBITMQ_HOST"),(int)getenv("RABBITMQ_PORT"),$e,$n,2);if($f){fclose($f);exit(0);}echo "waiting for rabbitmq\n";sleep(2);}exit(1);'
       {{- end }}
       containers:
-      - name: queue
+      - name: autotests-worker
         image: {{ include "doqa.image" (dict "img" .Values.backend.image "root" .) | quote }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
-        {{- include "doqa.containerSecurityContext" (dict "component" .Values.queue "root" .) | nindent 8 }}
-        command: ["php", "artisan", "queue:work", "--queue=default,search,requirements,autotests-domain,outbound-webhooks,import"]
+        {{- include "doqa.containerSecurityContext" (dict "component" .Values.autotestsWorker "root" .) | nindent 8 }}
+        # Mirrors vendor 4.3.1 `doqa_autotests`: declare all queues (autotests
+        # is otherwise created by the parser on first report), then run
+        # workerProcesses parallel autotests:work consumers.
+        command:
+        - sh
+        - -lc
+        - |
+          php -r 'require "vendor/autoload.php"; $c = new PhpAmqpLib\Connection\AMQPStreamConnection(getenv("RABBITMQ_HOST"), getenv("RABBITMQ_PORT") ?: 5672, getenv("RABBITMQ_USER"), getenv("RABBITMQ_PASSWORD"), getenv("RABBITMQ_VIRTUAL_HOST") ?: "/"); $ch = $c->channel(); foreach (["autotests", "default", "search", "requirements", "autotests-domain", "outbound-webhooks", "import", "llm-bulk"] as $q) { $ch->queue_declare($q, false, true, false, false); }' && for i in $(seq 1 "{{ .Values.autotestsWorker.workerProcesses }}"); do php artisan autotests:work --prefetch="{{ .Values.autotestsWorker.prefetch }}" & done; wait
         envFrom:
           {{- include "doqa.backendEnvFrom" . | nindent 10 }}
         env:
           {{- include "doqa.backendSecretEnv" . | nindent 10 }}
         resources:
-          {{- toYaml .Values.queue.resources | nindent 10 }}
+          {{- toYaml .Values.autotestsWorker.resources | nindent 10 }}
         {{- with .Values.extraVolumeMounts }}
         volumeMounts:
 {{- range . }}
@@ -74,19 +79,15 @@ spec:
         - {{ toYaml . | nindent 10 }}
 {{- end }}
       {{- end }}
-      {{- with (or .Values.queue.nodeSelector .Values.nodeSelector) }}
+      {{- with (or .Values.autotestsWorker.nodeSelector .Values.nodeSelector) }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with (or .Values.queue.affinity .Values.affinity) }}
+      {{- with (or .Values.autotestsWorker.affinity .Values.affinity) }}
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with (or .Values.queue.tolerations .Values.tolerations) }}
+      {{- with (or .Values.autotestsWorker.tolerations .Values.tolerations) }}
       tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.topologySpreadConstraints.queue }}
-      topologySpreadConstraints:
         {{- toYaml . | nindent 8 }}
       {{- end }}

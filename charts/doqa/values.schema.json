@@ -81,7 +81,7 @@
         },
         "app": {
           "type": "string",
-          "description": "Existing secret with app-key and jwt-secret keys."
+          "description": "Existing secret with app-key, jwt-secret, and internal-system-key keys."
         },
         "apiKeys": {
           "type": "string",
@@ -516,10 +516,44 @@
         { "$ref": "#/definitions/imageWorkload" }
       ]
     },
-    "autotestResultParser": {
-      "description": "Autotest result parser component.",
+    "autotestsWorker": {
+      "description": "Autotests queue worker component (backend image, autotests:work).",
       "allOf": [
-        { "$ref": "#/definitions/imageWorkload" }
+        { "$ref": "#/definitions/workload" },
+        {
+          "type": "object",
+          "properties": {
+            "workerProcesses": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Parallel autotests:work processes per pod."
+            },
+            "prefetch": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "RabbitMQ prefetch per autotests:work process."
+            },
+            "waitForRabbitmq": {
+              "type": "boolean",
+              "description": "Wait for RabbitMQ AMQP readiness before starting the worker (mirrors vendor 4.3.1 compose dependency)."
+            }
+          }
+        }
+      ]
+    },
+    "llmBulkQueue": {
+      "description": "LLM bulk queue worker component (backend image, llm-bulk queue with long timeout).",
+      "allOf": [
+        { "$ref": "#/definitions/workload" },
+        {
+          "type": "object",
+          "properties": {
+            "waitForRabbitmq": {
+              "type": "boolean",
+              "description": "Wait for RabbitMQ AMQP readiness before starting the worker (mirrors vendor 4.3.1 compose dependency)."
+            }
+          }
+        }
       ]
     },
     "statistic": {

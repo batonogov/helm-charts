@@ -71,6 +71,27 @@ spec:
             secretKeyRef:
               name: {{ include "doqa.secret.rabbitmq" . }}
               key: password
+        - name: MINIO_BUCKET
+          value: {{ .Values.minio.bucket | quote }}
+        - name: MINIO_ENDPOINT
+          value: {{ include "doqa.minio.endpoint" . | quote }}
+        - name: MINIO_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "doqa.secret.minio" . }}
+              key: access-key
+        - name: MINIO_REGION
+          value: {{ .Values.minio.region | quote }}
+        - name: MINIO_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "doqa.secret.minio" . }}
+              key: secret-key
+        - name: INTERNAL_SYSTEM_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "doqa.secret.app" . }}
+              key: internal-system-key
         livenessProbe:
           tcpSocket:
             port: http
