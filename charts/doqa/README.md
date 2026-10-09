@@ -2,7 +2,7 @@
 
 DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
 
-![Version: 0.7.1](https://img.shields.io/badge/Version-0.7.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.3.2-box](https://img.shields.io/badge/AppVersion-4.3.2--box-informational?style=flat-square)
+![Version: 0.7.2](https://img.shields.io/badge/Version-0.7.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.3.2-box](https://img.shields.io/badge/AppVersion-4.3.2--box-informational?style=flat-square)
 
 **Homepage:** <https://doqa.app>
 
@@ -310,7 +310,7 @@ Kubernetes: `>=1.32.0-0`
 | redis.db | int | `0` | Logical Redis DB for backend cache/queues |
 | redis.host | string | `""` | External Redis host (used only when create=false) |
 | redis.image.repository | string | `"docker.io/redis"` | Redis image |
-| redis.image.tag | string | `"7-alpine"` | Redis tag |
+| redis.image.tag | string | `"8-alpine"` | Redis tag |
 | redis.nodeSelector | object | `{}` | Node selector for Redis pods. Overrides global nodeSelector |
 | redis.notification.db | string | `"doqa"` | Notification logical DB (vendor uses string "doqa") |
 | redis.notification.host | string | `""` | Notification Redis host (defaults to redis host when empty) |
