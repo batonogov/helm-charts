@@ -96,7 +96,7 @@ redis:
     # -- Redis image
     repository: docker.io/redis
     # -- Redis tag
-    tag: "7-alpine"
+    tag: "8-alpine"
   storage:
     # -- PVC size for Redis
     size: 1Gi
