@@ -2,7 +2,7 @@
 
 DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
 
-![Version: 0.7.2](https://img.shields.io/badge/Version-0.7.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.3.2-box](https://img.shields.io/badge/AppVersion-4.3.2--box-informational?style=flat-square)
+![Version: 0.8.0](https://img.shields.io/badge/Version-0.8.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.3.4-box](https://img.shields.io/badge/AppVersion-4.3.4--box-informational?style=flat-square)
 
 **Homepage:** <https://doqa.app>
 
@@ -63,7 +63,7 @@ client-specific scheduling, labels, and annotations. It does not inherit
 
 ## Architecture
 
-Components mirror the vendor docker-compose for v4.3.1:
+Components mirror the vendor docker-compose for v4.3.4:
 
 - `backend` (php-fpm Laravel API), `queue` (`queue:work`), `cron` (`schedule:work`)
 - `autotests-worker` (`autotests:work`, declares the RabbitMQ queues),
@@ -75,7 +75,7 @@ Components mirror the vendor docker-compose for v4.3.1:
 - `nginx` (internal router) → exposed via Ingress
 
 The canonical upstream input is the vendor's
-[`configs_4_3_1.zip`](https://doqa.app/downloads/configs_4_3_1.zip), including
+[`configs_4_3_4.zip`](https://doqa.app/downloads/configs_4_3_4.zip), including
 `.env.install`, both Compose files, and nginx configuration. The DoQA
 application services, environment variables, routes, and application image pins
 stay aligned with that archive. Kubernetes infrastructure is deliberately
@@ -160,7 +160,7 @@ Kubernetes: `>=1.32.0-0`
 | autotestsWorker.workerProcesses | int | `3` | Parallel `autotests:work` processes per pod (vendor AUTOTESTS_WORKER_PROCESSES) |
 | backend.affinity | object | `{}` |  |
 | backend.image.repository | string | `"doqa/doqa-backend"` | Backend image repository (relative to image.registry) |
-| backend.image.tag | string | `"4.3.2-box"` | Backend image tag |
+| backend.image.tag | string | `"4.3.3-box"` | Backend image tag |
 | backend.migrate.waitForRabbitmq | bool | `true` | Wait for RabbitMQ AMQP readiness before running migrations. Vendor 4.2.0 added a compose dependency on rabbitmq because some migrations dispatch jobs; the chart mirrors that by probing the broker first. |
 | backend.nodeSelector | object | `{}` |  |
 | backend.replicas | int | `2` | Backend replica count |
@@ -175,13 +175,14 @@ Kubernetes: `>=1.32.0-0`
 | defaultSecurityContext.container.allowPrivilegeEscalation | bool | `false` |  |
 | defaultSecurityContext.container.capabilities.drop[0] | string | `"ALL"` |  |
 | defaultSecurityContext.pod | object | `{}` |  |
+| doqaBackendUrl | string | `""` | Optional backend URL (`DOQA_BACKEND_URL`) passed to backend workloads and the autotest-parser. Empty matches the vendor default. |
 | extraAnnotations | object | `{}` | Extra annotations added to every resource. Keys with a `checksum/` prefix (e.g. `checksum/env`, `checksum/config`) are chart-managed and reserved; any such key supplied here is silently dropped at render time to avoid colliding with the chart's own checksum annotations. |
 | extraLabels | object | `{}` | Extra labels added to every resource |
 | extraVolumeMounts | list | `[]` | Extra volume mounts to add to all containers |
 | extraVolumes | list | `[]` | Extra volumes to add to all Deployments |
 | frontend.affinity | object | `{}` |  |
 | frontend.image.repository | string | `"doqa/doqa-frontend"` | Frontend image repository (relative to image.registry) |
-| frontend.image.tag | string | `"4.3.0-box"` | Frontend image tag |
+| frontend.image.tag | string | `"4.3.1-box"` | Frontend image tag |
 | frontend.nodeSelector | object | `{}` |  |
 | frontend.replicas | int | `2` | Frontend replica count |
 | frontend.resources | object | `{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}}` | Resource requests and limits |
@@ -376,6 +377,15 @@ This chart targets DoQA 4.1.0+. There is no automatic migration path from
 3.x deployments — vendor changed the queue broker from Redis to RabbitMQ
 between 3.7 and 4.0. Plan a stepwise migration if you are coming from a
 3.x install.
+
+### 0.7.x → 0.8.0
+
+- **DoQA 4.3.4**: pins backend to `4.3.3-box` and frontend to
+  `4.3.1-box`, matching the vendor archive. Other component pins are unchanged.
+- **Autotest-parser URLs**: the parser now receives the existing `apiBaseUrl`
+  (`API_BASE_URL`) and the new `doqaBackendUrl` (`DOQA_BACKEND_URL`). The latter
+  also reaches backend workloads through the shared environment ConfigMap;
+  its empty default matches the vendor configuration.
 
 ### 0.6.x → 0.7.0
 

@@ -46,6 +46,7 @@ data:
   ISSUE_MAIL: {{ .Values.mailIssue | quote }}
 
   API_BASE_URL: {{ .Values.apiBaseUrl | quote }}
+  DOQA_BACKEND_URL: {{ .Values.doqaBackendUrl | quote }}
 
   BROADCAST_DRIVER: pusher
   PUSHER_APP_HOST: {{ printf "%s-websocket" (include "doqa.fullname" .) | quote }}

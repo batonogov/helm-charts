@@ -52,6 +52,10 @@
       "type": "string",
       "description": "Optional explicit API base URL. Leave empty to use internal backend service."
     },
+    "doqaBackendUrl": {
+      "type": "string",
+      "description": "Optional backend URL passed to backend workloads and the autotest-parser. Empty matches the vendor default."
+    },
     "image": {
       "type": "object",
       "description": "Global image settings.",
