@@ -32,6 +32,8 @@ debug: false
 mailIssue: "support@doqa.app"
 # -- Optional explicit API base URL (`API_BASE_URL`). Leave empty to use internal backend service.
 apiBaseUrl: ""
+# -- Optional backend URL (`DOQA_BACKEND_URL`) passed to backend workloads and the autotest-parser. Empty matches the vendor default.
+doqaBackendUrl: ""
 
 image:
   # -- Container registry hosting DoQA images
@@ -47,7 +49,7 @@ image:
 secrets:
   # -- Generate chart-managed secrets with random values
   create: true
-  # -- Existing secret with keys `app-key`, `jwt-secret`. Default <release>-app-secrets
+  # -- Existing secret with keys `app-key`, `jwt-secret`, `internal-system-key`. Default <release>-app-secrets
   app: ""
   # -- Existing secret with keys `statistic-api-key`, `notification-api-key`, `llm-api-key`. Default <release>-api-keys
   apiKeys: ""
@@ -96,7 +98,7 @@ redis:
     # -- Redis image
     repository: docker.io/redis
     # -- Redis tag
-    tag: "7-alpine"
+    tag: "8-alpine"
   storage:
     # -- PVC size for Redis
     size: 1Gi
@@ -142,6 +144,10 @@ redis:
       key: password
 
 rabbitmq:
+  # -- Права entrypoint для подготовки владельца PVC и перехода к пользователю rabbitmq
+  containerSecurityContext:
+    capabilities:
+      add: [CHOWN, DAC_OVERRIDE, SETUID, SETGID]
   # -- Provision an in-tree RabbitMQ Deployment+PVC
   create: true
   image:
@@ -288,10 +294,10 @@ backend:
     # -- Backend image repository (relative to image.registry)
     repository: doqa/doqa-backend
     # -- Backend image tag
-    tag: 4.2.12-box
+    tag: 4.3.3-box
   # -- Backend replica count
   replicas: 2
-  # -- Skip running `php artisan migrate --force` on rollout
+  # -- Отключить только init-контейнер миграций; CMD вендорского образа может запускать миграции самостоятельно
   skipMigrate: false
   migrate:
     # -- Wait for RabbitMQ AMQP readiness before running migrations. Vendor
@@ -299,33 +305,41 @@ backend:
     # dispatch jobs; the chart mirrors that by probing the broker first.
     waitForRabbitmq: true
   phpFpm:
-    # -- Replace the vendor image's php-fpm.conf to raise pm.max_children.
-    # The vendor default of 5 saturates under moderate concurrency; a
-    # saturated pool keeps accepting connections into the kernel backlog
-    # (so tcpSocket probes stay green) while real requests hang -- see the
-    # livenessProbe/readinessProbe comment in templates/backend.yaml.
-    enabled: true
-    # -- php-fpm `pm` mode. Only `dynamic` is supported by this override.
-    pm: dynamic
-    # -- Hard ceiling on concurrent workers. Size against
-    # backend.resources.limits.memory: each worker settles around 80-100Mi
-    # RSS in practice, so 20 workers wants a memory limit in the low
-    # gigabytes, not the vendor's default 512Mi.
-    maxChildren: 20
-    startServers: 5
-    minSpareServers: 3
-    maxSpareServers: 10
-  # -- Resource requests and limits. Sized for phpFpm.maxChildren=20 above
-  # (measured ~80-100Mi RSS per worker in production); lower this together
-  # with phpFpm.maxChildren if you disable phpFpm.enabled to fall back to
-  # the vendor's pm.max_children=5.
+    # -- Включить конфиг из текущего образа с переопределением размера пула. Память подбирать по нагрузке.
+    enabled: false
+    # -- Максимальное число процессов; остальные настройки пула наследуются из образа и проверяются init-контейнером.
+    maxChildren: 5
+  # -- Исключения для запуска nginx/FPM в вендорском backend. Общие ограничения чарта сохраняются.
+  containerSecurityContext:
+    capabilities:
+      add: ["CHOWN", "DAC_OVERRIDE", "SETUID", "SETGID"]
+  # -- Проверка готовности через приложение: HTTP 2xx–4xx допустимы, 5xx и ошибки транспорта — отказ. null отключает пробу.
+  readinessProbe:
+    exec:
+      command:
+        - sh
+        - -ec
+        - |-
+          code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 http://127.0.0.1:8080/)
+          case "$code" in 2??|3??|4??) exit 0 ;; *) exit 1 ;; esac
+    initialDelaySeconds: 15
+    periodSeconds: 10
+    timeoutSeconds: 8
+  # -- TCP liveness не перезапускает backend при насыщении FPM или недоступной БД. null отключает пробу.
+  livenessProbe:
+    tcpSocket:
+      port: http
+    initialDelaySeconds: 60
+    periodSeconds: 30
+    timeoutSeconds: 10
+  # -- Resource requests and limits
   resources:
     requests:
-      cpu: 500m
-      memory: 384Mi
+      cpu: 250m
+      memory: 256Mi
     limits:
-      cpu: 2000m
-      memory: 2Gi
+      cpu: 500m
+      memory: 512Mi
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -354,7 +368,7 @@ topologySpreadConstraints:
   #     matchLabels:
   #       app.kubernetes.io/component: queue
 
-# Queue worker (`queue:work --queue=requirements,default,import,llm-bulk`)
+# Queue worker (`queue:work --queue=default,search,requirements,autotests-domain,outbound-webhooks,import`)
 queue:
   # -- Queue worker replica count
   replicas: 3
@@ -374,32 +388,8 @@ queue:
   tolerations: []
   affinity: {}
 
-# Cron / scheduled jobs. Single replica is mandatory.
+# Cron / scheduled jobs (`schedule:work`). Single replica is mandatory
 cron:
-  # -- Scheduler mode:
-  #   resident (default) — long-lived Deployment running `php artisan schedule:work`,
-  #     exactly like the vendor docker-compose. The scheduler process stays alive
-  #     and fires due tasks in-process every minute; it is NOT bounded by any
-  #     deadline, which is the vendor's production behaviour. A hung inline task
-  #     (e.g. the hourly `bin:delete-old-items`) stalls subsequent tasks until it
-  #     returns, but the scheduler itself is never killed.
-  #   cronjob — per-minute CronJob running `php artisan schedule:run`. Each run is
-  #     a fresh Job bounded by `activeDeadlineSeconds`; a hung hourly task is
-  #     killed at the deadline and tasks due during that window are skipped until
-  #     the next run. Use this if you prefer strict per-run bounds over vendor
-  #     parity.
-  mode: resident
-  # -- CronJob schedule (Laravel "run per minute" pattern)
-  schedule: "* * * * *"
-  # -- Prevent overlapping cron runs (hourly jobs can take longer than a minute)
-  concurrencyPolicy: Forbid
-  # -- Max time a single `schedule:run` may live; hourly jobs run inline,
-  # so keep this well above 50s (vendor default killed them at the deadline)
-  activeDeadlineSeconds: 300
-  # -- Do not retry a failed `schedule:run` (the next minute reruns it)
-  backoffLimit: 0
-  successfulJobsHistoryLimit: 1
-  failedJobsHistoryLimit: 3
   # -- Resource requests and limits
   resources:
     requests:
@@ -407,7 +397,7 @@ cron:
       memory: 128Mi
     limits:
       cpu: 250m
-      memory: 512Mi
+      memory: 256Mi
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -418,9 +408,13 @@ frontend:
     # -- Frontend image repository (relative to image.registry)
     repository: doqa/doqa-frontend
     # -- Frontend image tag
-    tag: 4.2.9-box
+    tag: 4.3.1-box
   # -- Frontend replica count
   replicas: 2
+  # -- Исключения для запуска nginx в образе компонента; privilege escalation остаётся запрещён.
+  containerSecurityContext:
+    capabilities:
+      add: ["CHOWN", "DAC_OVERRIDE", "SETUID", "SETGID"]
   # -- Resource requests and limits
   resources:
     requests:
@@ -439,7 +433,7 @@ autotestParser:
     # -- Autotest parser image repository
     repository: doqa/doqa-parsing-autotests
     # -- Autotest parser image tag
-    tag: 4.2.1-box
+    tag: 4.3.0-box
   # -- Autotest parser replica count
   replicas: 1
   # -- Resource requests and limits
@@ -454,15 +448,41 @@ autotestParser:
   tolerations: []
   affinity: {}
 
-# Autotest result parser (RabbitMQ consumer, no HTTP)
-autotestResultParser:
-  image:
-    # -- Result parser image repository
-    repository: doqa/doqa-autotest-result-parser
-    # -- Result parser image tag
-    tag: 4.2.1-box
-  # -- Result parser replica count
+# Autotests queue worker (backend image). Declares the RabbitMQ queues on
+# start, then runs `workerProcesses` parallel `autotests:work` consumers per
+# pod. Vendor 4.3.1 compose service `doqa_autotests`.
+autotestsWorker:
+  # -- Autotests worker replica count (vendor scales it with QUEUE_WORKERS)
+  replicas: 3
+  # -- Parallel `autotests:work` processes per pod (vendor AUTOTESTS_WORKER_PROCESSES)
+  workerProcesses: 3
+  # -- RabbitMQ prefetch per `autotests:work` process (vendor AUTOTESTS_PREFETCH)
+  prefetch: 10
+  # -- Wait for RabbitMQ AMQP readiness before starting the worker. Vendor
+  # 4.3.1 gates the autotests service on a healthy broker; the chart mirrors
+  # that by probing the broker first.
+  waitForRabbitmq: true
+  # -- Resource requests and limits
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# LLM bulk queue worker (backend image), long-timeout consumer of the
+# `llm-bulk` queue. Vendor 4.3.1 compose service `doqa_llm_bulk_queue`.
+llmBulkQueue:
+  # -- LLM bulk queue worker replica count (vendor runs a single replica)
   replicas: 1
+  # -- Wait for RabbitMQ AMQP readiness before starting the worker. Vendor
+  # 4.3.1 gates the llm-bulk service on a healthy broker; the chart mirrors
+  # that by probing the broker first.
+  waitForRabbitmq: true
   # -- Resource requests and limits
   resources:
     requests:
@@ -481,7 +501,7 @@ statistic:
     # -- Statistic image repository
     repository: doqa/doqa-statistic
     # -- Statistic image tag
-    tag: 3.0.0-box
+    tag: 4.3.0-box
   # -- Replica count
   replicas: 1
   # -- Resource requests and limits
@@ -502,7 +522,7 @@ llm:
     # -- LLM image repository
     repository: doqa/doqa-llm
     # -- LLM image tag
-    tag: 4.2.1-box
+    tag: 4.3.0-box
   # -- Replica count
   replicas: 1
   # -- Resource requests and limits
@@ -512,7 +532,7 @@ llm:
       memory: 128Mi
     limits:
       cpu: 250m
-      memory: 1Gi
+      memory: 256Mi
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -523,7 +543,7 @@ notification:
     # -- Notification image repository
     repository: doqa/doqa-notify
     # -- Notification image tag
-    tag: 4.2.1-box
+    tag: 4.3.0-box
   # -- API replica count
   replicas: 1
   # -- Resource requests and limits
@@ -559,7 +579,7 @@ telegramBot:
     # -- Telegram bot image repository
     repository: doqa/doqa-telegram-bot
     # -- Telegram bot image tag
-    tag: 1.0.1-box
+    tag: 4.3.0-box
   # -- Bot username (BOT_NAME)
   botName: ""
   # -- Existing secret with key `token` for the Telegram bot token
@@ -610,13 +630,16 @@ nginx:
   replicas: 2
   # -- Maximum upload size. `0` disables the limit (matches vendor 4.2.0 nginx).
   clientMaxBodySize: "0"
-  # -- proxy_read_timeout for all locations. nginx's own default is 60s;
-  # some backend endpoints (e.g. PATCH on a checklist with many linked
-  # items) occasionally exceed that even though the request eventually
-  # succeeds server-side -- the router gives up first and the user sees a
-  # spurious 504 with no indication the write may still land. Raised with
-  # headroom rather than tuned to a specific observed duration.
-  proxyReadTimeout: 120s
+  # -- Исключения для запуска nginx в образе компонента; privilege escalation остаётся запрещён.
+  containerSecurityContext:
+    capabilities:
+      add: ["CHOWN", "DAC_OVERRIDE", "SETUID", "SETGID", "NET_BIND_SERVICE"]
+  # -- Принимать исходную схему только от доверенного Ingress, который перезаписывает X-Forwarded-Proto. Отключить при прямой публикации router.
+  trustForwardedProto: false
+  # -- Интервал ожидания данных от upstream; при необходимости увеличить в values установки.
+  proxyReadTimeout: 60s
+  # -- Отдельный интервал ожидания для WebSocket; согласовать с heartbeat и Ingress.
+  websocketReadTimeout: 60s
   # -- Resource requests and limits
   resources:
     requests:
@@ -695,13 +718,9 @@ serviceAccount:
 defaultSecurityContext:
   pod: {}
   container:
-    # DoQA images (nginx, php-fpm) start unprivileged services inside the
-    # container and need to chown/mkdir their working dirs, so the default
-    # is permissive. Tighten per-component via
-    # `<component>.containerSecurityContext` if your PSA requires it.
-    allowPrivilegeEscalation: true
+    allowPrivilegeEscalation: false
     capabilities:
-      drop: []
+      drop: ["ALL"]
 
 serviceMonitor:
   # -- Create a Prometheus Operator ServiceMonitor for the backend Service

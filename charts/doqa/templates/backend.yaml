@@ -18,7 +18,7 @@ spec:
       annotations:
         checksum/env: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
         {{- if .Values.backend.phpFpm.enabled }}
-        checksum/fpm-pool: {{ include (print $.Template.BasePath "/backend-fpm-configmap.yaml") . | sha256sum }}
+        checksum/fpm: {{ toJson .Values.backend.phpFpm | sha256sum }}
         {{- end }}
         {{- with .Values.extraAnnotations }}
         {{- include "doqa.extraAnnotations" . | nindent 8 }}
@@ -36,8 +36,28 @@ spec:
       serviceAccountName: {{ include "doqa.serviceAccountName" . }}
       {{- include "doqa.imagePullSecrets" . | nindent 6 }}
       {{- include "doqa.podSecurityContext" (dict "component" .Values.backend "root" .) | nindent 6 }}
-      {{- if not .Values.backend.skipMigrate }}
+      {{- if or .Values.backend.phpFpm.enabled (not .Values.backend.skipMigrate) }}
       initContainers:
+      {{- if .Values.backend.phpFpm.enabled }}
+      - name: prepare-fpm
+        image: {{ include "doqa.image" (dict "img" .Values.backend.image "root" .) | quote }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        {{- include "doqa.containerSecurityContext" (dict "component" .Values.backend "root" .) | nindent 8 }}
+        command:
+        - sh
+        - -ec
+        - |
+          # Конфиг берётся из того же образа, а не из копии в чарте.
+          cp /usr/local/etc/php-fpm.conf /fpm/php-fpm.conf
+          printf '\n[www]\npm.max_children = %s\n' '{{ .Values.backend.phpFpm.maxChildren | int }}' >> /fpm/php-fpm.conf
+          php-fpm -t -y /fpm/php-fpm.conf
+        resources:
+          {{- toYaml .Values.backend.resources | nindent 10 }}
+        volumeMounts:
+        - name: fpm-config
+          mountPath: /fpm
+      {{- end }}
+      {{- if not .Values.backend.skipMigrate }}
       {{- if .Values.backend.migrate.waitForRabbitmq }}
       - name: wait-for-rabbitmq
         image: {{ include "doqa.image" (dict "img" .Values.backend.image "root" .) | quote }}
@@ -70,6 +90,7 @@ spec:
 {{- end }}
         {{- end }}
       {{- end }}
+      {{- end }}
       containers:
       - name: backend
         image: {{ include "doqa.image" (dict "img" .Values.backend.image "root" .) | quote }}
@@ -83,48 +104,36 @@ spec:
           {{- include "doqa.backendEnvFrom" . | nindent 10 }}
         env:
           {{- include "doqa.backendSecretEnv" . | nindent 10 }}
-        # tcpSocket only proves the listen backlog accepts a connection, not
-        # that php-fpm has a free worker to answer it -- a pool saturated at
-        # pm.max_children keeps accepting into the kernel backlog and this
-        # probe stays green while every real request hangs. `curl` without
-        # `-f` treats any HTTP response (incl. 404/401) as success and only
-        # fails on the transport-level timeout below, which is exactly the
-        # failure mode a saturated/hung pool produces.
+        {{- with .Values.backend.livenessProbe }}
         livenessProbe:
-          exec:
-            command: ["sh", "-c", "curl -sS -o /dev/null --max-time 5 http://127.0.0.1:8080/"]
-          initialDelaySeconds: 60
-          periodSeconds: 30
-          timeoutSeconds: 10
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.backend.readinessProbe }}
         readinessProbe:
-          exec:
-            command: ["sh", "-c", "curl -sS -o /dev/null --max-time 5 http://127.0.0.1:8080/"]
-          initialDelaySeconds: 15
-          periodSeconds: 10
-          timeoutSeconds: 8
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
         resources:
           {{- toYaml .Values.backend.resources | nindent 10 }}
         {{- if or .Values.backend.phpFpm.enabled .Values.extraVolumeMounts }}
         volumeMounts:
         {{- if .Values.backend.phpFpm.enabled }}
-        - name: fpm-pool
+        - name: fpm-config
           mountPath: /usr/local/etc/php-fpm.conf
           subPath: php-fpm.conf
           readOnly: true
         {{- end }}
-        {{- range .Values.extraVolumeMounts }}
-        - {{ toYaml . | nindent 10 }}
+        {{- with .Values.extraVolumeMounts }}
+          {{- toYaml . | nindent 8 }}
         {{- end }}
         {{- end }}
       {{- if or .Values.backend.phpFpm.enabled .Values.extraVolumes }}
       volumes:
       {{- if .Values.backend.phpFpm.enabled }}
-      - name: fpm-pool
-        configMap:
-          name: {{ include "doqa.fullname" . }}-backend-fpm-pool
+      - name: fpm-config
+        emptyDir: {}
       {{- end }}
-      {{- range .Values.extraVolumes }}
-      - {{ toYaml . | nindent 8 }}
+      {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 6 }}
       {{- end }}
       {{- end }}
       {{- with (or .Values.backend.nodeSelector .Values.nodeSelector) }}

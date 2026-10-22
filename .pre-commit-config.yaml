@@ -42,3 +42,10 @@ repos:
         language: script
         pass_filenames: false
         files: ^(charts/doqa/|scripts/check-doqa-portability\.sh$)
+      - id: doqa-reliability
+        name: Проверки надёжности DoQA
+        entry: python3 scripts/check-doqa-reliability.py
+        language: python
+        additional_dependencies: [PyYAML==6.0.3]
+        pass_filenames: false
+        files: ^(charts/doqa/|scripts/check-doqa-reliability\.py$)

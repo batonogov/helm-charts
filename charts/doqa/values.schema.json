@@ -52,6 +52,10 @@
       "type": "string",
       "description": "Optional explicit API base URL. Leave empty to use internal backend service."
     },
+    "doqaBackendUrl": {
+      "type": "string",
+      "description": "Optional backend URL passed to backend workloads and the autotest-parser. Empty matches the vendor default."
+    },
     "image": {
       "type": "object",
       "description": "Global image settings.",
@@ -81,7 +85,7 @@
         },
         "app": {
           "type": "string",
-          "description": "Existing secret with app-key and jwt-secret keys."
+          "description": "Existing secret with app-key, jwt-secret, and internal-system-key keys."
         },
         "apiKeys": {
           "type": "string",
@@ -450,9 +454,34 @@
         {
           "type": "object",
           "properties": {
+            "phpFpm": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "enabled",
+                "maxChildren"
+              ],
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "maxChildren": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "readinessProbe": {
+              "type": ["object", "null"],
+              "description": "null отключает пробу; структура Kubernetes Probe."
+            },
+            "livenessProbe": {
+              "type": ["object", "null"],
+              "description": "null отключает пробу; структура Kubernetes Probe."
+            },
             "skipMigrate": {
               "type": "boolean",
-              "description": "Skip running php artisan migrate --force on rollout."
+              "description": "Отключить только init-контейнер миграций; штатный CMD образа может запускать миграции самостоятельно."
             },
             "migrate": {
               "type": "object",
@@ -461,41 +490,6 @@
                 "waitForRabbitmq": {
                   "type": "boolean",
                   "description": "Wait for RabbitMQ AMQP readiness before running migrations (mirrors vendor 4.2.0 compose dependency)."
-                }
-              }
-            },
-            "phpFpm": {
-              "type": "object",
-              "description": "Override the vendor image's php-fpm.conf (pm.max_children=5 by default, not otherwise configurable -- see chart README).",
-              "properties": {
-                "enabled": {
-                  "type": "boolean",
-                  "description": "Mount a chart-managed php-fpm.conf instead of the vendor image's built-in one."
-                },
-                "pm": {
-                  "type": "string",
-                  "enum": ["dynamic"],
-                  "description": "php-fpm pm mode. Only dynamic is supported by this override."
-                },
-                "maxChildren": {
-                  "type": "integer",
-                  "minimum": 1,
-                  "description": "pm.max_children. Size backend.resources.limits.memory to match."
-                },
-                "startServers": {
-                  "type": "integer",
-                  "minimum": 1,
-                  "description": "pm.start_servers."
-                },
-                "minSpareServers": {
-                  "type": "integer",
-                  "minimum": 0,
-                  "description": "pm.min_spare_servers."
-                },
-                "maxSpareServers": {
-                  "type": "integer",
-                  "minimum": 1,
-                  "description": "pm.max_spare_servers."
                 }
               }
             }
@@ -534,50 +528,10 @@
       ]
     },
     "cron": {
-      "description": "Scheduled jobs. `mode: resident` runs a long-lived `schedule:work` Deployment (vendor parity); `mode: cronjob` runs a per-minute `schedule:run` CronJob bounded by `activeDeadlineSeconds`.",
-      "type": "object",
-      "properties": {
-        "mode": {
-          "type": "string",
-          "enum": ["resident", "cronjob"],
-          "description": "Scheduler mode. `resident` (default) = Deployment running `php artisan schedule:work` like the vendor docker-compose (no deadline, process survives hung tasks). `cronjob` = per-minute CronJob running `php artisan schedule:run` (bounded by `activeDeadlineSeconds`, hung tasks are killed and skipped)."
-        },
-        "schedule": {
-          "type": "string",
-          "description": "Cron expression. Default `* * * * *` (every minute, required for Laravel schedule:run)."
-        },
-        "concurrencyPolicy": {
-          "type": "string",
-          "enum": ["Allow", "Forbid", "Replace"],
-          "description": "CronJob concurrency policy. Forbid prevents overlapping runs (hourly jobs can take >1m)."
-        },
-        "activeDeadlineSeconds": {
-          "type": "integer",
-          "minimum": 1,
-          "description": "Max lifetime of a single `schedule:run` Job. Hourly jobs run inline, so this must exceed their runtime (50s kills them)."
-        },
-        "backoffLimit": {
-          "type": "integer",
-          "minimum": 0,
-          "description": "Retries for a failed run; the next minute reruns the scheduler, so 0 is the default."
-        },
-        "successfulJobsHistoryLimit": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "failedJobsHistoryLimit": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "resources": {
-          "$ref": "#/definitions/resourceRequirements"
-        },
-        "nodeSelector": { "type": "object" },
-        "affinity": { "type": "object" },
-        "tolerations": { "$ref": "#/definitions/tolerations" },
-        "podSecurityContext": { "type": "object" },
-        "containerSecurityContext": { "type": "object" }
-      }
+      "description": "Cron and scheduled jobs component.",
+      "allOf": [
+        { "$ref": "#/definitions/workloadCommon" }
+      ]
     },
     "frontend": {
       "description": "Frontend Nuxt SPA component.",
@@ -591,10 +545,44 @@
         { "$ref": "#/definitions/imageWorkload" }
       ]
     },
-    "autotestResultParser": {
-      "description": "Autotest result parser component.",
+    "autotestsWorker": {
+      "description": "Autotests queue worker component (backend image, autotests:work).",
       "allOf": [
-        { "$ref": "#/definitions/imageWorkload" }
+        { "$ref": "#/definitions/workload" },
+        {
+          "type": "object",
+          "properties": {
+            "workerProcesses": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Parallel autotests:work processes per pod."
+            },
+            "prefetch": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "RabbitMQ prefetch per autotests:work process."
+            },
+            "waitForRabbitmq": {
+              "type": "boolean",
+              "description": "Wait for RabbitMQ AMQP readiness before starting the worker (mirrors vendor 4.3.1 compose dependency)."
+            }
+          }
+        }
+      ]
+    },
+    "llmBulkQueue": {
+      "description": "LLM bulk queue worker component (backend image, llm-bulk queue with long timeout).",
+      "allOf": [
+        { "$ref": "#/definitions/workload" },
+        {
+          "type": "object",
+          "properties": {
+            "waitForRabbitmq": {
+              "type": "boolean",
+              "description": "Wait for RabbitMQ AMQP readiness before starting the worker (mirrors vendor 4.3.1 compose dependency)."
+            }
+          }
+        }
       ]
     },
     "statistic": {
@@ -675,13 +663,20 @@
         {
           "type": "object",
           "properties": {
-            "clientMaxBodySize": {
-              "type": "string",
-              "description": "Maximum upload size."
+            "trustForwardedProto": {
+              "type": "boolean"
             },
             "proxyReadTimeout": {
               "type": "string",
-              "description": "proxy_read_timeout for all locations. nginx default is 60s; raise if backend endpoints legitimately take longer."
+              "pattern": "^[1-9][0-9]*(ms|s|m|h)?$"
+            },
+            "websocketReadTimeout": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*(ms|s|m|h)?$"
+            },
+            "clientMaxBodySize": {
+              "type": "string",
+              "description": "Maximum upload size."
             }
           }
         }

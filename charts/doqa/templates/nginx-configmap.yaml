@@ -10,19 +10,27 @@ metadata:
     app.kubernetes.io/component: nginx
 data:
   default.conf: |
+    map $http_x_forwarded_proto $doqa_forwarded_proto {
+        default $scheme;
+        {{- if .Values.nginx.trustForwardedProto }}
+        http http;
+        https https;
+        {{- end }}
+    }
+
     server {
         listen 80;
         server_name _;
         client_max_body_size {{ .Values.nginx.clientMaxBodySize }};
-        proxy_read_timeout {{ .Values.nginx.proxyReadTimeout }};
         server_tokens off;
+        proxy_read_timeout {{ .Values.nginx.proxyReadTimeout }};
 
         location / {
             proxy_http_version                  1.1;
             proxy_set_header Host               $http_host;
             proxy_set_header X-Real-IP          $remote_addr;
             proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto  $http_x_forwarded_proto;
+            proxy_set_header X-Forwarded-Proto  $doqa_forwarded_proto;
             proxy_pass                          http://{{ $fullName }}-frontend:8080;
         }
 
@@ -31,7 +39,7 @@ data:
             proxy_set_header Host               $http_host;
             proxy_set_header X-Real-IP          $remote_addr;
             proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto  $http_x_forwarded_proto;
+            proxy_set_header X-Forwarded-Proto  $doqa_forwarded_proto;
             proxy_pass                          http://{{ $fullName }}-backend:8080;
         }
 
@@ -40,7 +48,7 @@ data:
             proxy_set_header Host               $http_host;
             proxy_set_header X-Real-IP          $remote_addr;
             proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto  $http_x_forwarded_proto;
+            proxy_set_header X-Forwarded-Proto  $doqa_forwarded_proto;
             proxy_pass                          http://{{ $fullName }}-autotest-parser:8000;
         }
 
@@ -49,7 +57,7 @@ data:
             proxy_set_header Host               $http_host;
             proxy_set_header X-Real-IP          $remote_addr;
             proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto  $http_x_forwarded_proto;
+            proxy_set_header X-Forwarded-Proto  $doqa_forwarded_proto;
             proxy_pass                          http://{{ $fullName }}-autotest-parser:8000;
         }
 
@@ -58,7 +66,7 @@ data:
             proxy_set_header Host               $http_host;
             proxy_set_header X-Real-IP          $remote_addr;
             proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto  $http_x_forwarded_proto;
+            proxy_set_header X-Forwarded-Proto  $doqa_forwarded_proto;
             proxy_pass                          http://{{ $fullName }}-autotest-parser:8000;
         }
 
@@ -67,7 +75,7 @@ data:
             proxy_set_header Host               $http_host;
             proxy_set_header X-Real-IP          $remote_addr;
             proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto  $http_x_forwarded_proto;
+            proxy_set_header X-Forwarded-Proto  $doqa_forwarded_proto;
             proxy_pass                          http://{{ $fullName }}-autotest-parser:8000;
         }
 
@@ -76,20 +84,21 @@ data:
             proxy_set_header Host               {{ $minioHost }};
             proxy_set_header X-Real-IP          $remote_addr;
             proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto  $http_x_forwarded_proto;
+            proxy_set_header X-Forwarded-Proto  $doqa_forwarded_proto;
             proxy_ssl_verify                    off;
             proxy_ssl_session_reuse             on;
             proxy_pass                          {{ $minioEndpoint }};
         }
 
         location ^~ /app/web-socket {
+            proxy_read_timeout {{ .Values.nginx.websocketReadTimeout }};
             proxy_http_version                  1.1;
             proxy_set_header Upgrade            $http_upgrade;
             proxy_set_header Connection         "Upgrade";
             proxy_set_header Host               $host;
             proxy_set_header X-Real-IP          $remote_addr;
             proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto  $http_x_forwarded_proto;
+            proxy_set_header X-Forwarded-Proto  $doqa_forwarded_proto;
             proxy_pass                          http://{{ $fullName }}-websocket:{{ .Values.pusher.port | int }}/app/web-socket;
         }
 

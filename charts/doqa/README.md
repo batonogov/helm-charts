@@ -2,7 +2,7 @@
 
 DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
 
-![Version: 0.7.2](https://img.shields.io/badge/Version-0.7.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.2.2-box](https://img.shields.io/badge/AppVersion-4.2.2--box-informational?style=flat-square)
+![Version: 0.9.0](https://img.shields.io/badge/Version-0.9.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.3.4-box](https://img.shields.io/badge/AppVersion-4.3.4--box-informational?style=flat-square)
 
 **Homepage:** <https://doqa.app>
 
@@ -43,7 +43,7 @@ anonymously — no `imagePullSecrets` are required by default.
 
 | Area | Status | Notes |
 |---|---|---|
-| DoQA Box | Supported | Pinned to `4.2.0-box`; service, environment, image, and nginx mappings follow the vendor `configs_4_2_0.zip` archive |
+| DoQA Box | Supported | Версии компонентов закреплены в `values.yaml`; сверено с архивом вендора `configs_4_3_4.zip` |
 | Kubernetes | Supported | `1.32+`, as declared by `Chart.yaml`; manifests use stable Kubernetes APIs |
 | Helm | Tested | Helm `3.16` in CI and Helm 4 locally; Helm `3.13+` is supported |
 | Node platform | Supported | `linux/amd64`; the current vendor images are single-platform amd64 images |
@@ -63,17 +63,19 @@ client-specific scheduling, labels, and annotations. It does not inherit
 
 ## Architecture
 
-Components mirror the vendor docker-compose for v4.2.0:
+Components mirror the vendor docker-compose for v4.3.4:
 
-- `backend` (php-fpm Laravel API), `queue` (`queue:work`), `cron` (resident `schedule:work` Deployment by default — vendor parity; or per-minute `schedule:run` CronJob via `cron.mode: cronjob`)
+- `backend` (php-fpm Laravel API), `queue` (`queue:work`), `cron` (`schedule:work`)
+- `autotests-worker` (`autotests:work`, declares the RabbitMQ queues),
+  `llm-bulk-queue` (`queue:work` on the long-timeout `llm-bulk` queue)
 - `frontend` (Nuxt SPA)
-- `autotest-parser`, `autotest-result-parser` (RabbitMQ-driven)
+- `autotest-parser` (FastAPI, RabbitMQ-driven)
 - `statistic`, `llm`, `notification` (+ Celery worker), `telegram-bot` (optional)
 - `websocket` (Soketi, Pusher protocol)
 - `nginx` (internal router) → exposed via Ingress
 
 The canonical upstream input is the vendor's
-[`configs_4_2_0.zip`](https://doqa.app/downloads/configs_4_2_0.zip), including
+[`configs_4_3_4.zip`](https://doqa.app/downloads/configs_4_3_4.zip), including
 `.env.install`, both Compose files, and nginx configuration. The DoQA
 application services, environment variables, routes, and application image pins
 stay aligned with that archive. Kubernetes infrastructure is deliberately
@@ -100,7 +102,7 @@ with stable values via `lookup` — they survive `helm upgrade`. Set
 
 | Secret | Keys |
 |---|---|
-| `<release>-app-secrets` | `app-key`, `jwt-secret` |
+| `<release>-app-secrets` | `app-key`, `jwt-secret`, `internal-system-key` |
 | `<release>-api-keys` | `statistic-api-key`, `notification-api-key`, `llm-api-key` |
 | `<release>-pusher-secret` | `app-secret` |
 | `<release>-rabbitmq-secret` | `password`, `erlang-cookie` |
@@ -143,55 +145,50 @@ Kubernetes: `>=1.32.0-0`
 | autoscaling.queue.targetCPUUtilizationPercentage | int | `80` | Target CPU utilization percentage for queue HPA |
 | autotestParser.affinity | object | `{}` |  |
 | autotestParser.image.repository | string | `"doqa/doqa-parsing-autotests"` | Autotest parser image repository |
-| autotestParser.image.tag | string | `"4.2.1-box"` | Autotest parser image tag |
+| autotestParser.image.tag | string | `"4.3.0-box"` | Autotest parser image tag |
 | autotestParser.nodeSelector | object | `{}` |  |
 | autotestParser.replicas | int | `1` | Autotest parser replica count |
 | autotestParser.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
 | autotestParser.tolerations | list | `[]` |  |
-| autotestResultParser.affinity | object | `{}` |  |
-| autotestResultParser.image.repository | string | `"doqa/doqa-autotest-result-parser"` | Result parser image repository |
-| autotestResultParser.image.tag | string | `"4.2.1-box"` | Result parser image tag |
-| autotestResultParser.nodeSelector | object | `{}` |  |
-| autotestResultParser.replicas | int | `1` | Result parser replica count |
-| autotestResultParser.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
-| autotestResultParser.tolerations | list | `[]` |  |
+| autotestsWorker.affinity | object | `{}` |  |
+| autotestsWorker.nodeSelector | object | `{}` |  |
+| autotestsWorker.prefetch | int | `10` | RabbitMQ prefetch per `autotests:work` process (vendor AUTOTESTS_PREFETCH) |
+| autotestsWorker.replicas | int | `3` | Autotests worker replica count (vendor scales it with QUEUE_WORKERS) |
+| autotestsWorker.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
+| autotestsWorker.tolerations | list | `[]` |  |
+| autotestsWorker.waitForRabbitmq | bool | `true` | Wait for RabbitMQ AMQP readiness before starting the worker. Vendor 4.3.1 gates the autotests service on a healthy broker; the chart mirrors that by probing the broker first. |
+| autotestsWorker.workerProcesses | int | `3` | Parallel `autotests:work` processes per pod (vendor AUTOTESTS_WORKER_PROCESSES) |
 | backend.affinity | object | `{}` |  |
+| backend.containerSecurityContext | object | `{"capabilities":{"add":["CHOWN","DAC_OVERRIDE","SETUID","SETGID"]}}` | Исключения для запуска nginx/FPM в вендорском backend. Общие ограничения чарта сохраняются. |
 | backend.image.repository | string | `"doqa/doqa-backend"` | Backend image repository (relative to image.registry) |
-| backend.image.tag | string | `"4.2.12-box"` | Backend image tag |
+| backend.image.tag | string | `"4.3.3-box"` | Backend image tag |
+| backend.livenessProbe | object | `{"initialDelaySeconds":60,"periodSeconds":30,"tcpSocket":{"port":"http"},"timeoutSeconds":10}` | TCP liveness не перезапускает backend при насыщении FPM или недоступной БД. null отключает пробу. |
 | backend.migrate.waitForRabbitmq | bool | `true` | Wait for RabbitMQ AMQP readiness before running migrations. Vendor 4.2.0 added a compose dependency on rabbitmq because some migrations dispatch jobs; the chart mirrors that by probing the broker first. |
 | backend.nodeSelector | object | `{}` |  |
-| backend.phpFpm.enabled | bool | `true` | Replace the vendor image's php-fpm.conf to raise pm.max_children. The vendor default of 5 saturates under moderate concurrency; a saturated pool keeps accepting connections into the kernel backlog (so tcpSocket probes stay green) while real requests hang -- see the livenessProbe/readinessProbe comment in templates/backend.yaml. |
-| backend.phpFpm.maxChildren | int | `20` | Hard ceiling on concurrent workers. Size against backend.resources.limits.memory: each worker settles around 80-100Mi RSS in practice, so 20 workers wants a memory limit in the low gigabytes, not the vendor's default 512Mi. |
-| backend.phpFpm.maxSpareServers | int | `10` |  |
-| backend.phpFpm.minSpareServers | int | `3` |  |
-| backend.phpFpm.pm | string | `"dynamic"` | php-fpm `pm` mode. Only `dynamic` is supported by this override. |
-| backend.phpFpm.startServers | int | `5` |  |
+| backend.phpFpm.enabled | bool | `false` | Включить конфиг из текущего образа с переопределением размера пула. Память подбирать по нагрузке. |
+| backend.phpFpm.maxChildren | int | `5` | Максимальное число процессов; остальные настройки пула наследуются из образа и проверяются init-контейнером. |
+| backend.readinessProbe | object | `{"exec":{"command":["sh","-ec","code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 http://127.0.0.1:8080/)\ncase \"$code\" in 2??|3??|4??) exit 0 ;; *) exit 1 ;; esac"]},"initialDelaySeconds":15,"periodSeconds":10,"timeoutSeconds":8}` | Проверка готовности через приложение: HTTP 2xx–4xx допустимы, 5xx и ошибки транспорта — отказ. null отключает пробу. |
 | backend.replicas | int | `2` | Backend replica count |
-| backend.resources | object | `{"limits":{"cpu":"2000m","memory":"2Gi"},"requests":{"cpu":"500m","memory":"384Mi"}}` | Resource requests and limits. Sized for phpFpm.maxChildren=20 above (measured ~80-100Mi RSS per worker in production); lower this together with phpFpm.maxChildren if you disable phpFpm.enabled to fall back to the vendor's pm.max_children=5. |
-| backend.skipMigrate | bool | `false` |  |
+| backend.resources | object | `{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}}` | Resource requests and limits |
+| backend.skipMigrate | bool | `false` | Отключить только init-контейнер миграций; CMD вендорского образа может запускать миграции самостоятельно |
 | backend.tolerations | list | `[]` |  |
-| cron.activeDeadlineSeconds | int | `300` | Max time a single `schedule:run` may live; hourly jobs run inline, so keep this well above 50s (vendor default killed them at the deadline) |
 | cron.affinity | object | `{}` |  |
-| cron.backoffLimit | int | `0` | Do not retry a failed `schedule:run` (the next minute reruns it) |
-| cron.concurrencyPolicy | string | `"Forbid"` | Prevent overlapping cron runs (hourly jobs can take longer than a minute) |
-| cron.failedJobsHistoryLimit | int | `3` |  |
-| cron.mode | string | `"resident"` | Scheduler mode:   resident (default) — long-lived Deployment running `php artisan schedule:work`,     exactly like the vendor docker-compose. The scheduler process stays alive     and fires due tasks in-process every minute; it is NOT bounded by any     deadline, which is the vendor's production behaviour. A hung inline task     (e.g. the hourly `bin:delete-old-items`) stalls subsequent tasks until it     returns, but the scheduler itself is never killed.   cronjob — per-minute CronJob running `php artisan schedule:run`. Each run is     a fresh Job bounded by `activeDeadlineSeconds`; a hung hourly task is     killed at the deadline and tasks due during that window are skipped until     the next run. Use this if you prefer strict per-run bounds over vendor     parity. |
 | cron.nodeSelector | object | `{}` |  |
-| cron.resources | object | `{"limits":{"cpu":"250m","memory":"512Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
-| cron.schedule | string | `"* * * * *"` | CronJob schedule (Laravel "run per minute" pattern) |
-| cron.successfulJobsHistoryLimit | int | `1` |  |
+| cron.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
 | cron.tolerations | list | `[]` |  |
 | debug | bool | `false` | Enable verbose debug logging |
-| defaultSecurityContext.container.allowPrivilegeEscalation | bool | `true` |  |
-| defaultSecurityContext.container.capabilities.drop | list | `[]` |  |
+| defaultSecurityContext.container.allowPrivilegeEscalation | bool | `false` |  |
+| defaultSecurityContext.container.capabilities.drop[0] | string | `"ALL"` |  |
 | defaultSecurityContext.pod | object | `{}` |  |
+| doqaBackendUrl | string | `""` | Optional backend URL (`DOQA_BACKEND_URL`) passed to backend workloads and the autotest-parser. Empty matches the vendor default. |
 | extraAnnotations | object | `{}` | Extra annotations added to every resource. Keys with a `checksum/` prefix (e.g. `checksum/env`, `checksum/config`) are chart-managed and reserved; any such key supplied here is silently dropped at render time to avoid colliding with the chart's own checksum annotations. |
 | extraLabels | object | `{}` | Extra labels added to every resource |
 | extraVolumeMounts | list | `[]` | Extra volume mounts to add to all containers |
 | extraVolumes | list | `[]` | Extra volumes to add to all Deployments |
 | frontend.affinity | object | `{}` |  |
+| frontend.containerSecurityContext | object | `{"capabilities":{"add":["CHOWN","DAC_OVERRIDE","SETUID","SETGID"]}}` | Исключения для запуска nginx в образе компонента; privilege escalation остаётся запрещён. |
 | frontend.image.repository | string | `"doqa/doqa-frontend"` | Frontend image repository (relative to image.registry) |
-| frontend.image.tag | string | `"4.2.9-box"` | Frontend image tag |
+| frontend.image.tag | string | `"4.3.1-box"` | Frontend image tag |
 | frontend.nodeSelector | object | `{}` |  |
 | frontend.replicas | int | `2` | Frontend replica count |
 | frontend.resources | object | `{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}}` | Resource requests and limits |
@@ -214,11 +211,17 @@ Kubernetes: `>=1.32.0-0`
 | ldap.username | string | `""` | Bind DN of the technical account |
 | llm.affinity | object | `{}` |  |
 | llm.image.repository | string | `"doqa/doqa-llm"` | LLM image repository |
-| llm.image.tag | string | `"4.2.1-box"` | LLM image tag |
+| llm.image.tag | string | `"4.3.0-box"` | LLM image tag |
 | llm.nodeSelector | object | `{}` |  |
 | llm.replicas | int | `1` | Replica count |
-| llm.resources | object | `{"limits":{"cpu":"250m","memory":"1Gi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
+| llm.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
 | llm.tolerations | list | `[]` |  |
+| llmBulkQueue.affinity | object | `{}` |  |
+| llmBulkQueue.nodeSelector | object | `{}` |  |
+| llmBulkQueue.replicas | int | `1` | LLM bulk queue worker replica count (vendor runs a single replica) |
+| llmBulkQueue.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
+| llmBulkQueue.tolerations | list | `[]` |  |
+| llmBulkQueue.waitForRabbitmq | bool | `true` | Wait for RabbitMQ AMQP readiness before starting the worker. Vendor 4.3.1 gates the llm-bulk service on a healthy broker; the chart mirrors that by probing the broker first. |
 | mail.encryption | string | `"tls"` | Encryption (tls/ssl/null) |
 | mail.fromAddress | string | `""` | Sender address |
 | mail.fromName | string | `"DoQA"` | Sender display name |
@@ -252,17 +255,20 @@ Kubernetes: `>=1.32.0-0`
 | networkPolicy.enabled | bool | `false` | Enable NetworkPolicy resources. Creates a default-deny-ingress policy and explicit allow rules for all internal traffic paths |
 | nginx.affinity | object | `{}` |  |
 | nginx.clientMaxBodySize | string | `"0"` | Maximum upload size. `0` disables the limit (matches vendor 4.2.0 nginx). |
+| nginx.containerSecurityContext | object | `{"capabilities":{"add":["CHOWN","DAC_OVERRIDE","SETUID","SETGID","NET_BIND_SERVICE"]}}` | Исключения для запуска nginx в образе компонента; privilege escalation остаётся запрещён. |
 | nginx.image.repository | string | `"service/nginx"` | Vendor nginx image repository, relative to image.registry. A fully qualified repository may be used for an exact private mirror. |
 | nginx.image.tag | string | `"1.23.3-alpine"` | Nginx image tag |
 | nginx.nodeSelector | object | `{}` |  |
-| nginx.proxyReadTimeout | string | `"120s"` | proxy_read_timeout for all locations. nginx's own default is 60s; some backend endpoints (e.g. PATCH on a checklist with many linked items) occasionally exceed that even though the request eventually succeeds server-side -- the router gives up first and the user sees a spurious 504 with no indication the write may still land. Raised with headroom rather than tuned to a specific observed duration. |
+| nginx.proxyReadTimeout | string | `"60s"` | Интервал ожидания данных от upstream; при необходимости увеличить в values установки. |
 | nginx.replicas | int | `2` | Replica count |
 | nginx.resources | object | `{"limits":{"cpu":"50m","memory":"64Mi"},"requests":{"cpu":"25m","memory":"32Mi"}}` | Resource requests and limits |
 | nginx.tolerations | list | `[]` |  |
+| nginx.trustForwardedProto | bool | `false` | Принимать исходную схему только от доверенного Ingress, который перезаписывает X-Forwarded-Proto. Отключить при прямой публикации router. |
+| nginx.websocketReadTimeout | string | `"60s"` | Отдельный интервал ожидания для WebSocket; согласовать с heartbeat и Ingress. |
 | nodeSelector | object | `{}` | Default node selector applied to all components. Per-component values override this. |
 | notification.affinity | object | `{}` |  |
 | notification.image.repository | string | `"doqa/doqa-notify"` | Notification image repository |
-| notification.image.tag | string | `"4.2.1-box"` | Notification image tag |
+| notification.image.tag | string | `"4.3.0-box"` | Notification image tag |
 | notification.nodeSelector | object | `{}` |  |
 | notification.replicas | int | `1` | API replica count |
 | notification.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
@@ -298,6 +304,7 @@ Kubernetes: `>=1.32.0-0`
 | queue.tolerations | list | `[]` |  |
 | queue.waitForRabbitmq | bool | `true` | Wait for RabbitMQ AMQP readiness before starting the worker. Vendor 4.2.1 added a compose dependency on rabbitmq for the queue service; the chart mirrors that by probing the broker first. |
 | rabbitmq.affinity | object | `{}` | Affinity for RabbitMQ pods. Overrides global affinity |
+| rabbitmq.containerSecurityContext | object | `{"capabilities":{"add":["CHOWN","DAC_OVERRIDE","SETUID","SETGID"]}}` | Права entrypoint для подготовки владельца PVC и перехода к пользователю rabbitmq |
 | rabbitmq.create | bool | `true` | Provision an in-tree RabbitMQ Deployment+PVC |
 | rabbitmq.host | string | `""` | External RabbitMQ host (used only when create=false) |
 | rabbitmq.image.repository | string | `"docker.io/rabbitmq"` | RabbitMQ image |
@@ -315,7 +322,7 @@ Kubernetes: `>=1.32.0-0`
 | redis.db | int | `0` | Logical Redis DB for backend cache/queues |
 | redis.host | string | `""` | External Redis host (used only when create=false) |
 | redis.image.repository | string | `"docker.io/redis"` | Redis image |
-| redis.image.tag | string | `"7-alpine"` | Redis tag |
+| redis.image.tag | string | `"8-alpine"` | Redis tag |
 | redis.nodeSelector | object | `{}` | Node selector for Redis pods. Overrides global nodeSelector |
 | redis.notification.db | string | `"doqa"` | Notification logical DB (vendor uses string "doqa") |
 | redis.notification.host | string | `""` | Notification Redis host (defaults to redis host when empty) |
@@ -330,7 +337,7 @@ Kubernetes: `>=1.32.0-0`
 | redis.storage.storageClass | string | `""` | StorageClass for Redis PVC |
 | redis.tolerations | list | `[]` | Tolerations for Redis pods. Overrides global tolerations |
 | secrets.apiKeys | string | `""` | Existing secret with keys `statistic-api-key`, `notification-api-key`, `llm-api-key`. Default <release>-api-keys |
-| secrets.app | string | `""` | Existing secret with keys `app-key`, `jwt-secret`. Default <release>-app-secrets |
+| secrets.app | string | `""` | Existing secret with keys `app-key`, `jwt-secret`, `internal-system-key`. Default <release>-app-secrets |
 | secrets.create | bool | `true` | Generate chart-managed secrets with random values |
 | secrets.ldap | string | `""` | Existing secret with key `password`. Required only when ldap.enabled=true |
 | secrets.mail | string | `""` | Existing secret with key `password`. Required only when mail.host is set and SMTP needs auth |
@@ -347,7 +354,7 @@ Kubernetes: `>=1.32.0-0`
 | serviceMonitor.scrapeTimeout | string | `""` | Scrape timeout (Prometheus duration format, e.g. 10s, 30s) |
 | statistic.affinity | object | `{}` |  |
 | statistic.image.repository | string | `"doqa/doqa-statistic"` | Statistic image repository |
-| statistic.image.tag | string | `"3.0.0-box"` | Statistic image tag |
+| statistic.image.tag | string | `"4.3.0-box"` | Statistic image tag |
 | statistic.nodeSelector | object | `{}` |  |
 | statistic.replicas | int | `1` | Replica count |
 | statistic.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
@@ -356,7 +363,7 @@ Kubernetes: `>=1.32.0-0`
 | telegramBot.botName | string | `""` | Bot username (BOT_NAME) |
 | telegramBot.enabled | bool | `false` | Enable telegram bot |
 | telegramBot.image.repository | string | `"doqa/doqa-telegram-bot"` | Telegram bot image repository |
-| telegramBot.image.tag | string | `"1.0.1-box"` | Telegram bot image tag |
+| telegramBot.image.tag | string | `"4.3.0-box"` | Telegram bot image tag |
 | telegramBot.nodeSelector | object | `{}` |  |
 | telegramBot.replicas | int | `1` | Replica count |
 | telegramBot.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
@@ -382,97 +389,133 @@ This chart targets DoQA 4.1.0+. There is no automatic migration path from
 between 3.7 and 4.0. Plan a stepwise migration if you are coming from a
 3.x install.
 
-### 0.7.1 → 0.7.2
+### 0.8.x → 0.9.0
 
-- **New `backend.phpFpm` (default: `enabled: true`, `maxChildren: 20`)** —
-  replaces the vendor image's `/usr/local/etc/php-fpm.conf` wholesale. The
-  vendor file hardcodes `pm.max_children = 5` in a `[www]` block that comes
-  *after* its own `include=etc/php-fpm.d/*.conf`, so that trailing block
-  wins over anything dropped into `php-fpm.d/*.conf` — a per-directory
-  override is silently a no-op. `backend.phpFpm.enabled: false` restores
-  the vendor's file untouched (`pm.max_children` back to 5). Size
-  `backend.resources.limits.memory` to `phpFpm.maxChildren` — each worker
-  settles around 80-100Mi RSS in practice; the new default backend
-  resources (`2Gi`/`2000m` limits) are sized for `maxChildren: 20`.
-- **`backend` readiness/liveness switched from `tcpSocket` to `exec` +
-  `curl`** — a `tcpSocket` probe only proves the kernel accepts a TCP
-  connection into the listen backlog, not that a php-fpm worker is free to
-  answer it. A pool saturated at `pm.max_children` keeps queuing
-  connections with the probe staying green while every real request hangs
-  — this was reproduced in production (one of four replicas hung for over
-  an hour, both probes green throughout). `curl` without `-f` treats any
-  HTTP response (including 404/401) as success and only fails on the
-  `--max-time 5` transport timeout, which is what a saturated/hung pool
-  actually produces. There is no dedicated health route in the app to use
-  with `httpGet` instead.
-- **New `nginx.proxyReadTimeout` (default: `120s`)** — nginx's own default
-  is 60s. Some backend endpoints (e.g. `PATCH` on a checklist with many
-  linked items) occasionally exceed that even though the write eventually
-  succeeds server-side; the router gave up first and returned a spurious
-  504 with no indication the request may still land. Applies at the
-  `server` block, so it covers every proxied location uniformly.
+- Scheduler сохраняет Deployment с `schedule:work`; нового CronJob нет.
+- Версии MinIO и клиента по умолчанию сохранены относительно 0.8.x:
+  автоматического перехода на более старый вендорский образ нет.
+  Bucket-init поддерживает имена CLI `mc` и `mcli` и сразу завершает работу
+  с ошибкой, если клиент отсутствует, вместо бесконечного ожидания сервера.
+- Глобальный securityContext остаётся строгим. Backend/frontend и встроенный RabbitMQ получают
+  CHOWN, DAC_OVERRIDE, SETUID, SETGID; router nginx дополнительно получает
+  NET_BIND_SERVICE. Эти исключения нужны текущим образам для работы nginx/FPM
+  и подготовки владельца PVC RabbitMQ перед сменой пользователя.
+  `allowPrivilegeEscalation` остаётся false. Это не профиль PSA restricted;
+  для такого окружения потребуются совместимые образы и настройка прав.
+- Backend readiness выполняет запрос к `/`: 2xx–4xx считаются ответом
+  приложения, 5xx, ошибки транспорта и таймаут — отказом. В текущем образе
+  запрос проходит через FPM и возвращает 404; статический `/api/docs` для
+  проверки FPM не подходит. Это проверка доступности, не бизнес-функций.
+  При обновлении образа нужно повторно проверить маршрут и наличие curl.
+  TCP liveness сохранена: перегрузка FPM/отказ БД не должны вызывать цикл
+  рестартов. Она не обнаруживает все зависания. Обе пробы настраиваются;
+  `backend.readinessProbe: null` / `backend.livenessProbe: null` отключают их.
+  При смене типа пробы обнулите старый handler (например, `exec: null`),
+  поскольку Helm объединяет словари values.
+- Опциональный `backend.phpFpm.enabled` по умолчанию false. Init-контейнер
+  берёт конфиг из той же версии backend-образа, дописывает max_children,
+  проверяет через `php-fpm -t` и передаёт основному контейнеру через emptyDir.
+  Остальные настройки образа сохраняются; штатный CMD не меняется.
+  Невалидное сочетание с унаследованными параметрами пула останавливает init
+  с диагностикой FPM. Имя тома `fpm-config` зарезервировано при включении.
+  `backend.phpFpm.maxChildren` по умолчанию 5. При увеличении подбирайте
+  resources по измерениям; лимиты памяти и реплики автоматически не меняются.
+- Для TLS termination на доверенном Ingress включите
+  `nginx.trustForwardedProto: true`. Ingress обязан перезаписывать входящий
+  X-Forwarded-Proto. По умолчанию заголовок не принимается. При включении
+  учитываются только http/https; пустой или другой заголовок даёт `$scheme`.
+  Не публикуйте доверяющий заголовку router напрямую для внешних клиентов.
+- `nginx.proxyReadTimeout` и `nginx.websocketReadTimeout` настраиваются
+  раздельно, оба по умолчанию 60s. Настраивайте вместе с таймаутами Ingress
+  и heartbeat WebSocket, исходя из своей нагрузки.
+- `backend.skipMigrate` отключает только init-контейнер миграций. Штатный CMD
+  текущего образа также запускает миграции; их жизненный цикл этим релизом
+  не меняется.
 
-### 0.7.0 → 0.7.1
+Пример настроек конкретной установки (числа требуют измерений):
 
-- **New `cron.mode` value (default: `resident`)** — the scheduler can now run
-  either way:
-  - `resident` (default, vendor parity): a single long-lived Deployment runs
-    `php artisan schedule:work`, exactly like the vendor docker-compose
-    `doqa_cron` service. The process survives restarts of the cluster only via
-    the Deployment controller, is never bounded by a job deadline, and a hung
-    inline task (e.g. the hourly `bin:delete-old-items` that stalls on a
-    RabbitMQ/Postgres socket) blocks subsequent tasks but never kills the
-    scheduler.
-  - `cronjob`: the 0.7.0 behaviour — a per-minute CronJob runs
-    `php artisan schedule:run`; each run is a fresh Job bounded by
-    `activeDeadlineSeconds`, so a hung hourly task is killed at the deadline
-    and tasks due during that window are skipped.
-  - **Upgrading**: if you were on 0.7.0's CronJob and keep the default
-    `resident`, Helm will delete the `doqa-cron` CronJob and create a
-    `doqa-cron` Deployment (same name, different kind — the old kind is
-    removed automatically). If you want to stay on the CronJob, set
-    `cron.mode: cronjob` explicitly.
-  - Note: `schedule:work` must run exactly once — both modes render the same
-    `doqa-cron` name (Deployment vs CronJob), and the templates are mutually
-    exclusive via `cron.mode`.
+```yaml
+nginx:
+  trustForwardedProto: true
+  proxyReadTimeout: 120s
+  websocketReadTimeout: 3600s
+backend:
+  phpFpm:
+    enabled: true
+    maxChildren: 20
+  resources:
+    requests:
+      cpu: 500m
+      memory: 384Mi
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+```
+
+#### Образы MinIO для новой тестовой установки
+
+При проверке 22 октября 2026 года registry не предоставил манифесты тегов
+MinIO/mc, закреплённых в defaults 0.8.x. Этот PR сохраняет эти значения для
+совместимости обновления; доступность образов для новой установки требует
+отдельного решения. Успешный smoke-тест выполнен с явным выбором образов
+из Compose DoQA 4.3.4:
+
+```yaml
+minio:
+  image:
+    repository: registry.control.doqa.app/service/minio
+    tag: 20240527.191746-r2-alpine
+  client:
+    image:
+      repository: registry.control.doqa.app/service/mc
+      tag: 20240527.191746-r2-alpine
+```
+
+Этот пример предназначен для новой установки с пустым хранилищем.
+Не применяйте его к PVC, который уже использовался более новой MinIO:
+совместимость downgrade не проверена. При обновлении сохраняйте явно
+закреплённые образы существующей установки и отдельно планируйте миграцию.
+
+### 0.7.x → 0.8.0
+
+- **DoQA 4.3.4**: pins backend to `4.3.3-box` and frontend to
+  `4.3.1-box`, matching the vendor archive. Other component pins are unchanged.
+- **Autotest-parser URLs**: the parser now receives the existing `apiBaseUrl`
+  (`API_BASE_URL`) and the new `doqaBackendUrl` (`DOQA_BACKEND_URL`). The latter
+  also reaches backend workloads through the shared environment ConfigMap;
+  its empty default matches the vendor configuration.
 
 ### 0.6.x → 0.7.0
 
-- **`cron` is now a CronJob** (was a Deployment running `schedule:work`).
-  It runs `php artisan schedule:run` every minute — the pattern generally
-  recommended for containerized Laravel schedulers. Note: this turned out
-  to not match the vendor's own docker-compose (see 0.7.1 below, which
-  makes `resident` — the original `schedule:work` Deployment — the
-  default again).
-  - New values: `cron.schedule` (default `* * * * *`),
-    `cron.concurrencyPolicy` (`Forbid`), `cron.activeDeadlineSeconds`
-    (`300`), `cron.backoffLimit` (`0`),
-    `cron.successfulJobsHistoryLimit` (`1`),
-    `cron.failedJobsHistoryLimit` (`3`).
-  - **Upgrading**: Helm drops the old `doqa-cron` Deployment and creates
-    the CronJob. Existing per-minute jobs are unaffected.
-  - `cron.activeDeadlineSeconds` default raised from 50 to 300: DoQA
-    hourly jobs (test-case status recalculation, etc.) run inline inside
-    `schedule:run` and exceeded 50s, so the Job was killed mid-run and
-    statuses were not applied. Lower it back only if you know your
-    schedule fits.
-- **`nginx`: pass through `X-Forwarded-Proto`** — the internal nginx
-  router now sets `proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto`
-  instead of hardcoding `$scheme`. With TLS terminating at the ingress
-  (Traefik/nginx-ingress), `$scheme` is always `http` on the internal
-  router, which made the frontend build `http://` absolute URLs and
-  caused a redirect loop for HSTS clients.
-- **`defaultSecurityContext` is now permissive by default**
-  (`allowPrivilegeEscalation: true`, `capabilities.drop: []`). DoQA
-  vendor images run nginx + php-fpm inside the container and need to
-  chown/mkdir their working dirs; the previous restrictive default
-  crashed them on start. Tighten per-component via
-  `<component>.containerSecurityContext` if your Pod Security
-  Admission requires it.
-- **`llm.resources.limits.memory` default raised 256Mi → 1Gi** and
-  **`cron.resources.limits.memory` 256Mi → 512Mi** — both OOMKilled at
-  the old defaults in production (llm peaks ~332Mi at boot; cron with
-  inline hourly jobs peaks well above 256Mi).
+- **DoQA 4.3.1**: bumps backend (4.3.1-box), frontend (4.3.0-box),
+  autotest-parser (4.3.0-box), statistic (4.3.0-box), notification
+  (4.3.0-box), llm (4.3.0-box), and telegram-bot (4.3.0-box).
+- **`autotestResultParser` removed**: vendor 4.3.1 deleted the
+  `doqa_autotest_result_parser` service. The chart drops the
+  `autotest-result-parser` Deployment and the whole `autotestResultParser`
+  values section; remove it from your values files.
+- **New worker Deployments**: vendor 4.3.1 split the queue topology.
+  `queue` now consumes `default,search,requirements,autotests-domain,outbound-webhooks,import`;
+  the new `autotests-worker` Deployment (`autotestsWorker.*` values, backend
+  image) declares all RabbitMQ queues and runs
+  `autotestsWorker.workerProcesses` parallel `autotests:work` consumers per
+  pod; the new single-replica `llm-bulk-queue` Deployment
+  (`llmBulkQueue.*` values) consumes `llm-bulk` with a 3660s timeout.
+  The autotests-worker declares its 8 RabbitMQ queues with durable/no-args
+  parameters on startup; if the broker contains hand-redeclared legacy
+  queues with different parameters, the worker will fail with
+  `PRECONDITION_FAILED` — stock queues created by previous chart/vendor
+  versions are unaffected.
+- **New generated secret**: `INTERNAL_SYSTEM_KEY` (vendor
+  `GENERATE_SECRET_KEY`) is added to the chart-managed app Secret. With
+  `secrets.create=true` it is generated automatically on upgrade; with
+  `secrets.create=false` or `secrets.app` pointing at a pre-existing secret,
+  add the new `internal-system-key` key yourself.
+- **New ConfigMap keys**: `MINIO_USE_PATH_STYLE=true`,
+  `QUEUE_BATCHING_CONNECTION=pgsql`, and `AUTOTEST_PARSER_SERVICE_URL`
+  (computed from the autotest-parser Service name).
+- **autotest-parser** now receives explicit `MINIO_*` credentials and
+  `INTERNAL_SYSTEM_KEY`, matching the vendor 4.3.1 compose environment.
 
 ### 0.5.1 → 0.6.0
 

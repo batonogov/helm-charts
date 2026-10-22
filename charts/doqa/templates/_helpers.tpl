@@ -214,7 +214,7 @@ Resolution rules per secret:
 {{- if .Values.secrets.app -}}
 {{- .Values.secrets.app -}}
 {{- else if not .Values.secrets.create -}}
-{{- required "secrets.app must be set when secrets.create=false (existing Secret with keys app-key, jwt-secret)" "" -}}
+{{- required "secrets.app must be set when secrets.create=false (existing Secret with keys app-key, jwt-secret, internal-system-key)" "" -}}
 {{- else -}}
 {{- printf "%s-app-secrets" (include "doqa.fullname" .) -}}
 {{- end -}}
@@ -314,6 +314,11 @@ Per-pod env entries that read from secrets (DB password, app keys, mail/minio/ap
     secretKeyRef:
       name: {{ include "doqa.secret.app" . }}
       key: jwt-secret
+- name: INTERNAL_SYSTEM_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "doqa.secret.app" . }}
+      key: internal-system-key
 - name: DB_PASSWORD
   valueFrom:
     secretKeyRef:

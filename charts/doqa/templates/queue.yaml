@@ -55,7 +55,7 @@ spec:
         image: {{ include "doqa.image" (dict "img" .Values.backend.image "root" .) | quote }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         {{- include "doqa.containerSecurityContext" (dict "component" .Values.queue "root" .) | nindent 8 }}
-        command: ["php", "artisan", "queue:work", "--queue=requirements,default,import,llm-bulk"]
+        command: ["php", "artisan", "queue:work", "--queue=default,search,requirements,autotests-domain,outbound-webhooks,import"]
         envFrom:
           {{- include "doqa.backendEnvFrom" . | nindent 10 }}
         env:
