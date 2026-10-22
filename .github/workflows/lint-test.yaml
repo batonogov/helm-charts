@@ -60,7 +60,7 @@ jobs:
       - name: DoQA portability checks
         run: scripts/check-doqa-portability.sh
 
-      - name: Проверки надёжности DoQA
+      - name: DoQA reliability checks
         run: |
           python -m pip install PyYAML==6.0.3
           python scripts/check-doqa-reliability.py

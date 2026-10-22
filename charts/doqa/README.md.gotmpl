@@ -45,7 +45,7 @@ anonymously — no `imagePullSecrets` are required by default.
 
 | Area | Status | Notes |
 |---|---|---|
-| DoQA Box | Supported | Версии компонентов закреплены в `values.yaml`; сверено с архивом вендора `configs_4_3_4.zip` |
+| DoQA Box | Supported | Component versions are pinned in `values.yaml`; verified against the vendor archive `configs_4_3_4.zip` |
 | Kubernetes | Supported | `1.32+`, as declared by `Chart.yaml`; manifests use stable Kubernetes APIs |
 | Helm | Tested | Helm `3.16` in CI and Helm 4 locally; Helm `3.13+` is supported |
 | Node platform | Supported | `linux/amd64`; the current vendor images are single-platform amd64 images |
@@ -136,48 +136,44 @@ between 3.7 and 4.0. Plan a stepwise migration if you are coming from a
 
 ### 0.8.x → 0.9.0
 
-- Scheduler сохраняет Deployment с `schedule:work`; нового CronJob нет.
-- Версии MinIO и клиента по умолчанию сохранены относительно 0.8.x:
-  автоматического перехода на более старый вендорский образ нет.
-  Bucket-init поддерживает имена CLI `mc` и `mcli` и сразу завершает работу
-  с ошибкой, если клиент отсутствует, вместо бесконечного ожидания сервера.
-- Глобальный securityContext остаётся строгим. Backend/frontend и встроенный RabbitMQ получают
-  CHOWN, DAC_OVERRIDE, SETUID, SETGID; router nginx дополнительно получает
-  NET_BIND_SERVICE. Эти исключения нужны текущим образам для работы nginx/FPM
-  и подготовки владельца PVC RabbitMQ перед сменой пользователя.
-  `allowPrivilegeEscalation` остаётся false. Это не профиль PSA restricted;
-  для такого окружения потребуются совместимые образы и настройка прав.
-- Backend readiness выполняет запрос к `/`: 2xx–4xx считаются ответом
-  приложения, 5xx, ошибки транспорта и таймаут — отказом. В текущем образе
-  запрос проходит через FPM и возвращает 404; статический `/api/docs` для
-  проверки FPM не подходит. Это проверка доступности, не бизнес-функций.
-  При обновлении образа нужно повторно проверить маршрут и наличие curl.
-  TCP liveness сохранена: перегрузка FPM/отказ БД не должны вызывать цикл
-  рестартов. Она не обнаруживает все зависания. Обе пробы настраиваются;
-  `backend.readinessProbe: null` / `backend.livenessProbe: null` отключают их.
-  При смене типа пробы обнулите старый handler (например, `exec: null`),
-  поскольку Helm объединяет словари values.
-- Опциональный `backend.phpFpm.enabled` по умолчанию false. Init-контейнер
-  берёт конфиг из той же версии backend-образа, дописывает max_children,
-  проверяет через `php-fpm -t` и передаёт основному контейнеру через emptyDir.
-  Остальные настройки образа сохраняются; штатный CMD не меняется.
-  Невалидное сочетание с унаследованными параметрами пула останавливает init
-  с диагностикой FPM. Имя тома `fpm-config` зарезервировано при включении.
-  `backend.phpFpm.maxChildren` по умолчанию 5. При увеличении подбирайте
-  resources по измерениям; лимиты памяти и реплики автоматически не меняются.
-- Для TLS termination на доверенном Ingress включите
-  `nginx.trustForwardedProto: true`. Ingress обязан перезаписывать входящий
-  X-Forwarded-Proto. По умолчанию заголовок не принимается. При включении
-  учитываются только http/https; пустой или другой заголовок даёт `$scheme`.
-  Не публикуйте доверяющий заголовку router напрямую для внешних клиентов.
-- `nginx.proxyReadTimeout` и `nginx.websocketReadTimeout` настраиваются
-  раздельно, оба по умолчанию 60s. Настраивайте вместе с таймаутами Ingress
-  и heartbeat WebSocket, исходя из своей нагрузки.
-- `backend.skipMigrate` отключает только init-контейнер миграций. Штатный CMD
-  текущего образа также запускает миграции; их жизненный цикл этим релизом
-  не меняется.
+- The scheduler remains a Deployment running `schedule:work`; no CronJob is added.
+- Default MinIO and client versions are unchanged from 0.8.x; there is no
+  automatic downgrade to the older vendor image. Bucket initialization supports
+  both `mc` and `mcli` and fails immediately if neither client is available.
+- The global securityContext remains restrictive. Backend/frontend and bundled
+  RabbitMQ receive CHOWN, DAC_OVERRIDE, SETUID and SETGID; the nginx router also
+  receives NET_BIND_SERVICE. Current images need these capabilities to run
+  nginx/FPM and set RabbitMQ PVC ownership before switching users.
+  `allowPrivilegeEscalation` remains false. This is not a PSA restricted profile;
+  that environment requires compatible images and permission settings.
+- Backend readiness requests `/`: HTTP 2xx–4xx succeed, while 5xx, transport
+  errors and timeouts fail. In the current image, the request passes through FPM
+  and returns 404; the static `/api/docs` endpoint cannot check FPM health.
+  This checks availability, not business functionality. Recheck the route and
+  curl availability when upgrading the image. TCP liveness is retained to avoid
+  restart loops during FPM overload or database failures; it does not detect
+  every hang. Both probes are configurable; `backend.readinessProbe: null` and
+  `backend.livenessProbe: null` disable them. When changing probe types, set the
+  previous handler to null (for example, `exec: null`), since Helm merges values maps.
+- Optional `backend.phpFpm.enabled` defaults to false. An init container copies
+  the configuration from the same backend image version, appends max_children,
+  validates it with `php-fpm -t` and shares it with the main container via emptyDir.
+  Other image settings and the original CMD are preserved. An invalid combination
+  with inherited pool settings stops initialization with FPM diagnostics.
+  The `fpm-config` volume name is reserved when this feature is enabled.
+  `backend.phpFpm.maxChildren` defaults to 5. Size resources using measurements
+  when increasing it; memory limits and replica counts do not change automatically.
+- For TLS termination at a trusted Ingress, enable `nginx.trustForwardedProto: true`.
+  The Ingress must overwrite incoming X-Forwarded-Proto headers. Trust is disabled
+  by default. When enabled, only http/https are accepted; an empty or other value
+  falls back to `$scheme`. Do not expose a header-trusting router directly to clients.
+- `nginx.proxyReadTimeout` and `nginx.websocketReadTimeout` are independently
+  configurable and both default to 60s. Align them with Ingress timeouts and
+  WebSocket heartbeat settings for your workload.
+- `backend.skipMigrate` disables only the migration init container. The current
+  image CMD also runs migrations; this release does not change their lifecycle.
 
-Пример настроек конкретной установки (числа требуют измерений):
+Example deployment settings (size these values using measurements):
 
 ```yaml
 nginx:
@@ -197,13 +193,13 @@ backend:
       memory: 2Gi
 ```
 
-#### Образы MinIO для новой тестовой установки
+#### MinIO images for a fresh test deployment
 
-При проверке 22 октября 2026 года registry не предоставил манифесты тегов
-MinIO/mc, закреплённых в defaults 0.8.x. Этот PR сохраняет эти значения для
-совместимости обновления; доступность образов для новой установки требует
-отдельного решения. Успешный smoke-тест выполнен с явным выбором образов
-из Compose DoQA 4.3.4:
+On October 22, 2026, the registry did not provide manifests for the MinIO/mc
+image tags pinned in the 0.8.x defaults. This PR preserves those values for
+upgrade compatibility; image availability for fresh installations requires a
+separate resolution. The successful smoke test explicitly selected images
+from the DoQA 4.3.4 Compose configuration:
 
 ```yaml
 minio:
@@ -216,10 +212,10 @@ minio:
       tag: 20240527.191746-r2-alpine
 ```
 
-Этот пример предназначен для новой установки с пустым хранилищем.
-Не применяйте его к PVC, который уже использовался более новой MinIO:
-совместимость downgrade не проверена. При обновлении сохраняйте явно
-закреплённые образы существующей установки и отдельно планируйте миграцию.
+This example is intended for a fresh installation with empty storage.
+Do not apply it to a PVC previously used by a newer MinIO version: downgrade
+compatibility has not been tested. When upgrading, retain the explicitly pinned
+images of the existing deployment and plan any migration separately.
 
 ### 0.7.x → 0.8.0
 

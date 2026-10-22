@@ -144,7 +144,7 @@ redis:
       key: password
 
 rabbitmq:
-  # -- Права entrypoint для подготовки владельца PVC и перехода к пользователю rabbitmq
+  # -- Entrypoint capabilities for setting PVC ownership and switching to the rabbitmq user
   containerSecurityContext:
     capabilities:
       add: [CHOWN, DAC_OVERRIDE, SETUID, SETGID]
@@ -297,7 +297,7 @@ backend:
     tag: 4.3.3-box
   # -- Backend replica count
   replicas: 2
-  # -- Отключить только init-контейнер миграций; CMD вендорского образа может запускать миграции самостоятельно
+  # -- Disable only the migration init container; the vendor image CMD may run migrations independently
   skipMigrate: false
   migrate:
     # -- Wait for RabbitMQ AMQP readiness before running migrations. Vendor
@@ -305,15 +305,15 @@ backend:
     # dispatch jobs; the chart mirrors that by probing the broker first.
     waitForRabbitmq: true
   phpFpm:
-    # -- Включить конфиг из текущего образа с переопределением размера пула. Память подбирать по нагрузке.
+    # -- Use the current image configuration with an overridden pool size. Size memory for your workload.
     enabled: false
-    # -- Максимальное число процессов; остальные настройки пула наследуются из образа и проверяются init-контейнером.
+    # -- Maximum worker count; other pool settings are inherited from the image and validated by the init container.
     maxChildren: 5
-  # -- Исключения для запуска nginx/FPM в вендорском backend. Общие ограничения чарта сохраняются.
+  # -- Capabilities required to start nginx/FPM in the vendor backend. Global chart restrictions remain in effect.
   containerSecurityContext:
     capabilities:
       add: ["CHOWN", "DAC_OVERRIDE", "SETUID", "SETGID"]
-  # -- Проверка готовности через приложение: HTTP 2xx–4xx допустимы, 5xx и ошибки транспорта — отказ. null отключает пробу.
+  # -- Application readiness check: HTTP 2xx–4xx succeed; 5xx and transport errors fail. null disables the probe.
   readinessProbe:
     exec:
       command:
@@ -325,7 +325,7 @@ backend:
     initialDelaySeconds: 15
     periodSeconds: 10
     timeoutSeconds: 8
-  # -- TCP liveness не перезапускает backend при насыщении FPM или недоступной БД. null отключает пробу.
+  # -- TCP liveness avoids restarting the backend on FPM saturation or database unavailability. null disables the probe.
   livenessProbe:
     tcpSocket:
       port: http
@@ -411,7 +411,7 @@ frontend:
     tag: 4.3.1-box
   # -- Frontend replica count
   replicas: 2
-  # -- Исключения для запуска nginx в образе компонента; privilege escalation остаётся запрещён.
+  # -- Capabilities required to start nginx in the component image; privilege escalation remains disabled.
   containerSecurityContext:
     capabilities:
       add: ["CHOWN", "DAC_OVERRIDE", "SETUID", "SETGID"]
@@ -630,15 +630,15 @@ nginx:
   replicas: 2
   # -- Maximum upload size. `0` disables the limit (matches vendor 4.2.0 nginx).
   clientMaxBodySize: "0"
-  # -- Исключения для запуска nginx в образе компонента; privilege escalation остаётся запрещён.
+  # -- Capabilities required to start nginx in the component image; privilege escalation remains disabled.
   containerSecurityContext:
     capabilities:
       add: ["CHOWN", "DAC_OVERRIDE", "SETUID", "SETGID", "NET_BIND_SERVICE"]
-  # -- Принимать исходную схему только от доверенного Ingress, который перезаписывает X-Forwarded-Proto. Отключить при прямой публикации router.
+  # -- Trust the original scheme only behind a trusted Ingress that overwrites X-Forwarded-Proto. Disable for direct router exposure.
   trustForwardedProto: false
-  # -- Интервал ожидания данных от upstream; при необходимости увеличить в values установки.
+  # -- Upstream read timeout; increase in deployment values if needed.
   proxyReadTimeout: 60s
-  # -- Отдельный интервал ожидания для WebSocket; согласовать с heartbeat и Ingress.
+  # -- Separate WebSocket read timeout; align with heartbeat and Ingress settings.
   websocketReadTimeout: 60s
   # -- Resource requests and limits
   resources:

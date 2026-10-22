@@ -473,15 +473,15 @@
             },
             "readinessProbe": {
               "type": ["object", "null"],
-              "description": "null отключает пробу; структура Kubernetes Probe."
+              "description": "Kubernetes Probe configuration; null disables the probe."
             },
             "livenessProbe": {
               "type": ["object", "null"],
-              "description": "null отключает пробу; структура Kubernetes Probe."
+              "description": "Kubernetes Probe configuration; null disables the probe."
             },
             "skipMigrate": {
               "type": "boolean",
-              "description": "Отключить только init-контейнер миграций; штатный CMD образа может запускать миграции самостоятельно."
+              "description": "Disable only the migration init container; the image CMD may run migrations independently."
             },
             "migrate": {
               "type": "object",

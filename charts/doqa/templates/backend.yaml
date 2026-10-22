@@ -47,7 +47,7 @@ spec:
         - sh
         - -ec
         - |
-          # Конфиг берётся из того же образа, а не из копии в чарте.
+          # Use the configuration from the same image rather than a chart-maintained copy.
           cp /usr/local/etc/php-fpm.conf /fpm/php-fpm.conf
           printf '\n[www]\npm.max_children = %s\n' '{{ .Values.backend.phpFpm.maxChildren | int }}' >> /fpm/php-fpm.conf
           php-fpm -t -y /fpm/php-fpm.conf

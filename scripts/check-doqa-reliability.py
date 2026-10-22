@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Регрессии DoQA: нужны Helm и PyYAML (также используется chart-testing)."""
+"""DoQA regression checks: require Helm and PyYAML (also used by chart-testing)."""
 
 import os
 from pathlib import Path
@@ -79,7 +79,7 @@ class ReliabilityTests(unittest.TestCase):
         self.assertEqual(probe["tcpSocket"]["port"], "http")
 
     def test_readiness_http_and_transport_failures(self):
-        # Выполняем именно команду из рендера, подменяя только ответ транспорта.
+        # Run the rendered command, replacing only the transport response.
         container = pod(render()["review-backend"])["containers"][0]
         command = container["readinessProbe"]["exec"]["command"]
         self.assertIn("tcpSocket", container["livenessProbe"])
