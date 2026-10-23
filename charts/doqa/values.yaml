@@ -35,6 +35,34 @@ apiBaseUrl: ""
 # -- Optional backend URL (`DOQA_BACKEND_URL`) passed to backend workloads and the autotest-parser. Empty matches the vendor default.
 doqaBackendUrl: ""
 
+product:
+  # -- Product slug. Custom products also require a matching frontend image. (`PRODUCT`)
+  id: "doqa"
+  # -- Backend application name. (`APP_NAME`)
+  appName: "DoQA"
+  # -- Backend application brand. (`APP_BRAND`)
+  appBrand: "DoQA"
+  # -- Product display name, also used in Python service titles. (`PRODUCT_NAME`)
+  name: "DoQA"
+  # -- Notification email sender display name. (`PRODUCT_FROM_DISPLAY`)
+  fromDisplay: "DoQA"
+  # -- Product support email used by notifications. (`PRODUCT_SUPPORT_EMAIL`)
+  supportEmail: "support@doqa.app"
+  # -- Product documentation URL. (`PRODUCT_DOCS_URL`)
+  docsUrl: "https://docs.doqa.app"
+  # -- Product website URL. (`PRODUCT_SITE_URL`)
+  siteUrl: "https://doqa.app"
+  # -- Product Telegram URL; empty hides the link. (`PRODUCT_TELEGRAM_URL`)
+  telegramUrl: "https://t.me/DoQATMS"
+  # -- Product support Telegram URL; empty hides the link. (`PRODUCT_SUPPORT_TELEGRAM_URL`)
+  supportTelegramUrl: "https://t.me/doqa_team"
+  # -- Product VK URL; empty hides the link. (`PRODUCT_VK_URL`)
+  vkUrl: "https://vk.com/doqa_tms"
+  # -- Product YouTube URL; empty hides the link. (`PRODUCT_YOUTUBE_URL`)
+  youtubeUrl: "https://www.youtube.com/channel/UCTzbumj-8d9ijeU3gEWWTPQ"
+  # -- Product Telegram news URL exposed to backend workloads; empty hides the link. (`PRODUCT_TELEGRAM_NEWS_URL`)
+  telegramNewsUrl: "https://t.me/DoQA_news_bot"
+
 image:
   # -- Container registry hosting DoQA images
   registry: registry.control.doqa.app
@@ -290,11 +318,17 @@ pusher:
 
 # Backend (php-fpm) — Laravel API
 backend:
+  # -- Laravel cache prefix. Preserve across upgrades and brand changes to retain cache entries and JWT revocations. (`CACHE_PREFIX`)
+  cachePrefix: "laravel_cache:"
+  # -- Laravel Redis prefix. Preserve across upgrades and brand changes to retain sessions and other Redis state. (`REDIS_PREFIX`)
+  redisPrefix: "laravel_database_"
+  # -- Laravel session cookie name. Preserve across upgrades and brand changes to keep existing browser sessions. (`SESSION_COOKIE`)
+  sessionCookie: "laravel_session"
   image:
     # -- Backend image repository (relative to image.registry)
     repository: doqa/doqa-backend
     # -- Backend image tag
-    tag: 4.3.3-box
+    tag: 4.3.6-box
   # -- Backend replica count
   replicas: 2
   # -- Disable only the migration init container; the vendor image CMD may run migrations independently
@@ -408,7 +442,7 @@ frontend:
     # -- Frontend image repository (relative to image.registry)
     repository: doqa/doqa-frontend
     # -- Frontend image tag
-    tag: 4.3.1-box
+    tag: 4.3.3-box
   # -- Frontend replica count
   replicas: 2
   # -- Capabilities required to start nginx in the component image; privilege escalation remains disabled.
@@ -433,7 +467,7 @@ autotestParser:
     # -- Autotest parser image repository
     repository: doqa/doqa-parsing-autotests
     # -- Autotest parser image tag
-    tag: 4.3.0-box
+    tag: 4.3.1-box
   # -- Autotest parser replica count
   replicas: 1
   # -- Resource requests and limits

@@ -2,7 +2,7 @@
 
 DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
 
-![Version: 0.9.0](https://img.shields.io/badge/Version-0.9.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.3.4-box](https://img.shields.io/badge/AppVersion-4.3.4--box-informational?style=flat-square)
+![Version: 0.10.0](https://img.shields.io/badge/Version-0.10.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.3.5-box](https://img.shields.io/badge/AppVersion-4.3.5--box-informational?style=flat-square)
 
 **Homepage:** <https://doqa.app>
 
@@ -43,9 +43,9 @@ anonymously — no `imagePullSecrets` are required by default.
 
 | Area | Status | Notes |
 |---|---|---|
-| DoQA Box | Supported | Component versions are pinned in `values.yaml`; verified against the vendor archive `configs_4_3_4.zip` |
+| DoQA Box | Supported | Component versions are pinned in `values.yaml`; verified against the vendor archive `configs_4_3_5.zip` |
 | Kubernetes | Supported | `1.32+`, as declared by `Chart.yaml`; manifests use stable Kubernetes APIs |
-| Helm | Tested | Helm `3.16` in CI and Helm 4 locally; Helm `3.13+` is supported |
+| Helm | Tested | Helm `3.22.1` in CI and Helm 4 locally; Helm `3.13+` is supported |
 | Node platform | Supported | `linux/amd64`; the current vendor images are single-platform amd64 images |
 | Ingress | Configurable | Standard `networking.k8s.io/v1` Ingress; Traefik is the repository test profile, while other controllers use `ingress.className` and annotations |
 | Persistent storage | Configurable | Any CSI StorageClass supporting `ReadWriteOnce`; Longhorn is only the repository test profile |
@@ -63,7 +63,7 @@ client-specific scheduling, labels, and annotations. It does not inherit
 
 ## Architecture
 
-Components mirror the vendor docker-compose for v4.3.4:
+Components mirror the vendor docker-compose for v4.3.5:
 
 - `backend` (php-fpm Laravel API), `queue` (`queue:work`), `cron` (`schedule:work`)
 - `autotests-worker` (`autotests:work`, declares the RabbitMQ queues),
@@ -75,7 +75,7 @@ Components mirror the vendor docker-compose for v4.3.4:
 - `nginx` (internal router) → exposed via Ingress
 
 The canonical upstream input is the vendor's
-[`configs_4_3_4.zip`](https://doqa.app/downloads/configs_4_3_4.zip), including
+[`configs_4_3_5.zip`](https://doqa.app/downloads/configs_4_3_5.zip), including
 `.env.install`, both Compose files, and nginx configuration. The DoQA
 application services, environment variables, routes, and application image pins
 stay aligned with that archive. Kubernetes infrastructure is deliberately
@@ -145,7 +145,7 @@ Kubernetes: `>=1.32.0-0`
 | autoscaling.queue.targetCPUUtilizationPercentage | int | `80` | Target CPU utilization percentage for queue HPA |
 | autotestParser.affinity | object | `{}` |  |
 | autotestParser.image.repository | string | `"doqa/doqa-parsing-autotests"` | Autotest parser image repository |
-| autotestParser.image.tag | string | `"4.3.0-box"` | Autotest parser image tag |
+| autotestParser.image.tag | string | `"4.3.1-box"` | Autotest parser image tag |
 | autotestParser.nodeSelector | object | `{}` |  |
 | autotestParser.replicas | int | `1` | Autotest parser replica count |
 | autotestParser.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
@@ -159,17 +159,20 @@ Kubernetes: `>=1.32.0-0`
 | autotestsWorker.waitForRabbitmq | bool | `true` | Wait for RabbitMQ AMQP readiness before starting the worker. Vendor 4.3.1 gates the autotests service on a healthy broker; the chart mirrors that by probing the broker first. |
 | autotestsWorker.workerProcesses | int | `3` | Parallel `autotests:work` processes per pod (vendor AUTOTESTS_WORKER_PROCESSES) |
 | backend.affinity | object | `{}` |  |
+| backend.cachePrefix | string | `"laravel_cache:"` | Laravel cache prefix. Preserve across upgrades and brand changes to retain cache entries and JWT revocations. (`CACHE_PREFIX`) |
 | backend.containerSecurityContext | object | `{"capabilities":{"add":["CHOWN","DAC_OVERRIDE","SETUID","SETGID"]}}` | Capabilities required to start nginx/FPM in the vendor backend. Global chart restrictions remain in effect. |
 | backend.image.repository | string | `"doqa/doqa-backend"` | Backend image repository (relative to image.registry) |
-| backend.image.tag | string | `"4.3.3-box"` | Backend image tag |
+| backend.image.tag | string | `"4.3.6-box"` | Backend image tag |
 | backend.livenessProbe | object | `{"initialDelaySeconds":60,"periodSeconds":30,"tcpSocket":{"port":"http"},"timeoutSeconds":10}` | TCP liveness avoids restarting the backend on FPM saturation or database unavailability. null disables the probe. |
 | backend.migrate.waitForRabbitmq | bool | `true` | Wait for RabbitMQ AMQP readiness before running migrations. Vendor 4.2.0 added a compose dependency on rabbitmq because some migrations dispatch jobs; the chart mirrors that by probing the broker first. |
 | backend.nodeSelector | object | `{}` |  |
 | backend.phpFpm.enabled | bool | `false` | Use the current image configuration with an overridden pool size. Size memory for your workload. |
 | backend.phpFpm.maxChildren | int | `5` | Maximum worker count; other pool settings are inherited from the image and validated by the init container. |
 | backend.readinessProbe | object | `{"exec":{"command":["sh","-ec","code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 http://127.0.0.1:8080/)\ncase \"$code\" in 2??|3??|4??) exit 0 ;; *) exit 1 ;; esac"]},"initialDelaySeconds":15,"periodSeconds":10,"timeoutSeconds":8}` | Application readiness check: HTTP 2xx–4xx succeed; 5xx and transport errors fail. null disables the probe. |
+| backend.redisPrefix | string | `"laravel_database_"` | Laravel Redis prefix. Preserve across upgrades and brand changes to retain sessions and other Redis state. (`REDIS_PREFIX`) |
 | backend.replicas | int | `2` | Backend replica count |
 | backend.resources | object | `{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}}` | Resource requests and limits |
+| backend.sessionCookie | string | `"laravel_session"` | Laravel session cookie name. Preserve across upgrades and brand changes to keep existing browser sessions. (`SESSION_COOKIE`) |
 | backend.skipMigrate | bool | `false` | Disable only the migration init container; the vendor image CMD may run migrations independently |
 | backend.tolerations | list | `[]` |  |
 | cron.affinity | object | `{}` |  |
@@ -188,7 +191,7 @@ Kubernetes: `>=1.32.0-0`
 | frontend.affinity | object | `{}` |  |
 | frontend.containerSecurityContext | object | `{"capabilities":{"add":["CHOWN","DAC_OVERRIDE","SETUID","SETGID"]}}` | Capabilities required to start nginx in the component image; privilege escalation remains disabled. |
 | frontend.image.repository | string | `"doqa/doqa-frontend"` | Frontend image repository (relative to image.registry) |
-| frontend.image.tag | string | `"4.3.1-box"` | Frontend image tag |
+| frontend.image.tag | string | `"4.3.3-box"` | Frontend image tag |
 | frontend.nodeSelector | object | `{}` |  |
 | frontend.replicas | int | `2` | Frontend replica count |
 | frontend.resources | object | `{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}}` | Resource requests and limits |
@@ -293,6 +296,19 @@ Kubernetes: `>=1.32.0-0`
 | postgresql.passwordSecret.name | string | `""` | External secret name with the password (used when cnpg.create=false) |
 | postgresql.port | int | `5432` | PostgreSQL port |
 | postgresql.username | string | `"doqa"` | Database user |
+| product.appBrand | string | `"DoQA"` | Backend application brand. (`APP_BRAND`) |
+| product.appName | string | `"DoQA"` | Backend application name. (`APP_NAME`) |
+| product.docsUrl | string | `"https://docs.doqa.app"` | Product documentation URL. (`PRODUCT_DOCS_URL`) |
+| product.fromDisplay | string | `"DoQA"` | Notification email sender display name. (`PRODUCT_FROM_DISPLAY`) |
+| product.id | string | `"doqa"` | Product slug. Custom products also require a matching frontend image. (`PRODUCT`) |
+| product.name | string | `"DoQA"` | Product display name, also used in Python service titles. (`PRODUCT_NAME`) |
+| product.siteUrl | string | `"https://doqa.app"` | Product website URL. (`PRODUCT_SITE_URL`) |
+| product.supportEmail | string | `"support@doqa.app"` | Product support email used by notifications. (`PRODUCT_SUPPORT_EMAIL`) |
+| product.supportTelegramUrl | string | `"https://t.me/doqa_team"` | Product support Telegram URL; empty hides the link. (`PRODUCT_SUPPORT_TELEGRAM_URL`) |
+| product.telegramNewsUrl | string | `"https://t.me/DoQA_news_bot"` | Product Telegram news URL exposed to backend workloads; empty hides the link. (`PRODUCT_TELEGRAM_NEWS_URL`) |
+| product.telegramUrl | string | `"https://t.me/DoQATMS"` | Product Telegram URL; empty hides the link. (`PRODUCT_TELEGRAM_URL`) |
+| product.vkUrl | string | `"https://vk.com/doqa_tms"` | Product VK URL; empty hides the link. (`PRODUCT_VK_URL`) |
+| product.youtubeUrl | string | `"https://www.youtube.com/channel/UCTzbumj-8d9ijeU3gEWWTPQ"` | Product YouTube URL; empty hides the link. (`PRODUCT_YOUTUBE_URL`) |
 | pusher.appId | string | `"web-socket"` | Pusher protocol app id |
 | pusher.appKey | string | `"web-socket"` | Pusher protocol app key |
 | pusher.port | int | `6001` | Soketi exposed port |
@@ -388,6 +404,49 @@ This chart targets DoQA 4.1.0+. There is no automatic migration path from
 3.x deployments — vendor changed the queue broker from Redis to RabbitMQ
 between 3.7 and 4.0. Plan a stepwise migration if you are coming from a
 3.x install.
+
+### 0.9.x → 0.10.0
+
+Upgrade with your original override file so Helm merges in the new defaults:
+
+```bash
+helm upgrade doqa batonogov/doqa -n doqa --version 0.10.0 -f user-values.yaml
+```
+
+With Helm 3.14+ or Helm 4, `--reset-then-reuse-values` can instead preserve
+stored user overrides while loading the new chart defaults. Avoid
+`--reuse-values` for this upgrade: it keeps the old defaults, including old
+image pins, and omits the new required `product` settings. Optional product
+links can be disabled with `""`; `null` is rejected by the schema.
+
+- **DoQA 4.3.5**: pins backend to `4.3.6-box`, frontend to `4.3.3-box`,
+  and autotest-parser to `4.3.1-box`, matching the vendor box archive.
+- **Product branding**: new `product.*` values populate the backend environment,
+  notification API/worker and optional Telegram bot. `APP_TITLE` is passed using
+  `product.name`; the current parser image still hardcodes its API title.
+  Defaults match the vendor DoQA brand; optional social links accept empty strings. `mail.fromName` and `mailIssue` retain their existing,
+  independently configured values.
+- **State identity is preserved**: `backend.cachePrefix`, `backend.redisPrefix`
+  and `backend.sessionCookie` explicitly retain the old chart's effective
+  Laravel defaults (`laravel_cache:`, `laravel_database_`, `laravel_session`).
+  Without these overrides, the newly supplied `APP_NAME` would change cache,
+  Redis and session identities, including the JWT revocation namespace. Keep
+  these settings stable across brand changes. If your deployment already uses
+  custom prefixes or cookie names, set these values to those existing names.
+- **Bucket initialization**: MinIO alias configuration explicitly selects S3v4,
+  so it succeeds before the server is reachable. The subsequent probe retries
+  transient failures. Local alias configuration errors fail immediately instead
+  of leaving the Job probing an alias that was never created.
+- A custom product requires its own compiled frontend image (`frontend.image`)
+  in addition to `product.*` settings; these settings do not rebrand the stock SPA.
+- The LLM's internal `STATISTIC_HOST` is retained: the vendor removed it only
+  from the with-database Compose variant while keeping the same LLM image and
+  the setting in the other variant. Kubernetes continues using its statistic Service.
+- Image metadata audit found unchanged Entrypoint/Cmd for all three changed
+  images. Backend PHP advances from 8.4.23 to 8.4.27; no other image Env changes
+  were found. The parser image now runs as its vendor-provided `app` user;
+  custom writable volumes must permit that user. nginx configuration is unchanged.
+  Existing PVCs and secret names are preserved; application migrations run during the backend rollout as before.
 
 ### 0.8.x → 0.9.0
 

@@ -2,6 +2,7 @@
 """DoQA regression checks: require Helm and PyYAML (also used by chart-testing)."""
 
 import os
+import shutil
 from pathlib import Path
 import subprocess
 import tempfile
@@ -34,6 +35,74 @@ def pod(doc):
 
 
 class ReliabilityTests(unittest.TestCase):
+    def test_product_environment_reaches_each_consumer(self):
+        for custom in (False, True):
+            with self.subTest(custom=custom):
+                values = {"telegramBot": {"enabled": True, "tokenSecret": "telegram"}}
+                if custom:
+                    values["product"] = {
+                        "id": "acme", "appName": "Acme App", "appBrand": "Acme Brand",
+                        "name": "Acme", "fromDisplay": "Acme Support",
+                        "supportEmail": "support@acme.example", "docsUrl": "https://acme.example/docs",
+                        "siteUrl": "https://acme.example", "telegramUrl": "",
+                        "supportTelegramUrl": "", "vkUrl": "", "youtubeUrl": "",
+                        "telegramNewsUrl": "",
+                    }
+                config = render(values, kind="ConfigMap")["review-env"]["data"]
+                expected_name = "Acme" if custom else "DoQA"
+                self.assertEqual(config["CACHE_PREFIX"], "laravel_cache:")
+                self.assertEqual(config["REDIS_PREFIX"], "laravel_database_")
+                self.assertEqual(config["SESSION_COOKIE"], "laravel_session")
+                self.assertEqual(config["PRODUCT"], "acme" if custom else "doqa")
+                self.assertEqual(config["APP_NAME"], "Acme App" if custom else "DoQA")
+                self.assertEqual(config["APP_BRAND"], "Acme Brand" if custom else "DoQA")
+                self.assertEqual(config["PRODUCT_NAME"], expected_name)
+                self.assertEqual(config["PRODUCT_TELEGRAM_NEWS_URL"],
+                                 "" if custom else "https://t.me/DoQA_news_bot")
+                expected_brand = {
+                    "PRODUCT_FROM_DISPLAY": "Acme Support" if custom else "DoQA",
+                    "PRODUCT_SUPPORT_EMAIL": "support@acme.example" if custom else "support@doqa.app",
+                    "PRODUCT_DOCS_URL": "https://acme.example/docs" if custom else "https://docs.doqa.app",
+                    "PRODUCT_SITE_URL": "https://acme.example" if custom else "https://doqa.app",
+                    "PRODUCT_TELEGRAM_URL": "" if custom else "https://t.me/DoQATMS",
+                    "PRODUCT_SUPPORT_TELEGRAM_URL": "" if custom else "https://t.me/doqa_team",
+                    "PRODUCT_VK_URL": "" if custom else "https://vk.com/doqa_tms",
+                    "PRODUCT_YOUTUBE_URL": ("" if custom else
+                                            "https://www.youtube.com/channel/UCTzbumj-8d9ijeU3gEWWTPQ"),
+                }
+                for key, expected in expected_brand.items():
+                    self.assertEqual(config[key], expected, key)
+                deployments = render(values)
+                for component in ("backend", "queue", "cron", "autotests-worker", "llm-bulk-queue"):
+                    spec = pod(deployments["review-" + component])
+                    consumers = spec["containers"] + [c for c in spec.get("initContainers", [])
+                                                       if c["name"] == "migrate"]
+                    for container in consumers:
+                        self.assertIn({"configMapRef": {"name": "review-env"}}, container["envFrom"])
+                for component in ("notification", "notification-worker", "telegram-bot"):
+                    env = {e["name"]: e.get("value") for e in
+                           pod(deployments["review-" + component])["containers"][0]["env"]}
+                    self.assertEqual(env["APP_TITLE"], expected_name + " - Notification")
+                    for key in ("PRODUCT_NAME", "PRODUCT_FROM_DISPLAY", "PRODUCT_SUPPORT_EMAIL",
+                                "PRODUCT_DOCS_URL", "PRODUCT_SITE_URL", "PRODUCT_TELEGRAM_URL",
+                                "PRODUCT_SUPPORT_TELEGRAM_URL", "PRODUCT_VK_URL", "PRODUCT_YOUTUBE_URL"):
+                        self.assertEqual(env[key], config[key], (component, key))
+                for component, suffix in (("autotest-parser", " Autotests"),
+                                          ("statistic", " - Statistic"), ("llm", " - LLM")):
+                    env = {e["name"]: e.get("value") for e in
+                           pod(deployments["review-" + component])["containers"][0]["env"]}
+                    self.assertEqual(env["APP_TITLE"], expected_name + suffix)
+
+    def test_custom_state_identity_is_independent_of_brand(self):
+        config = render({"product": {"appName": "Acme"}, "backend": {
+            "cachePrefix": "existing_cache:", "redisPrefix": "existing_redis_",
+            "sessionCookie": "existing_session",
+        }}, kind="ConfigMap")["review-env"]["data"]
+        self.assertEqual(config["APP_NAME"], "Acme")
+        self.assertEqual(config["CACHE_PREFIX"], "existing_cache:")
+        self.assertEqual(config["REDIS_PREFIX"], "existing_redis_")
+        self.assertEqual(config["SESSION_COOKIE"], "existing_session")
+
     def test_init_and_mounts(self):
         for enabled in (False, True):
             for skip in (False, True):
@@ -116,12 +185,57 @@ class ReliabilityTests(unittest.TestCase):
                 else:
                     self.assertIn("mc/mcli", result.stderr.decode())
 
+    def test_minio_initially_unreachable_server_recovers(self):
+        command = pod(render(kind="Job")["review-minio-bucket-init"])["containers"][0]["command"]
+        for binary in ("mc", "mcli"):
+            with self.subTest(binary=binary), tempfile.TemporaryDirectory() as directory:
+                calls = Path(directory) / "calls"
+                executable = Path(directory) / binary
+                executable.write_text('#!/bin/sh\nprintf \'%s\\n\' "$*" >> "$TEST_MC_CALLS"\ncase "$1" in\n  alias)\n    [ "$3" = --api ] && [ "$4" = S3v4 ] || exit 1\n    : > "$TEST_ALIAS"\n    ;;\n  ls)\n    [ -f "$TEST_ALIAS" ] || exit 1\n    if [ ! -f "$TEST_PROBED" ]; then\n      : > "$TEST_PROBED"\n      echo \'connection refused\' >&2\n      exit 1\n    fi\n    ;;\nesac\n')
+                executable.chmod(0o755)
+                (Path(directory) / "grep").symlink_to(shutil.which("grep"))
+                sleep = Path(directory) / "sleep"
+                sleep.write_text("#!/bin/sh\nexit 0\n")
+                sleep.chmod(0o755)
+                env = dict(os.environ, PATH=directory, KEY="test", SECRET="test",
+                           TEST_MC_CALLS=str(calls), TEST_ALIAS=directory + "/alias",
+                           TEST_PROBED=directory + "/probed")
+                result = subprocess.run(["/bin/sh", *command[1:]], env=env, capture_output=True, timeout=5)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                recorded = calls.read_text().splitlines()
+                self.assertTrue(recorded[0].startswith("alias set --api S3v4 doqa "))
+                self.assertEqual(recorded.count("ls doqa"), 2)
+                self.assertIn("anonymous set public doqa/doqa", recorded)
+
+    def test_minio_alias_configuration_failure_is_fatal(self):
+        command = pod(render(kind="Job")["review-minio-bucket-init"])["containers"][0]["command"]
+        with tempfile.TemporaryDirectory() as directory:
+            calls = Path(directory) / "calls"
+            executable = Path(directory) / "mc"
+            executable.write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$TEST_MC_CALLS"\nexit 13\n')
+            executable.chmod(0o755)
+            env = dict(os.environ, PATH=directory, KEY="test", SECRET="test", TEST_MC_CALLS=str(calls))
+            result = subprocess.run(["/bin/sh", *command[1:]], env=env, capture_output=True, timeout=5)
+            self.assertEqual(result.returncode, 13)
+            self.assertEqual(len(calls.read_text().splitlines()), 1)
+
     def test_invalid_parameters_are_rejected(self):
-        for values in [{"backend": {"phpFpm": {"maxChildren": 0}}},
+        for values in [{"backend": {"cachePrefix": None}},
+                       {"backend": {"redisPrefix": ""}},
+                       {"backend": {"sessionCookie": None}},
+                       {"product": None},
+                       {"product": {"name": None}},
+                       {"product": {"telegramUrl": None}},
+                       {"product": {"id": "Invalid Slug"}},
+                       {"product": {"name": ""}},
+                       {"product": {"supportEmail": 123}},
+                       {"backend": {"phpFpm": {"maxChildren": 0}}},
                        {"nginx": {"proxyReadTimeout": "60s; invalid"}},
                        {"nginx": {"websocketReadTimeout": ""}}]:
-            with self.subTest(values=values), self.assertRaises(subprocess.CalledProcessError):
-                render(values)
+            with self.subTest(values=values):
+                with self.assertRaises(subprocess.CalledProcessError) as failure:
+                    render(values)
+                self.assertIn("schema", failure.exception.stderr)
 
 
 if __name__ == "__main__":

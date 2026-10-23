@@ -53,6 +53,8 @@ spec:
               key: llm-api-key
         - name: STUB_AUTH
           value: "False"
+        - name: APP_TITLE
+          value: {{ printf "%s - LLM" .Values.product.name | quote }}
         - name: PREFIX_ROOT_PATH
           value: "/"
         - name: STATISTIC_HOST

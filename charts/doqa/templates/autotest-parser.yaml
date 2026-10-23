@@ -45,6 +45,8 @@ spec:
           value: "autotest"
         - name: STUB_AUTH
           value: "true"
+        - name: APP_TITLE
+          value: {{ printf "%s Autotests" .Values.product.name | quote }}
         - name: PREFIX_ROOT_PATH
           value: "/"
         - name: DEBUG

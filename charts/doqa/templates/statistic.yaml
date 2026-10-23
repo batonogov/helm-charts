@@ -63,6 +63,8 @@ spec:
           value: {{ .Values.debug | quote }}
         - name: STUB_AUTH
           value: "False"
+        - name: APP_TITLE
+          value: {{ printf "%s - Statistic" .Values.product.name | quote }}
         - name: PREFIX_ROOT_PATH
           value: "/"
         - name: API_KEY

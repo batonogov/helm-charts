@@ -198,10 +198,9 @@ spec:
             echo "ERROR: mc/mcli was not found in the MinIO client image" >&2
             exit 1
           fi
-          # `mc alias set` only writes the alias locally; it does not probe the server.
-          # Server reachability and credential validity are verified via `mc ls`,
-          # which calls ListBuckets and returns HTTP 403/401 on bad credentials.
-          "$MC_BIN" alias set doqa "http://{{ $fullName }}-minio:9000" "$KEY" "$SECRET" >/dev/null 2>&1 || true
+          # Explicit signing saves the alias without probing an unready server.
+          # A local configuration error is fatal; reachability/auth retry below.
+          "$MC_BIN" alias set --api S3v4 doqa "http://{{ $fullName }}-minio:9000" "$KEY" "$SECRET" >/dev/null
           MC_PROBE_ERR=""
           while :; do
             if MC_PROBE_ERR="$("$MC_BIN" ls doqa 2>&1 >/dev/null)"; then
