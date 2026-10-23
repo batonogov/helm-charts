@@ -192,13 +192,19 @@ spec:
         - -c
         - |
           set -e
+          # Official mc and the vendor Alpine image use different CLI names.
+          MC_BIN="$(command -v mc || command -v mcli || true)"
+          if [ -z "$MC_BIN" ]; then
+            echo "ERROR: mc/mcli was not found in the MinIO client image" >&2
+            exit 1
+          fi
           # `mc alias set` only writes the alias locally; it does not probe the server.
           # Server reachability and credential validity are verified via `mc ls`,
           # which calls ListBuckets and returns HTTP 403/401 on bad credentials.
-          mc alias set doqa "http://{{ $fullName }}-minio:9000" "$KEY" "$SECRET" >/dev/null 2>&1 || true
+          "$MC_BIN" alias set doqa "http://{{ $fullName }}-minio:9000" "$KEY" "$SECRET" >/dev/null 2>&1 || true
           MC_PROBE_ERR=""
           while :; do
-            if MC_PROBE_ERR="$(mc ls doqa 2>&1 >/dev/null)"; then
+            if MC_PROBE_ERR="$("$MC_BIN" ls doqa 2>&1 >/dev/null)"; then
               break
             fi
             # Auth/access errors indicate wrong credentials: fail fast instead of retrying.
@@ -209,8 +215,8 @@ spec:
             echo "waiting for minio to be ready..."
             sleep 2
           done
-          mc mb --ignore-existing doqa/{{ .Values.minio.bucket }}
-          mc anonymous set public doqa/{{ .Values.minio.bucket }}
+          "$MC_BIN" mb --ignore-existing doqa/{{ .Values.minio.bucket }}
+          "$MC_BIN" anonymous set public doqa/{{ .Values.minio.bucket }}
         resources:
           {{- toYaml .Values.minio.client.resources | nindent 10 }}
       {{- with (or .Values.minio.client.nodeSelector .Values.nodeSelector) }}

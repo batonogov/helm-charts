@@ -344,7 +344,7 @@
         },
         "bucket": {
           "type": "string",
-          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9.-]*$",
           "description": "Bucket name."
         },
         "region": {
@@ -454,9 +454,34 @@
         {
           "type": "object",
           "properties": {
+            "phpFpm": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "enabled",
+                "maxChildren"
+              ],
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "maxChildren": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "readinessProbe": {
+              "type": ["object", "null"],
+              "description": "Kubernetes Probe configuration; null disables the probe."
+            },
+            "livenessProbe": {
+              "type": ["object", "null"],
+              "description": "Kubernetes Probe configuration; null disables the probe."
+            },
             "skipMigrate": {
               "type": "boolean",
-              "description": "Skip running php artisan migrate --force on rollout."
+              "description": "Disable only the migration init container; the image CMD may run migrations independently."
             },
             "migrate": {
               "type": "object",
@@ -638,8 +663,20 @@
         {
           "type": "object",
           "properties": {
+            "trustForwardedProto": {
+              "type": "boolean"
+            },
+            "proxyReadTimeout": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*(ms|s|m|h)?$"
+            },
+            "websocketReadTimeout": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*(ms|s|m|h)?$"
+            },
             "clientMaxBodySize": {
               "type": "string",
+              "pattern": "^(0|[1-9][0-9]*[kmgKM]?)$",
               "description": "Maximum upload size."
             }
           }

@@ -2,7 +2,7 @@
 
 DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
 
-![Version: 0.8.0](https://img.shields.io/badge/Version-0.8.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.3.4-box](https://img.shields.io/badge/AppVersion-4.3.4--box-informational?style=flat-square)
+![Version: 0.9.0](https://img.shields.io/badge/Version-0.9.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.3.4-box](https://img.shields.io/badge/AppVersion-4.3.4--box-informational?style=flat-square)
 
 **Homepage:** <https://doqa.app>
 
@@ -43,7 +43,7 @@ anonymously — no `imagePullSecrets` are required by default.
 
 | Area | Status | Notes |
 |---|---|---|
-| DoQA Box | Supported | Pinned to `4.3.1-box`; service, environment, image, and nginx mappings follow the vendor `configs_4_3_1.zip` archive |
+| DoQA Box | Supported | Component versions are pinned in `values.yaml`; verified against the vendor archive `configs_4_3_4.zip` |
 | Kubernetes | Supported | `1.32+`, as declared by `Chart.yaml`; manifests use stable Kubernetes APIs |
 | Helm | Tested | Helm `3.16` in CI and Helm 4 locally; Helm `3.13+` is supported |
 | Node platform | Supported | `linux/amd64`; the current vendor images are single-platform amd64 images |
@@ -159,13 +159,18 @@ Kubernetes: `>=1.32.0-0`
 | autotestsWorker.waitForRabbitmq | bool | `true` | Wait for RabbitMQ AMQP readiness before starting the worker. Vendor 4.3.1 gates the autotests service on a healthy broker; the chart mirrors that by probing the broker first. |
 | autotestsWorker.workerProcesses | int | `3` | Parallel `autotests:work` processes per pod (vendor AUTOTESTS_WORKER_PROCESSES) |
 | backend.affinity | object | `{}` |  |
+| backend.containerSecurityContext | object | `{"capabilities":{"add":["CHOWN","DAC_OVERRIDE","SETUID","SETGID"]}}` | Capabilities required to start nginx/FPM in the vendor backend. Global chart restrictions remain in effect. |
 | backend.image.repository | string | `"doqa/doqa-backend"` | Backend image repository (relative to image.registry) |
 | backend.image.tag | string | `"4.3.3-box"` | Backend image tag |
+| backend.livenessProbe | object | `{"initialDelaySeconds":60,"periodSeconds":30,"tcpSocket":{"port":"http"},"timeoutSeconds":10}` | TCP liveness avoids restarting the backend on FPM saturation or database unavailability. null disables the probe. |
 | backend.migrate.waitForRabbitmq | bool | `true` | Wait for RabbitMQ AMQP readiness before running migrations. Vendor 4.2.0 added a compose dependency on rabbitmq because some migrations dispatch jobs; the chart mirrors that by probing the broker first. |
 | backend.nodeSelector | object | `{}` |  |
+| backend.phpFpm.enabled | bool | `false` | Use the current image configuration with an overridden pool size. Size memory for your workload. |
+| backend.phpFpm.maxChildren | int | `5` | Maximum worker count; other pool settings are inherited from the image and validated by the init container. |
+| backend.readinessProbe | object | `{"exec":{"command":["sh","-ec","code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 http://127.0.0.1:8080/)\ncase \"$code\" in 2??|3??|4??) exit 0 ;; *) exit 1 ;; esac"]},"initialDelaySeconds":15,"periodSeconds":10,"timeoutSeconds":8}` | Application readiness check: HTTP 2xx–4xx succeed; 5xx and transport errors fail. null disables the probe. |
 | backend.replicas | int | `2` | Backend replica count |
 | backend.resources | object | `{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}}` | Resource requests and limits |
-| backend.skipMigrate | bool | `false` |  |
+| backend.skipMigrate | bool | `false` | Disable only the migration init container; the vendor image CMD may run migrations independently |
 | backend.tolerations | list | `[]` |  |
 | cron.affinity | object | `{}` |  |
 | cron.nodeSelector | object | `{}` |  |
@@ -181,6 +186,7 @@ Kubernetes: `>=1.32.0-0`
 | extraVolumeMounts | list | `[]` | Extra volume mounts to add to all containers |
 | extraVolumes | list | `[]` | Extra volumes to add to all Deployments |
 | frontend.affinity | object | `{}` |  |
+| frontend.containerSecurityContext | object | `{"capabilities":{"add":["CHOWN","DAC_OVERRIDE","SETUID","SETGID"]}}` | Capabilities required to start nginx in the component image; privilege escalation remains disabled. |
 | frontend.image.repository | string | `"doqa/doqa-frontend"` | Frontend image repository (relative to image.registry) |
 | frontend.image.tag | string | `"4.3.1-box"` | Frontend image tag |
 | frontend.nodeSelector | object | `{}` |  |
@@ -249,12 +255,16 @@ Kubernetes: `>=1.32.0-0`
 | networkPolicy.enabled | bool | `false` | Enable NetworkPolicy resources. Creates a default-deny-ingress policy and explicit allow rules for all internal traffic paths |
 | nginx.affinity | object | `{}` |  |
 | nginx.clientMaxBodySize | string | `"0"` | Maximum upload size. `0` disables the limit (matches vendor 4.2.0 nginx). |
+| nginx.containerSecurityContext | object | `{"capabilities":{"add":["CHOWN","DAC_OVERRIDE","SETUID","SETGID","NET_BIND_SERVICE"]}}` | Capabilities required to start nginx in the component image; privilege escalation remains disabled. |
 | nginx.image.repository | string | `"service/nginx"` | Vendor nginx image repository, relative to image.registry. A fully qualified repository may be used for an exact private mirror. |
 | nginx.image.tag | string | `"1.23.3-alpine"` | Nginx image tag |
 | nginx.nodeSelector | object | `{}` |  |
+| nginx.proxyReadTimeout | string | `"60s"` | Upstream read timeout; increase in deployment values if needed. |
 | nginx.replicas | int | `2` | Replica count |
 | nginx.resources | object | `{"limits":{"cpu":"50m","memory":"64Mi"},"requests":{"cpu":"25m","memory":"32Mi"}}` | Resource requests and limits |
 | nginx.tolerations | list | `[]` |  |
+| nginx.trustForwardedProto | bool | `false` | Trust the original scheme only behind a trusted Ingress that overwrites X-Forwarded-Proto. Disable for direct router exposure. |
+| nginx.websocketReadTimeout | string | `"60s"` | Separate WebSocket read timeout; align with heartbeat and Ingress settings. |
 | nodeSelector | object | `{}` | Default node selector applied to all components. Per-component values override this. |
 | notification.affinity | object | `{}` |  |
 | notification.image.repository | string | `"doqa/doqa-notify"` | Notification image repository |
@@ -294,6 +304,7 @@ Kubernetes: `>=1.32.0-0`
 | queue.tolerations | list | `[]` |  |
 | queue.waitForRabbitmq | bool | `true` | Wait for RabbitMQ AMQP readiness before starting the worker. Vendor 4.2.1 added a compose dependency on rabbitmq for the queue service; the chart mirrors that by probing the broker first. |
 | rabbitmq.affinity | object | `{}` | Affinity for RabbitMQ pods. Overrides global affinity |
+| rabbitmq.containerSecurityContext | object | `{"capabilities":{"add":["CHOWN","DAC_OVERRIDE","SETUID","SETGID"]}}` | Entrypoint capabilities for setting PVC ownership and switching to the rabbitmq user |
 | rabbitmq.create | bool | `true` | Provision an in-tree RabbitMQ Deployment+PVC |
 | rabbitmq.host | string | `""` | External RabbitMQ host (used only when create=false) |
 | rabbitmq.image.repository | string | `"docker.io/rabbitmq"` | RabbitMQ image |
@@ -377,6 +388,88 @@ This chart targets DoQA 4.1.0+. There is no automatic migration path from
 3.x deployments — vendor changed the queue broker from Redis to RabbitMQ
 between 3.7 and 4.0. Plan a stepwise migration if you are coming from a
 3.x install.
+
+### 0.8.x → 0.9.0
+
+- The scheduler remains a Deployment running `schedule:work`; no CronJob is added.
+- Default MinIO and client versions are unchanged from 0.8.x; there is no
+  automatic downgrade to the older vendor image. Bucket initialization supports
+  both `mc` and `mcli` and fails immediately if neither client is available.
+- The global securityContext remains restrictive. Backend/frontend and bundled
+  RabbitMQ receive CHOWN, DAC_OVERRIDE, SETUID and SETGID; the nginx router also
+  receives NET_BIND_SERVICE. Current images need these capabilities to run
+  nginx/FPM and set RabbitMQ PVC ownership before switching users.
+  `allowPrivilegeEscalation` remains false. This is not a PSA restricted profile;
+  that environment requires compatible images and permission settings.
+- Backend readiness requests `/`: HTTP 2xx–4xx succeed, while 5xx, transport
+  errors and timeouts fail. In the current image, the request passes through FPM
+  and returns 404; the static `/api/docs` endpoint cannot check FPM health.
+  This checks availability, not business functionality. Recheck the route and
+  curl availability when upgrading the image. TCP liveness is retained to avoid
+  restart loops during FPM overload or database failures; it does not detect
+  every hang. Both probes are configurable; `backend.readinessProbe: null` and
+  `backend.livenessProbe: null` disable them. When changing probe types, set the
+  previous handler to null (for example, `exec: null`), since Helm merges values maps.
+- Optional `backend.phpFpm.enabled` defaults to false. An init container copies
+  the configuration from the same backend image version, appends max_children,
+  validates it with `php-fpm -t` and shares it with the main container via emptyDir.
+  Other image settings and the original CMD are preserved. An invalid combination
+  with inherited pool settings stops initialization with FPM diagnostics.
+  The `fpm-config` volume name is reserved when this feature is enabled.
+  `backend.phpFpm.maxChildren` defaults to 5. Size resources using measurements
+  when increasing it; memory limits and replica counts do not change automatically.
+- For TLS termination at a trusted Ingress, enable `nginx.trustForwardedProto: true`.
+  The Ingress must overwrite incoming X-Forwarded-Proto headers. Trust is disabled
+  by default. When enabled, only http/https are accepted; an empty or other value
+  falls back to `$scheme`. Do not expose a header-trusting router directly to clients.
+- `nginx.proxyReadTimeout` and `nginx.websocketReadTimeout` are independently
+  configurable and both default to 60s. Align them with Ingress timeouts and
+  WebSocket heartbeat settings for your workload.
+- `backend.skipMigrate` disables only the migration init container. The current
+  image CMD also runs migrations; this release does not change their lifecycle.
+
+Example deployment settings (size these values using measurements):
+
+```yaml
+nginx:
+  trustForwardedProto: true
+  proxyReadTimeout: 120s
+  websocketReadTimeout: 3600s
+backend:
+  phpFpm:
+    enabled: true
+    maxChildren: 20
+  resources:
+    requests:
+      cpu: 500m
+      memory: 384Mi
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+```
+
+#### MinIO images for a fresh test deployment
+
+The registry may not provide manifests for the MinIO/mc image tags pinned in
+the 0.8.x defaults. The 0.9.0 defaults preserve those values for upgrade
+compatibility; for fresh installations, explicitly select images from the
+DoQA 4.3.4 Compose configuration:
+
+```yaml
+minio:
+  image:
+    repository: registry.control.doqa.app/service/minio
+    tag: 20240527.191746-r2-alpine
+  client:
+    image:
+      repository: registry.control.doqa.app/service/mc
+      tag: 20240527.191746-r2-alpine
+```
+
+This example is intended for a fresh installation with empty storage.
+Do not apply it to a PVC previously used by a newer MinIO version: downgrade
+compatibility has not been tested. When upgrading, retain the explicitly pinned
+images of the existing deployment and plan any migration separately.
 
 ### 0.7.x → 0.8.0
 

@@ -60,6 +60,11 @@ jobs:
       - name: DoQA portability checks
         run: scripts/check-doqa-portability.sh
 
+      - name: DoQA reliability checks
+        run: |
+          uv pip install PyYAML==6.0.3
+          python scripts/check-doqa-reliability.py
+
       - name: helm-docs check
         if: steps.list-changed.outputs.changed == 'true'
         uses: losisin/helm-docs-github-action@9e0787c426fdec38be6288bb5c0559dcb388412c # v2.0.1
