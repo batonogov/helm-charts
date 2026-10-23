@@ -450,11 +450,10 @@ backend:
 
 #### MinIO images for a fresh test deployment
 
-On October 22, 2026, the registry did not provide manifests for the MinIO/mc
-image tags pinned in the 0.8.x defaults. This PR preserves those values for
-upgrade compatibility; image availability for fresh installations requires a
-separate resolution. The successful smoke test explicitly selected images
-from the DoQA 4.3.4 Compose configuration:
+The registry may not provide manifests for the MinIO/mc image tags pinned in
+the 0.8.x defaults. The 0.9.0 defaults preserve those values for upgrade
+compatibility; for fresh installations, explicitly select images from the
+DoQA 4.3.4 Compose configuration:
 
 ```yaml
 minio:
