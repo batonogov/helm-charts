@@ -20,7 +20,8 @@ def render(values=None, kind="Deployment"):
         extra.flush()
         result = subprocess.run(
             ["helm", "template", "review", str(CHART), "-f",
-             str(CHART / "ci/test-values.yaml"), "-f", extra.name, "--set", "fullnameOverride=review"],
+             str(CHART / "ci/test-values.yaml"), "-f", extra.name,
+             "--kube-version", "1.32.0", "--set", "fullnameOverride=review"],
             capture_output=True, text=True, check=True,
         )
     return {doc["metadata"]["name"]: doc
