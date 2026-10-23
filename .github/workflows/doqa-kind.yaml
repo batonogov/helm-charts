@@ -25,16 +25,15 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          if [[ -z "$BASE_SHA" ]]; then
-            echo 'run=true' >> "$GITHUB_OUTPUT"
-          else
-            changed=$(git diff --name-only "$BASE_SHA" HEAD)
-            if rg -q '^(charts/doqa/|scripts/doqa-kind/|\.github/doqa-kind/|\.github/workflows/doqa-kind\.yaml$)' <<< "$changed"; then
-              echo 'run=true' >> "$GITHUB_OUTPUT"
-            else
-              echo 'run=false' >> "$GITHUB_OUTPUT"
-            fi
-          fi
+          python3 - <<'PY'
+          import os, subprocess
+          base = os.environ.get("BASE_SHA")
+          paths = subprocess.check_output(["git", "diff", "--name-only", "-z", base, "HEAD"], text=True).split("\0") if base else []
+          required = not base or any(p.startswith(("charts/doqa/", "scripts/doqa-kind/", ".github/doqa-kind/")) or p == ".github/workflows/doqa-kind.yaml" for p in paths)
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write("run=" + str(required).lower() + "\n")
+          print("DoQA integration required:", required)
+          PY
       - name: Verify published baseline selection
         run: python3 scripts/doqa-kind/test_baseline.py
   smoke:
@@ -98,5 +97,6 @@ jobs:
       - env:
           DETECTION: ${{ needs.changes.result }}
           SMOKE: ${{ needs.smoke.result }}
+          REQUIRED: ${{ needs.changes.outputs.run }}
         run: |
-          [[ "$DETECTION" == success && ( "$SMOKE" == success || "$SMOKE" == skipped ) ]]
+          [[ "$DETECTION" == success && ( ( "$REQUIRED" == true && "$SMOKE" == success ) || ( "$REQUIRED" == false && "$SMOKE" == skipped ) ) ]]
