@@ -8,8 +8,7 @@ source .github/doqa-kind/versions.env
 mkdir -p "$DOQA_KIND_WORK/bin"
 case "$(uname -s)-$(uname -m)" in
   Linux-x86_64) platform=linux; arch=amd64 ;;
-  Darwin-arm64) platform=darwin; arch=arm64 ;;
-  *) echo 'Unsupported host platform' >&2; exit 1 ;;
+  *) echo 'Live DoQA tests require a Linux amd64 host, matching the vendor images' >&2; exit 1 ;;
 esac
 download() { curl --fail --location --retry 3 --connect-timeout 20 --max-time 180 "$1" -o "$2"; }
 verify() {

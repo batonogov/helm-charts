@@ -64,11 +64,12 @@ for namespace in ("doqa-smoke", "cnpg-system"):
     images = []
     for pod in pods:
         for status in pod.get("status", {}).get("initContainerStatuses", []) + pod.get("status", {}).get("containerStatuses", []):
+            terminated = status.get("state", {}).get("terminated") or status.get("lastState", {}).get("terminated", {})
             images.append({"pod": pod["metadata"]["name"], "container": status["name"],
                            "image": status["image"], "image_id": status.get("imageID", ""),
                            "restart_count": status["restartCount"], "ready": status["ready"],
-                           "last_exit_reason": status.get("lastState", {}).get("terminated", {}).get("reason"),
-                           "last_exit_code": status.get("lastState", {}).get("terminated", {}).get("exitCode")})
+                           "last_exit_reason": terminated.get("reason"),
+                           "last_exit_code": terminated.get("exitCode")})
         for container in pod["spec"].get("initContainers", []) + pod["spec"]["containers"]:
             name = pod["metadata"]["name"] + "-" + container["name"]
             args = ["logs", pod["metadata"]["name"], "-c", container["name"], "--tail=200"]

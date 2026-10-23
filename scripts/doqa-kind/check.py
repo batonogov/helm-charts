@@ -71,7 +71,9 @@ def health():
         try:
             if "<html" not in http("/", follow=True).lower():
                 raise RuntimeError("Frontend response is not HTML")
-            json.loads(http("/api/v1/info"))
+            config = json.loads(http("/api/auth/sso"))
+            if not isinstance(config, dict) or not isinstance(config.get("enabled"), bool):
+                raise RuntimeError("Public SSO configuration endpoint returned an unexpected payload")
             break
         except (RuntimeError, ValueError):
             if time.monotonic() >= deadline:
@@ -139,14 +141,15 @@ def create_probe():
 
 
 def seed(marker):
-    sql("CREATE SCHEMA ci_helm_smoke; CREATE TABLE ci_helm_smoke.marker(value text NOT NULL); "
-        f"INSERT INTO ci_helm_smoke.marker VALUES ('{marker}');")
+    # Use the application's public schema so a destructive schema reset loses the sentinel too.
+    sql("CREATE TABLE public.ci_helm_smoke_marker(value text NOT NULL); "
+        f"INSERT INTO public.ci_helm_smoke_marker VALUES ('{marker}');")
     backend(f"cache()->put('ci_helm_smoke', '{marker}', 3600);")
     minio('"$MC_BIN" pipe ci/doqa/ci-helm-smoke', data=marker)
 
 
 def verify(marker):
-    checks = [sql("SELECT value FROM ci_helm_smoke.marker;"),
+    checks = [sql("SELECT value FROM public.ci_helm_smoke_marker;"),
               backend("echo cache()->get('ci_helm_smoke');"),
               minio('"$MC_BIN" cat ci/doqa/ci-helm-smoke'), http("/doqa/ci-helm-smoke")]
     if any(value != marker for value in checks):
@@ -155,6 +158,7 @@ def verify(marker):
 
 
 def install(archive):
+    print("Installing packaged chart: " + archive.name, flush=True)
     run([*HELM, "install", RELEASE, str(archive), "--create-namespace", "-f", str(VALUES),
          "--wait", "--wait-for-jobs", "--timeout", "15m"], timeout=920)
     health()
@@ -180,6 +184,7 @@ def main(scenario):
         seed(marker)
         verify(marker)
         before = state_snapshot()
+        print("Upgrading to packaged candidate: " + candidate.name, flush=True)
         run([*HELM, "upgrade", RELEASE, str(candidate), "-f", str(VALUES), "--reset-values",
              "--wait", "--wait-for-jobs", "--timeout", "15m"], timeout=920)
         health()

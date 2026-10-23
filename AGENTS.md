@@ -199,7 +199,7 @@ The Ingress sends all traffic to the nginx Service. TLS terminates at the Ingres
 
 ### Vendor licensing
 
-DoQA is a paid product. The chart deploys the stack and the UI loads, but creating a super-user is gated by a vendor license key (`https://doqa.app`). End-to-end smoke beyond `/api/v1/info` returning 200 isn't possible without a real key.
+DoQA is a paid product. The chart deploys the stack and the UI loads, but creating a super-user is gated by a vendor license key (`https://doqa.app`). The public `/api/auth/sso` endpoint returns JSON without a license and is used by live CI; `/api/v1/info` does not exist in the current images. Database/cache/object-store checks do not require a license, while licensed user workflows require a real key.
 
 ### Test deploy values
 

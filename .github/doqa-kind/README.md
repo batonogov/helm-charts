@@ -13,6 +13,8 @@ with SHA256.
   Deployment and CNPG, exercise frontend/API through nginx, validate the FPM
   override and check container stability. Write and read PostgreSQL, Laravel
   cache and MinIO sentinels, including the public object route through nginx.
+  The API check calls the existing public `/api/auth/sso` endpoint and validates
+  its JSON configuration; it does not require user credentials or a license.
 - **Upgrade**: select the latest published stable release tagged `doqa-*`,
   independently of releases for other charts. Verify the release asset using
   its GitHub SHA256 digest, install it, write sentinels and snapshot hashes of
@@ -56,10 +58,10 @@ deletes only the kind cluster it created.
 
 ## Local reproduction
 
-Requirements: Docker, Python 3.9+, Helm 3.22.1, curl and network access to GitHub,
+Requirements: Linux amd64, Docker, Python 3.9+, Helm 3.22.1, curl and network access to GitHub,
 Kubernetes binaries and container registries. Linux amd64 matches CI and the
-vendor application images. Setup also supports macOS arm64 tools, but running
-the amd64 application images requires working container emulation.
+vendor application images. On macOS arm64 use a Linux amd64 VM or the GitHub
+workflow: an arm64 kind node cannot pull the backend's amd64-only image manifest.
 
 From the repository root, use a unique cluster name and fresh working directory:
 
