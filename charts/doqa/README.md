@@ -433,6 +433,10 @@ links can be disabled with `""`; `null` is rejected by the schema.
   Redis and session identities, including the JWT revocation namespace. Keep
   these settings stable across brand changes. If your deployment already uses
   custom prefixes or cookie names, set these values to those existing names.
+- **Bucket initialization**: MinIO alias configuration explicitly selects S3v4,
+  so it succeeds before the server is reachable. The subsequent probe retries
+  transient failures. Local alias configuration errors fail immediately instead
+  of leaving the Job probing an alias that was never created.
 - A custom product requires its own compiled frontend image (`frontend.image`)
   in addition to `product.*` settings; these settings do not rebrand the stock SPA.
 - The LLM's internal `STATISTIC_HOST` is retained: the vendor removed it only

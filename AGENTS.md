@@ -189,7 +189,7 @@ The Ingress sends all traffic to the nginx Service. TLS terminates at the Ingres
 
 ### Bucket-init Job
 
-`templates/minio.yaml` includes a Helm `post-install,post-upgrade` hook Job that provisions the MinIO bucket. It runs `mc alias set` non-fatally because that only writes local configuration, then probes the server with `mc ls`. Authentication errors exit the container instead of looping; the Job then follows its `OnFailure`/`backoffLimit` retry policy. Transient reachability failures retry inside the probe loop. Once reachable it runs `mc mb --ignore-existing` and sets anonymous access. The hook policy cleans up completed succeeded/failed Jobs and replaces an old hook before a new run.
+`templates/minio.yaml` includes a Helm `post-install,post-upgrade` hook Job that provisions the MinIO bucket. It runs `mc alias set --api S3v4` to save local configuration without API-discovery network probes, then probes the server with `mc ls`. A local alias configuration error exits immediately. Authentication errors exit the container instead of looping; the Job then follows its `OnFailure`/`backoffLimit` retry policy. Transient reachability failures retry inside the probe loop. Once reachable it runs `mc mb --ignore-existing` and sets anonymous access. The hook policy cleans up completed succeeded/failed Jobs and replaces an old hook before a new run.
 
 ### Out of scope and optional features
 

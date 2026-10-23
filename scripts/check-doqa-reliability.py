@@ -2,6 +2,7 @@
 """DoQA regression checks: require Helm and PyYAML (also used by chart-testing)."""
 
 import os
+import shutil
 from pathlib import Path
 import subprocess
 import tempfile
@@ -183,6 +184,40 @@ class ReliabilityTests(unittest.TestCase):
                     self.assertIn("mb --ignore-existing doqa/doqa", calls.read_text())
                 else:
                     self.assertIn("mc/mcli", result.stderr.decode())
+
+    def test_minio_initially_unreachable_server_recovers(self):
+        command = pod(render(kind="Job")["review-minio-bucket-init"])["containers"][0]["command"]
+        for binary in ("mc", "mcli"):
+            with self.subTest(binary=binary), tempfile.TemporaryDirectory() as directory:
+                calls = Path(directory) / "calls"
+                executable = Path(directory) / binary
+                executable.write_text('#!/bin/sh\nprintf \'%s\\n\' "$*" >> "$TEST_MC_CALLS"\ncase "$1" in\n  alias)\n    [ "$3" = --api ] && [ "$4" = S3v4 ] || exit 1\n    : > "$TEST_ALIAS"\n    ;;\n  ls)\n    [ -f "$TEST_ALIAS" ] || exit 1\n    if [ ! -f "$TEST_PROBED" ]; then\n      : > "$TEST_PROBED"\n      echo \'connection refused\' >&2\n      exit 1\n    fi\n    ;;\nesac\n')
+                executable.chmod(0o755)
+                (Path(directory) / "grep").symlink_to(shutil.which("grep"))
+                sleep = Path(directory) / "sleep"
+                sleep.write_text("#!/bin/sh\nexit 0\n")
+                sleep.chmod(0o755)
+                env = dict(os.environ, PATH=directory, KEY="test", SECRET="test",
+                           TEST_MC_CALLS=str(calls), TEST_ALIAS=directory + "/alias",
+                           TEST_PROBED=directory + "/probed")
+                result = subprocess.run(["/bin/sh", *command[1:]], env=env, capture_output=True, timeout=5)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                recorded = calls.read_text().splitlines()
+                self.assertTrue(recorded[0].startswith("alias set --api S3v4 doqa "))
+                self.assertEqual(recorded.count("ls doqa"), 2)
+                self.assertIn("anonymous set public doqa/doqa", recorded)
+
+    def test_minio_alias_configuration_failure_is_fatal(self):
+        command = pod(render(kind="Job")["review-minio-bucket-init"])["containers"][0]["command"]
+        with tempfile.TemporaryDirectory() as directory:
+            calls = Path(directory) / "calls"
+            executable = Path(directory) / "mc"
+            executable.write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$TEST_MC_CALLS"\nexit 13\n')
+            executable.chmod(0o755)
+            env = dict(os.environ, PATH=directory, KEY="test", SECRET="test", TEST_MC_CALLS=str(calls))
+            result = subprocess.run(["/bin/sh", *command[1:]], env=env, capture_output=True, timeout=5)
+            self.assertEqual(result.returncode, 13)
+            self.assertEqual(len(calls.read_text().splitlines()), 1)
 
     def test_invalid_parameters_are_rejected(self):
         for values in [{"backend": {"cachePrefix": None}},
