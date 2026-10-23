@@ -27,7 +27,10 @@ baseline; the workflow is not permanently tied to version 0.9.0.
 
 `values.yaml` uses kind's `standard` StorageClass and one replica/consumer for
 the main replicated services. It disables Ingress and TLS; checks reach the
-internal nginx Service. MinIO/mc use the vendor images on empty CI storage,
+internal nginx Service, following the frontend's locale redirects. Scheduler,
+LLM and Celery have explicit CI memory budgets, and Celery has one consumer.
+These overrides keep the smoke profile stable and do not certify chart default
+resource limits for every application workload. MinIO/mc use the vendor images on empty CI storage,
 identically on both sides of an upgrade. Default MinIO image availability,
 Ingress controllers, certificate issuance, HA/failover, backup/restore and
 licensed user workflows are outside this test's scope. The optional Telegram
@@ -46,7 +49,7 @@ publish charts.
 
 Each matrix job has a 45-minute limit. Diagnostics are collected before cleanup
 and retained for seven days: resource status, events, bounded current/previous
-container logs and non-secret result/baseline metadata. Secret contents,
+container logs, actual image IDs/digests and non-secret result/baseline metadata. Secret contents,
 kubeconfig and rendered Helm manifests are excluded. Logs have known Secret
 values redacted; logs are skipped if redaction cannot be prepared. The test
 deletes only the kind cluster it created.

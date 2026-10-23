@@ -60,12 +60,21 @@ for namespace in ("doqa-smoke", "cnpg-system"):
     if code:
         continue
     tasks = []
-    for pod in json.loads(pods_json)["items"]:
+    pods = json.loads(pods_json)["items"]
+    images = []
+    for pod in pods:
+        for status in pod.get("status", {}).get("initContainerStatuses", []) + pod.get("status", {}).get("containerStatuses", []):
+            images.append({"pod": pod["metadata"]["name"], "container": status["name"],
+                           "image": status["image"], "image_id": status.get("imageID", ""),
+                           "restart_count": status["restartCount"], "ready": status["ready"],
+                           "last_exit_reason": status.get("lastState", {}).get("terminated", {}).get("reason"),
+                           "last_exit_code": status.get("lastState", {}).get("terminated", {}).get("exitCode")})
         for container in pod["spec"].get("initContainers", []) + pod["spec"]["containers"]:
             name = pod["metadata"]["name"] + "-" + container["name"]
             args = ["logs", pod["metadata"]["name"], "-c", container["name"], "--tail=200"]
             tasks.append((name, args))
             tasks.append((name + "-previous", args + ["--previous"]))
+    (out / (namespace + "-images.json")).write_text(json.dumps(images, indent=2) + "\n")
     with ThreadPoolExecutor(max_workers=8) as executor:
         list(executor.map(lambda task: save(*task), tasks))
 print(f"Diagnostics saved to {out}")

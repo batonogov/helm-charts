@@ -16,6 +16,32 @@ queue:
 autotestsWorker:
   replicas: 1
   workerProcesses: 1
+cron:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+llm:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+notification:
+  worker:
+    concurrency: 1
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
 nginx:
   trustForwardedProto: true
   proxyReadTimeout: 120s

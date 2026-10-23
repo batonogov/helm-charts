@@ -51,10 +51,13 @@ def wait_ready():
         kube("rollout", "status", "deployment/" + deployment["metadata"]["name"], "--timeout=300s", timeout=320)
 
 
-def http(path):
+def http(path, *, follow=False):
+    address = kube("get", "service", "doqa-smoke-nginx", "-o", "jsonpath={.spec.clusterIP}")
+    redirects = ["--location", "--max-redirs", "5", "--proto-redir", "=http"] if follow else []
     output = kube("exec", "deployment/doqa-smoke-backend", "-c", "backend", "--", "curl", "--silent",
-                  "--show-error", "--max-time", "20", "--header", "Host: doqa-ci.example.test",
-                  "--write-out", "\n%{http_code}", "http://doqa-smoke-nginx" + path)
+                  "--show-error", "--max-time", "20", "--proto", "=http", *redirects,
+                  "--resolve", "doqa-ci.example.test:80:" + address,
+                  "--write-out", "\n%{http_code}", "http://doqa-ci.example.test" + path)
     body, status = output.rsplit("\n", 1)
     if status != "200":
         raise RuntimeError(f"nginx {path}: expected HTTP 200, got {status}")
@@ -66,7 +69,7 @@ def health():
     deadline = time.monotonic() + 120
     while True:
         try:
-            if "<html" not in http("/").lower():
+            if "<html" not in http("/", follow=True).lower():
                 raise RuntimeError("Frontend response is not HTML")
             json.loads(http("/api/v1/info"))
             break
