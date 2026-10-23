@@ -62,7 +62,7 @@ jobs:
 
       - name: DoQA reliability checks
         run: |
-          python -m pip install PyYAML==6.0.3
+          uv pip install PyYAML==6.0.3
           python scripts/check-doqa-reliability.py
 
       - name: helm-docs check
