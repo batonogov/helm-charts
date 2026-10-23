@@ -2,11 +2,11 @@
 # Audit DoQA vendor application images for compatibility between two chart
 # states. For every component whose image tag changed, fetches the image
 # configs (no layer download) and reports differences in Env, Entrypoint,
-# and Cmd — the things that decide whether the chart still wires the image
-# correctly (e.g. a newly required env var or a changed startup command).
+# Cmd, User, and WorkingDir — the things that decide whether the chart still
+# wires the image correctly (e.g. a newly required env var or a changed startup command).
 #
 # Use this when bumping appVersion: it answers "did the vendor add an env
-# var or change how a service starts that the chart does not account for?"
+# var, runtime user, working directory or startup command the chart does not account for?"
 # without installing anything. It complements diffing configs_<ver>.zip,
 # which shows vendor config changes but not what a rebuilt image itself
 # expects at runtime.
@@ -24,8 +24,8 @@
 # credentials are needed.
 #
 # Exit status: 0 if no image-contract differences were found across the
-# changed tags, 1 if any Env/Entrypoint/Cmd difference (or a fetch failure)
-# was reported.
+# changed tags, 1 if any Env/Entrypoint/Cmd/User/WorkingDir difference
+# (or a fetch failure) was reported.
 set -eu
 
 require() {
@@ -85,6 +85,9 @@ for repo in $REPOSITORIES; do
     jq -c '[.config.Entrypoint, .config.Cmd]' "$WORK_DIR/old.json" >"$WORK_DIR/old.txt"
     jq -c '[.config.Entrypoint, .config.Cmd]' "$WORK_DIR/new.json" >"$WORK_DIR/new.txt"
     cmd_diff="$(diff "$WORK_DIR/old.txt" "$WORK_DIR/new.txt" || true)"
+    jq -c '[.config.User // "", .config.WorkingDir // ""]' "$WORK_DIR/old.json" >"$WORK_DIR/old.txt"
+    jq -c '[.config.User // "", .config.WorkingDir // ""]' "$WORK_DIR/new.json" >"$WORK_DIR/new.txt"
+    identity_diff="$(diff "$WORK_DIR/old.txt" "$WORK_DIR/new.txt" || true)"
     if [ -n "$env_diff" ]; then
       echo "      ENV (changed):"
       printf '%s\n' "$env_diff" | sed 's/^/        /'
@@ -95,8 +98,13 @@ for repo in $REPOSITORIES; do
       printf '%s\n' "$cmd_diff" | sed 's/^/        /'
       status=1
     fi
-    if [ -z "$env_diff" ] && [ -z "$cmd_diff" ]; then
-      echo "      no env/cmd/entrypoint changes"
+    if [ -n "$identity_diff" ]; then
+      echo "      USER/WORKDIR (changed):"
+      printf '%s\n' "$identity_diff" | sed 's/^/        /'
+      status=1
+    fi
+    if [ -z "$env_diff" ] && [ -z "$cmd_diff" ] && [ -z "$identity_diff" ]; then
+      echo "      no env/cmd/entrypoint/user/workdir changes"
     fi
   else
     echo "      could not fetch one of the image configs (network error or tag missing)"
@@ -106,7 +114,7 @@ done
 
 echo
 if [ "$status" -eq 0 ]; then
-  echo "RESULT: no image-contract differences (env/cmd/entrypoint) across changed tags."
+  echo "RESULT: no image-contract differences (env/cmd/entrypoint/user/workdir) across changed tags."
 else
   echo "RESULT: differences listed above — review before bumping appVersion."
 fi

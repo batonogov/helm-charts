@@ -49,6 +49,9 @@ class ReliabilityTests(unittest.TestCase):
                     }
                 config = render(values, kind="ConfigMap")["review-env"]["data"]
                 expected_name = "Acme" if custom else "DoQA"
+                self.assertEqual(config["CACHE_PREFIX"], "laravel_cache:")
+                self.assertEqual(config["REDIS_PREFIX"], "laravel_database_")
+                self.assertEqual(config["SESSION_COOKIE"], "laravel_session")
                 self.assertEqual(config["PRODUCT"], "acme" if custom else "doqa")
                 self.assertEqual(config["APP_NAME"], "Acme App" if custom else "DoQA")
                 self.assertEqual(config["APP_BRAND"], "Acme Brand" if custom else "DoQA")
@@ -88,6 +91,16 @@ class ReliabilityTests(unittest.TestCase):
                     env = {e["name"]: e.get("value") for e in
                            pod(deployments["review-" + component])["containers"][0]["env"]}
                     self.assertEqual(env["APP_TITLE"], expected_name + suffix)
+
+    def test_custom_state_identity_is_independent_of_brand(self):
+        config = render({"product": {"appName": "Acme"}, "backend": {
+            "cachePrefix": "existing_cache:", "redisPrefix": "existing_redis_",
+            "sessionCookie": "existing_session",
+        }}, kind="ConfigMap")["review-env"]["data"]
+        self.assertEqual(config["APP_NAME"], "Acme")
+        self.assertEqual(config["CACHE_PREFIX"], "existing_cache:")
+        self.assertEqual(config["REDIS_PREFIX"], "existing_redis_")
+        self.assertEqual(config["SESSION_COOKIE"], "existing_session")
 
     def test_init_and_mounts(self):
         for enabled in (False, True):
@@ -172,14 +185,22 @@ class ReliabilityTests(unittest.TestCase):
                     self.assertIn("mc/mcli", result.stderr.decode())
 
     def test_invalid_parameters_are_rejected(self):
-        for values in [{"product": {"id": "Invalid Slug"}},
+        for values in [{"backend": {"cachePrefix": None}},
+                       {"backend": {"redisPrefix": ""}},
+                       {"backend": {"sessionCookie": None}},
+                       {"product": None},
+                       {"product": {"name": None}},
+                       {"product": {"telegramUrl": None}},
+                       {"product": {"id": "Invalid Slug"}},
                        {"product": {"name": ""}},
                        {"product": {"supportEmail": 123}},
                        {"backend": {"phpFpm": {"maxChildren": 0}}},
                        {"nginx": {"proxyReadTimeout": "60s; invalid"}},
                        {"nginx": {"websocketReadTimeout": ""}}]:
-            with self.subTest(values=values), self.assertRaises(subprocess.CalledProcessError):
-                render(values)
+            with self.subTest(values=values):
+                with self.assertRaises(subprocess.CalledProcessError) as failure:
+                    render(values)
+                self.assertIn("schema", failure.exception.stderr)
 
 
 if __name__ == "__main__":

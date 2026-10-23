@@ -45,9 +45,9 @@ anonymously — no `imagePullSecrets` are required by default.
 
 | Area | Status | Notes |
 |---|---|---|
-| DoQA Box | Supported | Component versions are pinned in `values.yaml`; verified against the vendor archive `configs_4_3_4.zip` |
+| DoQA Box | Supported | Component versions are pinned in `values.yaml`; verified against the vendor archive `configs_4_3_5.zip` |
 | Kubernetes | Supported | `1.32+`, as declared by `Chart.yaml`; manifests use stable Kubernetes APIs |
-| Helm | Tested | Helm `3.16` in CI and Helm 4 locally; Helm `3.13+` is supported |
+| Helm | Tested | Helm `3.22.1` in CI and Helm 4 locally; Helm `3.13+` is supported |
 | Node platform | Supported | `linux/amd64`; the current vendor images are single-platform amd64 images |
 | Ingress | Configurable | Standard `networking.k8s.io/v1` Ingress; Traefik is the repository test profile, while other controllers use `ingress.className` and annotations |
 | Persistent storage | Configurable | Any CSI StorageClass supporting `ReadWriteOnce`; Longhorn is only the repository test profile |
@@ -65,7 +65,7 @@ client-specific scheduling, labels, and annotations. It does not inherit
 
 ## Architecture
 
-Components mirror the vendor docker-compose for v4.3.4:
+Components mirror the vendor docker-compose for v4.3.5:
 
 - `backend` (php-fpm Laravel API), `queue` (`queue:work`), `cron` (`schedule:work`)
 - `autotests-worker` (`autotests:work`, declares the RabbitMQ queues),
@@ -77,7 +77,7 @@ Components mirror the vendor docker-compose for v4.3.4:
 - `nginx` (internal router) → exposed via Ingress
 
 The canonical upstream input is the vendor's
-[`configs_4_3_4.zip`](https://doqa.app/downloads/configs_4_3_4.zip), including
+[`configs_4_3_5.zip`](https://doqa.app/downloads/configs_4_3_5.zip), including
 `.env.install`, both Compose files, and nginx configuration. The DoQA
 application services, environment variables, routes, and application image pins
 stay aligned with that archive. Kubernetes infrastructure is deliberately
@@ -136,13 +136,32 @@ between 3.7 and 4.0. Plan a stepwise migration if you are coming from a
 
 ### 0.9.x → 0.10.0
 
+Upgrade with your original override file so Helm merges in the new defaults:
+
+```bash
+helm upgrade doqa batonogov/doqa -n doqa --version 0.10.0 -f user-values.yaml
+```
+
+With Helm 3.14+ or Helm 4, `--reset-then-reuse-values` can instead preserve
+stored user overrides while loading the new chart defaults. Avoid
+`--reuse-values` for this upgrade: it keeps the old defaults, including old
+image pins, and omits the new required `product` settings. Optional product
+links can be disabled with `""`; `null` is rejected by the schema.
+
 - **DoQA 4.3.5**: pins backend to `4.3.6-box`, frontend to `4.3.3-box`,
   and autotest-parser to `4.3.1-box`, matching the vendor box archive.
 - **Product branding**: new `product.*` values populate the backend environment,
-  notification API/worker and optional Telegram bot. Python service titles use
-  `product.name`. Defaults match the vendor DoQA brand; optional social links
-  accept empty strings. `mail.fromName` and `mailIssue` retain their existing,
+  notification API/worker and optional Telegram bot. `APP_TITLE` is passed using
+  `product.name`; the current parser image still hardcodes its API title.
+  Defaults match the vendor DoQA brand; optional social links accept empty strings. `mail.fromName` and `mailIssue` retain their existing,
   independently configured values.
+- **State identity is preserved**: `backend.cachePrefix`, `backend.redisPrefix`
+  and `backend.sessionCookie` explicitly retain the old chart's effective
+  Laravel defaults (`laravel_cache:`, `laravel_database_`, `laravel_session`).
+  Without these overrides, the newly supplied `APP_NAME` would change cache,
+  Redis and session identities, including the JWT revocation namespace. Keep
+  these settings stable across brand changes. If your deployment already uses
+  custom prefixes or cookie names, set these values to those existing names.
 - A custom product requires its own compiled frontend image (`frontend.image`)
   in addition to `product.*` settings; these settings do not rebrand the stock SPA.
 - The LLM's internal `STATISTIC_HOST` is retained: the vendor removed it only
@@ -150,8 +169,9 @@ between 3.7 and 4.0. Plan a stepwise migration if you are coming from a
   the setting in the other variant. Kubernetes continues using its statistic Service.
 - Image metadata audit found unchanged Entrypoint/Cmd for all three changed
   images. Backend PHP advances from 8.4.23 to 8.4.27; no other image Env changes
-  were found. nginx configuration is unchanged. Existing PVCs and secret names
-  are preserved; application migrations run during the backend rollout as before.
+  were found. The parser image now runs as its vendor-provided `app` user;
+  custom writable volumes must permit that user. nginx configuration is unchanged.
+  Existing PVCs and secret names are preserved; application migrations run during the backend rollout as before.
 
 ### 0.8.x → 0.9.0
 

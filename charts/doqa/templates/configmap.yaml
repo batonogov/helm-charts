@@ -12,6 +12,9 @@ data:
   APP_URL: {{ .Values.appUrl | quote }}
   APP_FRONTEND_URL: {{ include "doqa.frontendUrl" . | quote }}
   PRODUCT: {{ .Values.product.id | quote }}
+  CACHE_PREFIX: {{ .Values.backend.cachePrefix | quote }}
+  REDIS_PREFIX: {{ .Values.backend.redisPrefix | quote }}
+  SESSION_COOKIE: {{ .Values.backend.sessionCookie | quote }}
   APP_NAME: {{ .Values.product.appName | quote }}
   APP_BRAND: {{ .Values.product.appBrand | quote }}
   PRODUCT_NAME: {{ .Values.product.name | quote }}

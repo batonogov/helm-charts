@@ -3,6 +3,7 @@
   "title": "doqa values",
   "description": "DoQA Test Case Management System (TCMS) self-hosted chart values",
   "type": "object",
+  "required": ["product"],
   "properties": {
     "nameOverride": {
       "type": "string",
@@ -59,6 +60,21 @@
     "product": {
       "type": "object",
       "description": "Vendor product branding. Custom products need a separately built frontend image.",
+      "required": [
+        "id",
+        "appName",
+        "appBrand",
+        "name",
+        "fromDisplay",
+        "supportEmail",
+        "docsUrl",
+        "siteUrl",
+        "telegramUrl",
+        "supportTelegramUrl",
+        "vkUrl",
+        "youtubeUrl",
+        "telegramNewsUrl"
+      ],
       "properties": {
         "id": {
           "type": "string",
@@ -520,7 +536,23 @@
         { "$ref": "#/definitions/imageWorkload" },
         {
           "type": "object",
+          "required": ["cachePrefix", "redisPrefix", "sessionCookie"],
           "properties": {
+            "cachePrefix": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Laravel cache prefix. Preserve across upgrades and brand changes to retain cache entries and JWT revocations. (CACHE_PREFIX)"
+            },
+            "redisPrefix": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Laravel Redis prefix. Preserve across upgrades and brand changes to retain sessions and other Redis state. (REDIS_PREFIX)"
+            },
+            "sessionCookie": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Laravel session cookie name. Preserve across upgrades and brand changes to keep existing browser sessions. (SESSION_COOKIE)"
+            },
             "phpFpm": {
               "type": "object",
               "additionalProperties": false,
