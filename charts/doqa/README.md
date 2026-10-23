@@ -2,7 +2,7 @@
 
 DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
 
-![Version: 0.9.0](https://img.shields.io/badge/Version-0.9.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.3.4-box](https://img.shields.io/badge/AppVersion-4.3.4--box-informational?style=flat-square)
+![Version: 0.10.0](https://img.shields.io/badge/Version-0.10.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.3.5-box](https://img.shields.io/badge/AppVersion-4.3.5--box-informational?style=flat-square)
 
 **Homepage:** <https://doqa.app>
 
@@ -145,7 +145,7 @@ Kubernetes: `>=1.32.0-0`
 | autoscaling.queue.targetCPUUtilizationPercentage | int | `80` | Target CPU utilization percentage for queue HPA |
 | autotestParser.affinity | object | `{}` |  |
 | autotestParser.image.repository | string | `"doqa/doqa-parsing-autotests"` | Autotest parser image repository |
-| autotestParser.image.tag | string | `"4.3.0-box"` | Autotest parser image tag |
+| autotestParser.image.tag | string | `"4.3.1-box"` | Autotest parser image tag |
 | autotestParser.nodeSelector | object | `{}` |  |
 | autotestParser.replicas | int | `1` | Autotest parser replica count |
 | autotestParser.resources | object | `{"limits":{"cpu":"250m","memory":"256Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` | Resource requests and limits |
@@ -161,7 +161,7 @@ Kubernetes: `>=1.32.0-0`
 | backend.affinity | object | `{}` |  |
 | backend.containerSecurityContext | object | `{"capabilities":{"add":["CHOWN","DAC_OVERRIDE","SETUID","SETGID"]}}` | Capabilities required to start nginx/FPM in the vendor backend. Global chart restrictions remain in effect. |
 | backend.image.repository | string | `"doqa/doqa-backend"` | Backend image repository (relative to image.registry) |
-| backend.image.tag | string | `"4.3.3-box"` | Backend image tag |
+| backend.image.tag | string | `"4.3.6-box"` | Backend image tag |
 | backend.livenessProbe | object | `{"initialDelaySeconds":60,"periodSeconds":30,"tcpSocket":{"port":"http"},"timeoutSeconds":10}` | TCP liveness avoids restarting the backend on FPM saturation or database unavailability. null disables the probe. |
 | backend.migrate.waitForRabbitmq | bool | `true` | Wait for RabbitMQ AMQP readiness before running migrations. Vendor 4.2.0 added a compose dependency on rabbitmq because some migrations dispatch jobs; the chart mirrors that by probing the broker first. |
 | backend.nodeSelector | object | `{}` |  |
@@ -188,7 +188,7 @@ Kubernetes: `>=1.32.0-0`
 | frontend.affinity | object | `{}` |  |
 | frontend.containerSecurityContext | object | `{"capabilities":{"add":["CHOWN","DAC_OVERRIDE","SETUID","SETGID"]}}` | Capabilities required to start nginx in the component image; privilege escalation remains disabled. |
 | frontend.image.repository | string | `"doqa/doqa-frontend"` | Frontend image repository (relative to image.registry) |
-| frontend.image.tag | string | `"4.3.1-box"` | Frontend image tag |
+| frontend.image.tag | string | `"4.3.3-box"` | Frontend image tag |
 | frontend.nodeSelector | object | `{}` |  |
 | frontend.replicas | int | `2` | Frontend replica count |
 | frontend.resources | object | `{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}}` | Resource requests and limits |
@@ -293,6 +293,19 @@ Kubernetes: `>=1.32.0-0`
 | postgresql.passwordSecret.name | string | `""` | External secret name with the password (used when cnpg.create=false) |
 | postgresql.port | int | `5432` | PostgreSQL port |
 | postgresql.username | string | `"doqa"` | Database user |
+| product.appBrand | string | `"DoQA"` | Backend application brand. (`APP_BRAND`) |
+| product.appName | string | `"DoQA"` | Backend application name. (`APP_NAME`) |
+| product.docsUrl | string | `"https://docs.doqa.app"` | Product documentation URL. (`PRODUCT_DOCS_URL`) |
+| product.fromDisplay | string | `"DoQA"` | Notification email sender display name. (`PRODUCT_FROM_DISPLAY`) |
+| product.id | string | `"doqa"` | Product slug. Custom products also require a matching frontend image. (`PRODUCT`) |
+| product.name | string | `"DoQA"` | Product display name, also used in Python service titles. (`PRODUCT_NAME`) |
+| product.siteUrl | string | `"https://doqa.app"` | Product website URL. (`PRODUCT_SITE_URL`) |
+| product.supportEmail | string | `"support@doqa.app"` | Product support email used by notifications. (`PRODUCT_SUPPORT_EMAIL`) |
+| product.supportTelegramUrl | string | `"https://t.me/doqa_team"` | Product support Telegram URL; empty hides the link. (`PRODUCT_SUPPORT_TELEGRAM_URL`) |
+| product.telegramNewsUrl | string | `"https://t.me/DoQA_news_bot"` | Product Telegram news URL exposed to backend workloads; empty hides the link. (`PRODUCT_TELEGRAM_NEWS_URL`) |
+| product.telegramUrl | string | `"https://t.me/DoQATMS"` | Product Telegram URL; empty hides the link. (`PRODUCT_TELEGRAM_URL`) |
+| product.vkUrl | string | `"https://vk.com/doqa_tms"` | Product VK URL; empty hides the link. (`PRODUCT_VK_URL`) |
+| product.youtubeUrl | string | `"https://www.youtube.com/channel/UCTzbumj-8d9ijeU3gEWWTPQ"` | Product YouTube URL; empty hides the link. (`PRODUCT_YOUTUBE_URL`) |
 | pusher.appId | string | `"web-socket"` | Pusher protocol app id |
 | pusher.appKey | string | `"web-socket"` | Pusher protocol app key |
 | pusher.port | int | `6001` | Soketi exposed port |
@@ -388,6 +401,25 @@ This chart targets DoQA 4.1.0+. There is no automatic migration path from
 3.x deployments — vendor changed the queue broker from Redis to RabbitMQ
 between 3.7 and 4.0. Plan a stepwise migration if you are coming from a
 3.x install.
+
+### 0.9.x → 0.10.0
+
+- **DoQA 4.3.5**: pins backend to `4.3.6-box`, frontend to `4.3.3-box`,
+  and autotest-parser to `4.3.1-box`, matching the vendor box archive.
+- **Product branding**: new `product.*` values populate the backend environment,
+  notification API/worker and optional Telegram bot. Python service titles use
+  `product.name`. Defaults match the vendor DoQA brand; optional social links
+  accept empty strings. `mail.fromName` and `mailIssue` retain their existing,
+  independently configured values.
+- A custom product requires its own compiled frontend image (`frontend.image`)
+  in addition to `product.*` settings; these settings do not rebrand the stock SPA.
+- The LLM's internal `STATISTIC_HOST` is retained: the vendor removed it only
+  from the with-database Compose variant while keeping the same LLM image and
+  the setting in the other variant. Kubernetes continues using its statistic Service.
+- Image metadata audit found unchanged Entrypoint/Cmd for all three changed
+  images. Backend PHP advances from 8.4.23 to 8.4.27; no other image Env changes
+  were found. nginx configuration is unchanged. Existing PVCs and secret names
+  are preserved; application migrations run during the backend rollout as before.
 
 ### 0.8.x → 0.9.0
 

@@ -34,6 +34,61 @@ def pod(doc):
 
 
 class ReliabilityTests(unittest.TestCase):
+    def test_product_environment_reaches_each_consumer(self):
+        for custom in (False, True):
+            with self.subTest(custom=custom):
+                values = {"telegramBot": {"enabled": True, "tokenSecret": "telegram"}}
+                if custom:
+                    values["product"] = {
+                        "id": "acme", "appName": "Acme App", "appBrand": "Acme Brand",
+                        "name": "Acme", "fromDisplay": "Acme Support",
+                        "supportEmail": "support@acme.example", "docsUrl": "https://acme.example/docs",
+                        "siteUrl": "https://acme.example", "telegramUrl": "",
+                        "supportTelegramUrl": "", "vkUrl": "", "youtubeUrl": "",
+                        "telegramNewsUrl": "",
+                    }
+                config = render(values, kind="ConfigMap")["review-env"]["data"]
+                expected_name = "Acme" if custom else "DoQA"
+                self.assertEqual(config["PRODUCT"], "acme" if custom else "doqa")
+                self.assertEqual(config["APP_NAME"], "Acme App" if custom else "DoQA")
+                self.assertEqual(config["APP_BRAND"], "Acme Brand" if custom else "DoQA")
+                self.assertEqual(config["PRODUCT_NAME"], expected_name)
+                self.assertEqual(config["PRODUCT_TELEGRAM_NEWS_URL"],
+                                 "" if custom else "https://t.me/DoQA_news_bot")
+                expected_brand = {
+                    "PRODUCT_FROM_DISPLAY": "Acme Support" if custom else "DoQA",
+                    "PRODUCT_SUPPORT_EMAIL": "support@acme.example" if custom else "support@doqa.app",
+                    "PRODUCT_DOCS_URL": "https://acme.example/docs" if custom else "https://docs.doqa.app",
+                    "PRODUCT_SITE_URL": "https://acme.example" if custom else "https://doqa.app",
+                    "PRODUCT_TELEGRAM_URL": "" if custom else "https://t.me/DoQATMS",
+                    "PRODUCT_SUPPORT_TELEGRAM_URL": "" if custom else "https://t.me/doqa_team",
+                    "PRODUCT_VK_URL": "" if custom else "https://vk.com/doqa_tms",
+                    "PRODUCT_YOUTUBE_URL": ("" if custom else
+                                            "https://www.youtube.com/channel/UCTzbumj-8d9ijeU3gEWWTPQ"),
+                }
+                for key, expected in expected_brand.items():
+                    self.assertEqual(config[key], expected, key)
+                deployments = render(values)
+                for component in ("backend", "queue", "cron", "autotests-worker", "llm-bulk-queue"):
+                    spec = pod(deployments["review-" + component])
+                    consumers = spec["containers"] + [c for c in spec.get("initContainers", [])
+                                                       if c["name"] == "migrate"]
+                    for container in consumers:
+                        self.assertIn({"configMapRef": {"name": "review-env"}}, container["envFrom"])
+                for component in ("notification", "notification-worker", "telegram-bot"):
+                    env = {e["name"]: e.get("value") for e in
+                           pod(deployments["review-" + component])["containers"][0]["env"]}
+                    self.assertEqual(env["APP_TITLE"], expected_name + " - Notification")
+                    for key in ("PRODUCT_NAME", "PRODUCT_FROM_DISPLAY", "PRODUCT_SUPPORT_EMAIL",
+                                "PRODUCT_DOCS_URL", "PRODUCT_SITE_URL", "PRODUCT_TELEGRAM_URL",
+                                "PRODUCT_SUPPORT_TELEGRAM_URL", "PRODUCT_VK_URL", "PRODUCT_YOUTUBE_URL"):
+                        self.assertEqual(env[key], config[key], (component, key))
+                for component, suffix in (("autotest-parser", " Autotests"),
+                                          ("statistic", " - Statistic"), ("llm", " - LLM")):
+                    env = {e["name"]: e.get("value") for e in
+                           pod(deployments["review-" + component])["containers"][0]["env"]}
+                    self.assertEqual(env["APP_TITLE"], expected_name + suffix)
+
     def test_init_and_mounts(self):
         for enabled in (False, True):
             for skip in (False, True):
@@ -117,7 +172,10 @@ class ReliabilityTests(unittest.TestCase):
                     self.assertIn("mc/mcli", result.stderr.decode())
 
     def test_invalid_parameters_are_rejected(self):
-        for values in [{"backend": {"phpFpm": {"maxChildren": 0}}},
+        for values in [{"product": {"id": "Invalid Slug"}},
+                       {"product": {"name": ""}},
+                       {"product": {"supportEmail": 123}},
+                       {"backend": {"phpFpm": {"maxChildren": 0}}},
                        {"nginx": {"proxyReadTimeout": "60s; invalid"}},
                        {"nginx": {"websocketReadTimeout": ""}}]:
             with self.subTest(values=values), self.assertRaises(subprocess.CalledProcessError):

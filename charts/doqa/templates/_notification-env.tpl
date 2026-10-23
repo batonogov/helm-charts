@@ -81,6 +81,26 @@ Shared env block for notification API, worker, and telegram-bot — matches the 
   value: "False"
 - name: PREFIX_ROOT_PATH
   value: "/"
+- name: APP_TITLE
+  value: {{ printf "%s - Notification" .Values.product.name | quote }}
+- name: PRODUCT_NAME
+  value: {{ .Values.product.name | quote }}
+- name: PRODUCT_FROM_DISPLAY
+  value: {{ .Values.product.fromDisplay | quote }}
+- name: PRODUCT_SUPPORT_EMAIL
+  value: {{ .Values.product.supportEmail | quote }}
+- name: PRODUCT_DOCS_URL
+  value: {{ .Values.product.docsUrl | quote }}
+- name: PRODUCT_SITE_URL
+  value: {{ .Values.product.siteUrl | quote }}
+- name: PRODUCT_TELEGRAM_URL
+  value: {{ .Values.product.telegramUrl | quote }}
+- name: PRODUCT_SUPPORT_TELEGRAM_URL
+  value: {{ .Values.product.supportTelegramUrl | quote }}
+- name: PRODUCT_VK_URL
+  value: {{ .Values.product.vkUrl | quote }}
+- name: PRODUCT_YOUTUBE_URL
+  value: {{ .Values.product.youtubeUrl | quote }}
 - name: IS_BOX
   value: "true"
 {{- end }}

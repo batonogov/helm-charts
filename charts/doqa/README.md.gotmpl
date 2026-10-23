@@ -134,6 +134,25 @@ This chart targets DoQA 4.1.0+. There is no automatic migration path from
 between 3.7 and 4.0. Plan a stepwise migration if you are coming from a
 3.x install.
 
+### 0.9.x → 0.10.0
+
+- **DoQA 4.3.5**: pins backend to `4.3.6-box`, frontend to `4.3.3-box`,
+  and autotest-parser to `4.3.1-box`, matching the vendor box archive.
+- **Product branding**: new `product.*` values populate the backend environment,
+  notification API/worker and optional Telegram bot. Python service titles use
+  `product.name`. Defaults match the vendor DoQA brand; optional social links
+  accept empty strings. `mail.fromName` and `mailIssue` retain their existing,
+  independently configured values.
+- A custom product requires its own compiled frontend image (`frontend.image`)
+  in addition to `product.*` settings; these settings do not rebrand the stock SPA.
+- The LLM's internal `STATISTIC_HOST` is retained: the vendor removed it only
+  from the with-database Compose variant while keeping the same LLM image and
+  the setting in the other variant. Kubernetes continues using its statistic Service.
+- Image metadata audit found unchanged Entrypoint/Cmd for all three changed
+  images. Backend PHP advances from 8.4.23 to 8.4.27; no other image Env changes
+  were found. nginx configuration is unchanged. Existing PVCs and secret names
+  are preserved; application migrations run during the backend rollout as before.
+
 ### 0.8.x → 0.9.0
 
 - The scheduler remains a Deployment running `schedule:work`; no CronJob is added.

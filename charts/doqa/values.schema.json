@@ -56,6 +56,73 @@
       "type": "string",
       "description": "Optional backend URL passed to backend workloads and the autotest-parser. Empty matches the vendor default."
     },
+    "product": {
+      "type": "object",
+      "description": "Vendor product branding. Custom products need a separately built frontend image.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Product slug. Custom products also require a matching frontend image. (PRODUCT)",
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]*$"
+        },
+        "appName": {
+          "type": "string",
+          "description": "Backend application name. (APP_NAME)",
+          "minLength": 1
+        },
+        "appBrand": {
+          "type": "string",
+          "description": "Backend application brand. (APP_BRAND)",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "description": "Product display name, also used in Python service titles. (PRODUCT_NAME)",
+          "minLength": 1
+        },
+        "fromDisplay": {
+          "type": "string",
+          "description": "Notification email sender display name. (PRODUCT_FROM_DISPLAY)",
+          "minLength": 1
+        },
+        "supportEmail": {
+          "type": "string",
+          "description": "Product support email used by notifications. (PRODUCT_SUPPORT_EMAIL)",
+          "minLength": 1
+        },
+        "docsUrl": {
+          "type": "string",
+          "description": "Product documentation URL. (PRODUCT_DOCS_URL)",
+          "minLength": 1
+        },
+        "siteUrl": {
+          "type": "string",
+          "description": "Product website URL. (PRODUCT_SITE_URL)",
+          "minLength": 1
+        },
+        "telegramUrl": {
+          "type": "string",
+          "description": "Product Telegram URL; empty hides the link. (PRODUCT_TELEGRAM_URL)"
+        },
+        "supportTelegramUrl": {
+          "type": "string",
+          "description": "Product support Telegram URL; empty hides the link. (PRODUCT_SUPPORT_TELEGRAM_URL)"
+        },
+        "vkUrl": {
+          "type": "string",
+          "description": "Product VK URL; empty hides the link. (PRODUCT_VK_URL)"
+        },
+        "youtubeUrl": {
+          "type": "string",
+          "description": "Product YouTube URL; empty hides the link. (PRODUCT_YOUTUBE_URL)"
+        },
+        "telegramNewsUrl": {
+          "type": "string",
+          "description": "Product Telegram news URL exposed to backend workloads; empty hides the link. (PRODUCT_TELEGRAM_NEWS_URL)"
+        }
+      }
+    },
     "image": {
       "type": "object",
       "description": "Global image settings.",

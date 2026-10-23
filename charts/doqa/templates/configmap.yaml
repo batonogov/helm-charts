@@ -11,6 +11,19 @@ metadata:
 data:
   APP_URL: {{ .Values.appUrl | quote }}
   APP_FRONTEND_URL: {{ include "doqa.frontendUrl" . | quote }}
+  PRODUCT: {{ .Values.product.id | quote }}
+  APP_NAME: {{ .Values.product.appName | quote }}
+  APP_BRAND: {{ .Values.product.appBrand | quote }}
+  PRODUCT_NAME: {{ .Values.product.name | quote }}
+  PRODUCT_FROM_DISPLAY: {{ .Values.product.fromDisplay | quote }}
+  PRODUCT_SUPPORT_EMAIL: {{ .Values.product.supportEmail | quote }}
+  PRODUCT_DOCS_URL: {{ .Values.product.docsUrl | quote }}
+  PRODUCT_SITE_URL: {{ .Values.product.siteUrl | quote }}
+  PRODUCT_TELEGRAM_URL: {{ .Values.product.telegramUrl | quote }}
+  PRODUCT_SUPPORT_TELEGRAM_URL: {{ .Values.product.supportTelegramUrl | quote }}
+  PRODUCT_VK_URL: {{ .Values.product.vkUrl | quote }}
+  PRODUCT_YOUTUBE_URL: {{ .Values.product.youtubeUrl | quote }}
+  PRODUCT_TELEGRAM_NEWS_URL: {{ .Values.product.telegramNewsUrl | quote }}
   USE_SSL: {{ .Values.useSsl | quote }}
 
   DB_HOST: {{ include "doqa.postgresql.host" . | quote }}
