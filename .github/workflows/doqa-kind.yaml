@@ -1,0 +1,97 @@
+name: doqa-kind
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: doqa-kind-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-24.04
+    outputs:
+      run: ${{ steps.detect.outputs.run }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: detect
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [[ -z "$BASE_SHA" ]]; then
+            echo 'run=true' >> "$GITHUB_OUTPUT"
+          else
+            changed=$(git diff --name-only "$BASE_SHA" HEAD)
+            if rg -q '^(charts/doqa/|scripts/doqa-kind/|\.github/doqa-kind/|\.github/workflows/doqa-kind\.yaml$)' <<< "$changed"; then
+              echo 'run=true' >> "$GITHUB_OUTPUT"
+            else
+              echo 'run=false' >> "$GITHUB_OUTPUT"
+            fi
+          fi
+      - name: Verify published baseline selection
+        run: python3 scripts/doqa-kind/test_baseline.py
+  smoke:
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
+    name: DoQA ${{ matrix.scenario }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        scenario: [fresh, upgrade]
+    env:
+      DOQA_KIND_NAME: doqa-ci
+      DOQA_KIND_WORK: ${{ runner.temp }}/doqa-kind
+      KUBECONFIG: ${{ runner.temp }}/doqa-kind/kubeconfig
+      HELM_PLUGINS: ${{ runner.temp }}/doqa-kind/helm-plugins
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v3.22.1
+      - name: Set up kind and CNPG
+        run: |
+          echo "$DOQA_KIND_WORK/bin" >> "$GITHUB_PATH"
+          bash scripts/doqa-kind/setup.sh
+      - name: Install and verify DoQA
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/doqa-kind/check.py "${{ matrix.scenario }}"
+      - name: Collect diagnostics
+        if: always()
+        timeout-minutes: 5
+        run: python3 scripts/doqa-kind/diagnostics.py
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: doqa-kind-${{ matrix.scenario }}
+          path: ${{ runner.temp }}/doqa-kind/diagnostics
+          retention-days: 7
+          if-no-files-found: ignore
+      - name: Delete disposable cluster
+        if: always()
+        run: |
+          if command -v kind >/dev/null; then
+            kind delete cluster --name "$DOQA_KIND_NAME"
+          fi
+  result:
+    name: DoQA integration
+    needs: [changes, smoke]
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - env:
+          DETECTION: ${{ needs.changes.result }}
+          SMOKE: ${{ needs.smoke.result }}
+        run: |
+          [[ "$DETECTION" == success && ( "$SMOKE" == success || "$SMOKE" == skipped ) ]]

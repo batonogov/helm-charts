@@ -14,6 +14,7 @@ Currently shipped charts (do not copy their current versions into this file; `Ch
 Repository automation:
 
 - `.github/workflows/lint-test.yaml` — PR chart detection, `ct lint`, and generated README verification.
+- `.github/workflows/doqa-kind.yaml` — disposable kind/CNPG fresh-install and published-release upgrade tests; fixtures and scope are in `.github/doqa-kind/`.
 - `.github/workflows/release.yaml` — serialized chart publication from `main`.
 - `.github/ct.yaml` — chart-testing policy, including version-increment enforcement.
 - `.pre-commit-config.yaml` and `scripts/` — local formatting, docs, lint, and render checks.
@@ -41,7 +42,7 @@ ct lint --config .github/ct.yaml --target-branch main
 
 Do not use bare `helm template ... charts/doqa`: defaults intentionally require `ingress.className`. Use `ci/test-values.yaml`, set an ingress class, or disable the Ingress explicitly. The xray chart likewise needs at least one tunnel/subscription or an `existingConfigSecret`; its test values provide a placeholder.
 
-There are no unit tests or in-cluster CI tests. PR CI runs `ct lint` for changed charts and, when any chart changed, verifies `helm-docs` output across all charts. End-to-end installation is manual.
+PR CI runs `ct lint` for changed charts and, when any chart changed, verifies `helm-docs` output across all charts. DoQA also has local regression checks and live kind tests for relevant PRs. The live workflow packages the candidate, tests fresh installation and upgrades from the latest published stable DoQA release, and checks HTTP, data, Secrets and PVC identities. Read `.github/doqa-kind/README.md` for setup, limits and diagnostics. Licensed end-to-end workflows remain manual.
 
 ## Versioning, generated files, and release flow
 

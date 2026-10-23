@@ -69,6 +69,7 @@ pre-commit run --all-files
 ## CI
 
 - `lint-test.yaml` (PR to `main` or manual run): detects changed charts, runs `ct lint` with chart version increment checks, and verifies generated `helm-docs` output is committed.
+- `doqa-kind.yaml` (PR or manual run): tests the packaged DoQA chart in disposable kind clusters. Separate jobs cover a fresh installation and an upgrade from the latest published stable DoQA chart. The `DoQA integration` check reports success for unrelated changes without starting a cluster. See [live test setup and scope](.github/doqa-kind/README.md).
 - `release.yaml` (push to `main`): publishes new chart versions to the `gh-pages` branch with [chart-releaser-action](https://github.com/helm/chart-releaser-action). Release jobs are serialized per branch to avoid concurrent index updates.
 - `renovate.json`: configures Renovate to update `xray-health-exporter` from GHCR image tags, bump the chart patch `version`, and keep generated README badges aligned. Enable the Renovate GitHub App for this repository to run it.
 

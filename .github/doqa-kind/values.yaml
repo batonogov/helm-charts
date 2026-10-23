@@ -1,0 +1,48 @@
+# Isolated, disposable kind deployment. Never use this profile in production.
+appUrl: doqa-ci.example.test
+fullnameOverride: doqa-smoke
+useSsl: false
+ingress:
+  enabled: false
+backend:
+  replicas: 1
+  phpFpm:
+    enabled: true
+    maxChildren: 8
+frontend:
+  replicas: 1
+queue:
+  replicas: 1
+autotestsWorker:
+  replicas: 1
+  workerProcesses: 1
+nginx:
+  trustForwardedProto: true
+  proxyReadTimeout: 120s
+  websocketReadTimeout: 3600s
+postgresql:
+  cnpg:
+    instances: 1
+    storage:
+      size: 1Gi
+      storageClass: standard
+redis:
+  storage:
+    size: 1Gi
+    storageClass: standard
+rabbitmq:
+  storage:
+    size: 1Gi
+    storageClass: standard
+minio:
+  # Available vendor images for fresh storage; identical on both upgrade sides.
+  image:
+    repository: registry.control.doqa.app/service/minio
+    tag: 20240527.191746-r2-alpine
+  client:
+    image:
+      repository: registry.control.doqa.app/service/mc
+      tag: 20240527.191746-r2-alpine
+  storage:
+    size: 1Gi
+    storageClass: standard
