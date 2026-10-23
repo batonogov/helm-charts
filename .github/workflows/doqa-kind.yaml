@@ -49,10 +49,17 @@ jobs:
         scenario: [fresh, upgrade]
     env:
       DOQA_KIND_NAME: doqa-ci
-      DOQA_KIND_WORK: ${{ runner.temp }}/doqa-kind
-      KUBECONFIG: ${{ runner.temp }}/doqa-kind/kubeconfig
-      HELM_PLUGINS: ${{ runner.temp }}/doqa-kind/helm-plugins
     steps:
+      - name: Isolate test environment
+        run: |
+          work="$RUNNER_TEMP/doqa-kind"
+          mkdir -p "$work"
+          {
+            echo "DOQA_KIND_WORK=$work"
+            echo "KUBECONFIG=$work/kubeconfig"
+            echo "HELM_PLUGINS=$work/helm-plugins"
+          } >> "$GITHUB_ENV"
+          echo "$work/bin" >> "$GITHUB_PATH"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -60,9 +67,7 @@ jobs:
         with:
           version: v3.22.1
       - name: Set up kind and CNPG
-        run: |
-          echo "$DOQA_KIND_WORK/bin" >> "$GITHUB_PATH"
-          bash scripts/doqa-kind/setup.sh
+        run: bash scripts/doqa-kind/setup.sh
       - name: Install and verify DoQA
         env:
           GH_TOKEN: ${{ github.token }}
