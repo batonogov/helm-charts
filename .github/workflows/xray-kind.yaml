@@ -54,6 +54,8 @@ jobs:
       KUBERNETES_VERSION: v1.34.11
       KIND_NODE_IMAGE: kindest/node:v1.34.11@sha256:44e222ee2132dab25ff87301682f89eb82c7880ea3a1bf543bfe9708fd08d67d
       XRAY_KIND_NAME: xray-ci
+      # Valid 32-byte raw-base64url dummy REALITY key, not a credential.
+      XRAY_CI_VLESS_URL: 'vless://00000000-0000-0000-0000-000000000000@example.com:443?type=tcp&security=reality&pbk=AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8&sni=google.com'
     steps:
       - name: Isolate test environment
         run: |
@@ -106,6 +108,7 @@ jobs:
             --namespace xray-smoke --create-namespace \
             --set fullnameOverride=xray-smoke \
             -f charts/xray-health-exporter/ci/test-values.yaml \
+            --set-string "config.tunnels[0].url=$XRAY_CI_VLESS_URL" \
             --wait --timeout 300s
           kubectl -n xray-smoke rollout status deployment/xray-smoke --timeout=300s
           kubectl -n xray-smoke port-forward service/xray-smoke 19273:9273 \
@@ -134,6 +137,7 @@ jobs:
             --set replicaCount=2 \
             --set leaderElection.enabled=false \
             -f charts/xray-health-exporter/ci/test-values.yaml \
+            --set-string "config.tunnels[0].url=$XRAY_CI_VLESS_URL" \
             --wait --timeout 300s
           kubectl -n xray-smoke rollout status deployment/xray-smoke --timeout=300s
           selector=app.kubernetes.io/instance=xray-smoke
@@ -163,6 +167,13 @@ jobs:
         run: |
           kubectl -n xray-smoke get pods,services,leases -o wide || true
           kubectl -n xray-smoke describe deployment/xray-smoke || true
+          pods="$(kubectl -n xray-smoke get pods -o name 2>/dev/null || true)"
+          for pod in $pods; do
+            echo "Current logs for $pod (last 200 lines):"
+            kubectl -n xray-smoke logs "$pod" --all-containers=true --tail=200 || true
+            echo "Previous logs for $pod (last 200 lines):"
+            kubectl -n xray-smoke logs "$pod" --all-containers=true --previous --tail=200 || true
+          done
 
       - name: Delete disposable cluster
         if: always()
