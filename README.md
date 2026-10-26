@@ -68,10 +68,13 @@ pre-commit run --all-files
 
 ## CI
 
-- `lint-test.yaml` (PR to `main` or manual run): detects changed charts, runs `ct lint` with chart version increment checks, and verifies generated `helm-docs` output is committed.
-- `doqa-kind.yaml` (PR or manual run): tests the packaged DoQA chart in disposable kind clusters. Separate jobs cover a fresh installation and an upgrade from the latest published stable DoQA chart. The `DoQA integration` check reports success for unrelated changes without starting a cluster. See [live test setup and scope](.github/doqa-kind/README.md).
-- `release.yaml` (push to `main`): publishes new chart versions to the `gh-pages` branch with [chart-releaser-action](https://github.com/helm/chart-releaser-action). Release jobs are serialized per branch to avoid concurrent index updates.
+- `lint-test.yaml` (PR to `main` or manual run): detects changed charts, runs `ct lint` with chart version increment checks, and verifies generated `helm-docs` output is committed. Its required status check is `lint`.
+- `doqa-kind.yaml` (PR or manual run): tests the packaged DoQA chart in disposable kind clusters. Separate jobs cover a fresh installation, an upgrade from the latest published stable DoQA chart, and an explicit-baseline upgrade from published `0.10.0` to the candidate with explicit generated Secret names. The `DoQA integration` check reports success for unrelated changes without starting a cluster. See [live test setup and scope](.github/doqa-kind/README.md).
+- `xray-kind.yaml` (PR or manual run): installs xray-health-exporter in a disposable kind cluster, checks the real HTTP `/health` endpoint, and verifies leader election with two replicas. Its `xray integration` check reports success for unrelated changes without starting a cluster.
+- `release.yaml` (push to `main`): runs repository validation, rejects changed charts whose current version is already tagged, and publishes new chart versions to the `gh-pages` branch with [chart-releaser-action](https://github.com/helm/chart-releaser-action). Release jobs are serialized per branch to avoid concurrent index updates.
 - `renovate.json`: configures Renovate to update `xray-health-exporter` from GHCR image tags, bump the chart patch `version`, and keep generated README badges aligned. Enable the Renovate GitHub App for this repository to run it.
+
+Configure the repository's required pull-request checks as `lint`, `DoQA integration`, and `xray integration`. The two integration aggregates always report a result, including for unrelated changes.
 
 ## Contributing
 
