@@ -100,6 +100,57 @@ class ReleasePreflightTests(unittest.TestCase):
         self.assertEqual(preflight.already_released(self.root, before, after),
                          [("charts/new-name", "demo-1.0.0")])
 
+    def test_yaml_escaped_name_and_version_are_decoded(self):
+        chart = self.root / "charts/demo"
+        chart.mkdir(parents=True)
+        (chart / "Chart.yaml").write_text(
+            'apiVersion: v2\nname: "\\u0064emo"\nversion: "\\u0030.9.0"\n')
+        before = self.commit("initial chart")
+        self.git("tag", "demo-0.9.0")
+        (chart / "values.yaml").write_text("replicaCount: 1\n")
+        after = self.commit("chart change")
+        self.assertEqual(preflight.already_released(self.root, before, after),
+                         [("charts/demo", "demo-0.9.0")])
+
+    def test_duplicate_name_and_version_use_last_values(self):
+        chart = self.root / "charts/demo"
+        chart.mkdir(parents=True)
+        (chart / "Chart.yaml").write_text(
+            "apiVersion: v2\nname: wrong\nname: demo\nversion: 0.0.1\nversion: 1.0.0\n")
+        before = self.commit("initial chart")
+        self.git("tag", "demo-1.0.0")
+        (chart / "values.yaml").write_text("replicaCount: 1\n")
+        after = self.commit("chart change")
+        self.assertEqual(preflight.already_released(self.root, before, after),
+                         [("charts/demo", "demo-1.0.0")])
+
+    def test_zero_before_checks_chart_from_earlier_commit(self):
+        self.write_chart()
+        self.commit("initial chart")
+        self.git("tag", "demo-1.0.0")
+        (self.root / "charts/demo/values.yaml").write_text("replicaCount: 1\n")
+        self.commit("chart change")
+        (self.root / "README.md").write_text("last commit is docs only\n")
+        after = self.commit("docs")
+        self.assertEqual(preflight.already_released(self.root, "0" * 40, after),
+                         [("charts/demo", "demo-1.0.0")])
+
+    def test_zero_before_checks_chart_at_merge_commit(self):
+        self.write_chart()
+        self.commit("initial chart")
+        self.git("tag", "demo-1.0.0")
+        main = self.git("branch", "--show-current")
+        self.git("checkout", "-b", "chart-change")
+        (self.root / "charts/demo/values.yaml").write_text("replicaCount: 1\n")
+        self.commit("chart change")
+        self.git("checkout", main)
+        (self.root / "README.md").write_text("main branch docs\n")
+        self.commit("docs")
+        self.git("merge", "--no-ff", "chart-change", "-m", "merge chart change")
+        after = self.git("rev-parse", "HEAD")
+        self.assertEqual(preflight.already_released(self.root, "0" * 40, after),
+                         [("charts/demo", "demo-1.0.0")])
+
 
 if __name__ == "__main__":
     unittest.main()

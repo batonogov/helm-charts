@@ -3,9 +3,10 @@
 
 import os
 from pathlib import Path
-import re
 import subprocess
 import sys
+
+import yaml
 
 
 def changed_paths(before, after, cwd=None):
@@ -14,8 +15,7 @@ def changed_paths(before, after, cwd=None):
     if before:
         command = ["git", "diff", "--no-renames", "--name-only", "-z", before, after]
     else:
-        command = ["git", "diff-tree", "--root", "--no-commit-id", "--no-renames",
-                   "--name-only", "-r", "-z", after]
+        command = ["git", "ls-tree", "-r", "--name-only", "-z", after]
     output = subprocess.check_output(command, cwd=cwd, text=True)
     return [path for path in output.split("\0") if path]
 
@@ -29,13 +29,20 @@ def changed_chart_dirs(paths):
     return sorted(charts)
 
 
-def chart_field(path, field):
-    pattern = re.compile(rf"^{re.escape(field)}:\s*(['\"]?)([^'\"\s#]+)\1(?:\s*(?:#.*)?)$")
-    for line in path.read_text().splitlines():
-        match = pattern.match(line)
-        if match:
-            return match.group(2)
-    raise RuntimeError(f"cannot read chart {field} from {path}")
+def chart_metadata(path):
+    try:
+        document = yaml.safe_load(path.read_text())
+    except yaml.YAMLError as error:
+        raise RuntimeError(f"cannot parse {path}: {error}") from error
+    if not isinstance(document, dict):
+        raise RuntimeError(f"chart metadata must be a mapping in {path}")
+    metadata = {}
+    for field in ("name", "version"):
+        value = document.get(field)
+        if not isinstance(value, str) or not value.strip():
+            raise RuntimeError(f"chart {field} must be a nonempty string in {path}")
+        metadata[field] = value
+    return metadata
 
 
 def already_released(root, before, after):
@@ -44,8 +51,8 @@ def already_released(root, before, after):
         chart_yaml = root / chart_dir / "Chart.yaml"
         if not chart_yaml.is_file():
             continue
-        chart = chart_field(chart_yaml, "name")
-        tag = f"{chart}-{chart_field(chart_yaml, 'version')}"
+        metadata = chart_metadata(chart_yaml)
+        tag = f"{metadata['name']}-{metadata['version']}"
         result = subprocess.run(
             ["git", "tag", "--list", tag],
             cwd=root, capture_output=True, text=True, check=True,

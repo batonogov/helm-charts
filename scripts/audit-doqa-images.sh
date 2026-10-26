@@ -7,7 +7,7 @@
 #
 # Use this when bumping appVersion: it answers "did the vendor add an env
 # var, runtime user, working directory or startup command the chart does not account for?"
-# without installing anything. It complements diffing configs_<ver>.zip,
+# without pulling image layers. It complements diffing configs_<ver>.zip,
 # which shows vendor config changes but not what a rebuilt image itself
 # expects at runtime.
 #
@@ -19,7 +19,8 @@
 #   git show <branch>:charts/doqa/values.yaml > /tmp/new.yaml
 #   scripts/audit-doqa-images.sh /tmp/old.yaml /tmp/new.yaml
 #
-# Requires crane (brew install crane) and jq. The vendor registry
+# Requires crane (brew install crane), jq, and Python 3 with PyYAML
+# (python3 -m pip install PyYAML==6.0.3). The vendor registry
 # registry.control.doqa.app serves application images anonymously, so no
 # credentials are needed.
 #
@@ -33,6 +34,11 @@ require() {
 }
 require crane "Install it with: brew install crane"
 require jq "Install it with: brew install jq"
+require python3 "Install Python 3 before running this audit"
+if ! python3 -c 'import yaml' >/dev/null 2>&1; then
+  echo "PyYAML is required. Install it with: python3 -m pip install PyYAML==6.0.3" >&2
+  exit 1
+fi
 
 OLD_VALUES="${1:?usage: audit-doqa-images.sh <old_values.yaml> <new_values.yaml>}"
 NEW_VALUES="${2:?usage: audit-doqa-images.sh <old_values.yaml> <new_values.yaml>}"
@@ -60,17 +66,65 @@ service/soketi
 service/nginx
 "
 
-# Print every explicitly configured image repository, normalized to one per line.
+image_inventory() {
+  python3 - "$1" <<'PY'
+import sys
+
+import yaml
+
+path = sys.argv[1]
+try:
+    with open(path, encoding="utf-8") as source:
+        document = yaml.safe_load(source)
+except (OSError, UnicodeError, yaml.YAMLError) as error:
+    raise SystemExit(f"{path}: cannot parse values YAML: {error}")
+if not isinstance(document, dict):
+    raise SystemExit(f"{path}: values root must be a mapping")
+
+images = {}
+visited = set()
+
+
+def visit(node):
+    if not isinstance(node, (dict, list)):
+        return
+    identity = id(node)
+    if identity in visited:
+        return
+    visited.add(identity)
+    if isinstance(node, dict):
+        if "image" in node:
+            image = node["image"]
+            if not isinstance(image, dict):
+                raise ValueError("image must be a mapping")
+            if "repository" in image or "tag" in image:
+                repository = image.get("repository")
+                tag = image.get("tag")
+                if not isinstance(repository, str) or not repository.strip():
+                    raise ValueError("image repository must be a nonempty string")
+                if not isinstance(tag, str) or not tag.strip():
+                    raise ValueError(f"tag not found or invalid for image repository {repository}")
+                if repository in images and images[repository] != tag:
+                    raise ValueError(f"conflicting tags for image repository {repository}")
+                images[repository] = tag
+        for value in node.values():
+            visit(value)
+    else:
+        for value in node:
+            visit(value)
+
+
+try:
+    visit(document)
+except ValueError as error:
+    raise SystemExit(f"{path}: {error}")
+for repository, tag in sorted(images.items()):
+    print(f"{repository}\t{tag}")
+PY
+}
+
 repositories_in() {
-  awk '
-    /^[[:space:]]+repository:[[:space:]]*/ {
-      sub(/^[[:space:]]*repository:[[:space:]]*/, "")
-      sub(/[[:space:]]+#.*$/, "")
-      gsub(/["\047]/, "")
-      gsub(/[[:space:]]/, "")
-      if (length) print
-    }
-  ' "$1" | sort -u
+  cut -f1 "$1"
 }
 
 contains() {
@@ -86,7 +140,7 @@ $2
 
 check_repositories() {
   values="$1"
-  actual="$(repositories_in "$values")"
+  actual="$(repositories_in "$2")"
   for repo in $actual; do
     if ! contains "$REPOSITORIES" "$repo" && ! contains "$INFRASTRUCTURE_REPOSITORIES" "$repo"; then
       echo "error $values: unknown image repository $repo" >&2
@@ -101,37 +155,21 @@ check_repositories() {
   done
 }
 
-# Print the tag value of the image block whose repository: line equals $2.
-# values.yaml groups repository: and tag: under each component's image: block.
 tag_for() {
-  awk -v repo="$2" '
-    /^[[:space:]]+repository:[[:space:]]*/ {
-      value = $0
-      sub(/^[[:space:]]*repository:[[:space:]]*/, "", value)
-      sub(/[[:space:]]+#.*$/, "", value)
-      gsub(/[[:space:]"\047]/, "", value)
-      found = value == repo
-      next
-    }
-    found && /^[[:space:]]+tag:[[:space:]]*/ {
-      sub(/^[[:space:]]*tag:[[:space:]]*/, "")
-      sub(/[[:space:]]+#.*$/, "")
-      gsub(/[[:space:]"\047]/, "")
-      print
-      exit
-    }
-  ' "$1"
+  awk -F '\t' -v repo="$2" '$1 == repo { print $2; exit }' "$1"
 }
 
 WORK_DIR="$(mktemp -d)"
 trap 'rm -rf "$WORK_DIR"' EXIT
+image_inventory "$OLD_VALUES" >"$WORK_DIR/old.inventory"
+image_inventory "$NEW_VALUES" >"$WORK_DIR/new.inventory"
 
 status=0
-check_repositories "$OLD_VALUES"
-check_repositories "$NEW_VALUES"
+check_repositories "$OLD_VALUES" "$WORK_DIR/old.inventory"
+check_repositories "$NEW_VALUES" "$WORK_DIR/new.inventory"
 for repo in $REPOSITORIES; do
-  old_tag="$(tag_for "$OLD_VALUES" "$repo")"
-  new_tag="$(tag_for "$NEW_VALUES" "$repo")"
+  old_tag="$(tag_for "$WORK_DIR/old.inventory" "$repo")"
+  new_tag="$(tag_for "$WORK_DIR/new.inventory" "$repo")"
   if [ -z "$old_tag" ] || [ -z "$new_tag" ]; then
     echo "error $repo (tag not found in one of the values files)" >&2
     status=1
