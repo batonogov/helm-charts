@@ -60,6 +60,11 @@ ConfigMap, or point `existingConfigSecret` at a Secret you manage out of band.
 Use a Secret for real subscription URLs with tokens and static VLESS URLs:
 both the URLs and their UUIDs are credentials.
 
+When using `existingConfigSecret`, restart the exporter Deployment after
+changing the Secret. The chart mounts `config.yaml` through `subPath`, so the
+mounted file is not updated in running pods; they keep using the old
+configuration until the pods are recreated.
+
 ```yaml
 config:
   defaults:
