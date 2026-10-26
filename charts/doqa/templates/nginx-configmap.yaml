@@ -86,6 +86,9 @@ data:
             proxy_set_header X-Forwarded-Proto  $doqa_forwarded_proto;
             proxy_ssl_server_name               on;
             proxy_ssl_verify                    {{ ternary "on" "off" .Values.minio.tlsVerify }};
+            {{- if .Values.minio.tlsVerify }}
+            proxy_ssl_trusted_certificate       /etc/ssl/certs/ca-certificates.crt;
+            {{- end }}
             proxy_ssl_session_reuse             on;
             proxy_pass                          {{ $minioEndpoint }};
         }

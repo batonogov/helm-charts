@@ -283,6 +283,11 @@ class ReliabilityTests(unittest.TestCase):
                 config = render(values, kind="ConfigMap")["review-nginx"]["data"]["default.conf"]
                 self.assertIn("proxy_ssl_server_name               on;", config)
                 self.assertIn(f"proxy_ssl_verify                    {expected};", config)
+                trusted_ca = "proxy_ssl_trusted_certificate       /etc/ssl/certs/ca-certificates.crt;"
+                if value is False:
+                    self.assertNotIn(trusted_ca, config)
+                else:
+                    self.assertIn(trusted_ca, config)
 
     def test_long_names_and_cross_references(self):
         fullname = "a" * 63
