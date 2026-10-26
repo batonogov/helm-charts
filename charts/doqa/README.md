@@ -2,7 +2,7 @@
 
 DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
 
-![Version: 0.10.0](https://img.shields.io/badge/Version-0.10.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.3.5-box](https://img.shields.io/badge/AppVersion-4.3.5--box-informational?style=flat-square)
+![Version: 0.11.0](https://img.shields.io/badge/Version-0.11.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.3.5-box](https://img.shields.io/badge/AppVersion-4.3.5--box-informational?style=flat-square)
 
 **Homepage:** <https://doqa.app>
 
@@ -97,8 +97,14 @@ swapped to external services with `<component>.create=false`:
 ## Secrets
 
 By default the chart **generates** application secrets (`secrets.create=true`)
-with stable values via `lookup` — they survive `helm upgrade`. Set
-`secrets.create=false` to plug in pre-existing secrets:
+with stable values via `lookup` — they survive `helm upgrade`. Fresh app Secrets
+contain an `APP_KEY` whose base64 payload decodes to the 32 bytes required by
+Laravel AES-256. Explicit `secrets.app`, `secrets.apiKeys`, `secrets.pusher`,
+`secrets.rabbitmq`, and `secrets.minio` names select pre-existing Secrets even
+when `secrets.create=true`; the remaining applicable Secrets are still generated.
+An explicitly named Secret already owned by the current Helm release remains
+rendered during online upgrades so Helm does not prune it. Set
+`secrets.create=false` to plug in pre-existing secrets throughout:
 
 | Secret | Keys |
 |---|---|
@@ -253,6 +259,7 @@ Kubernetes: `>=1.32.0-0`
 | minio.resources | object | `{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}}` | Resource requests and limits |
 | minio.storage.size | string | `"4Gi"` | PVC size for MinIO |
 | minio.storage.storageClass | string | `""` | StorageClass for MinIO PVC |
+| minio.tlsVerify | bool | `true` | Verify the upstream TLS certificate when nginx proxies to an HTTPS MinIO/S3 endpoint. Disable only for a self-signed endpoint that cannot use a trusted certificate |
 | minio.tolerations | list | `[]` | Tolerations for MinIO pods. Overrides global tolerations |
 | nameOverride | string | `""` | Override the chart name part of resource names. SET-ONCE-AT-INSTALL: `app.kubernetes.io/name` (derived from this) lands in every Deployment's `.spec.selector`, which Kubernetes treats as immutable. Changing nameOverride on an existing release makes the upgrade fail with `field is immutable` on all Deployments until the value is reverted or the release is reinstalled. nameOverride also feeds doqa.fullname (when fullnameOverride is unset), so it additionally renames every chart-managed resource and orphans the redis/rabbitmq/minio PVCs. |
 | networkPolicy.enabled | bool | `false` | Enable NetworkPolicy resources. Creates a default-deny-ingress policy and explicit allow rules for all internal traffic paths |
@@ -343,7 +350,7 @@ Kubernetes: `>=1.32.0-0`
 | redis.notification.db | string | `"doqa"` | Notification logical DB (vendor uses string "doqa") |
 | redis.notification.host | string | `""` | Notification Redis host (defaults to redis host when empty) |
 | redis.notification.passwordSecret.key | string | `"password"` | Key inside the password secret |
-| redis.notification.passwordSecret.name | string | `""` | Notification Redis password secret |
+| redis.notification.passwordSecret.name | string | `""` | Notification Redis password secret. When empty and notification.host is also empty, inherits redis.passwordSecret; a separate host does not inherit it |
 | redis.notification.port | int | `6379` | Notification Redis port |
 | redis.passwordSecret.key | string | `"password"` | Key inside the password secret |
 | redis.passwordSecret.name | string | `""` | External Redis password secret (leave empty for no auth) |
@@ -404,6 +411,45 @@ This chart targets DoQA 4.1.0+. There is no automatic migration path from
 3.x deployments — vendor changed the queue broker from Redis to RabbitMQ
 between 3.7 and 4.0. Plan a stepwise migration if you are coming from a
 3.x install.
+
+### 0.10.x → 0.11.0
+
+Upgrade with the same override file; vendor application and dependency image pins
+are unchanged.
+
+- **Fresh APP_KEY size**: newly generated app Secrets now contain `base64:` plus
+  base64-encoded 32 random bytes, as required by Laravel AES-256. Existing
+  `app-key` values are preserved verbatim through `lookup`, including legacy
+  values from 0.10.0 that decode to 24 bytes; the upgrade does not rotate them.
+  To migrate a legacy key, plan a maintenance window, back up the installation,
+  and replace `app-key` in the existing app Secret with a correctly encoded
+  32-byte key through your Secret-management workflow. Account for Laravel
+  encrypted data, cookies and sessions becoming unreadable or invalid, then roll
+  the backend and backend-image workers. Do not rotate this key as a side effect
+  of a routine chart upgrade.
+- **Mixed Secret provisioning**: explicit `secrets.app`, `secrets.apiKeys`,
+  `secrets.pusher`, `secrets.rabbitmq`, and `secrets.minio` names suppress
+  creation of genuinely pre-existing Secrets. Other applicable Secrets are still
+  generated when `secrets.create=true`. During an online upgrade, an explicit
+  name whose existing Secret carries the current release's
+  `meta.helm.sh/release-name` and `meta.helm.sh/release-namespace` annotations
+  remains rendered with stable data. This preserves Secrets generated by 0.10.0
+  and lets you externalize their current names without Helm pruning them.
+  Offline renders cannot confirm release ownership and do not create explicit
+  Secrets.
+- **MinIO TLS verification**: nginx verifies HTTPS MinIO/S3 upstream certificates
+  by default (`minio.tlsVerify=true`). Set it to `false` only for a self-signed
+  endpoint that cannot present a certificate trusted by the nginx image.
+- **Long resource names**: suffix-aware naming keeps a 63-character
+  `fullnameOverride` valid for Services, Secrets, hook Jobs, and CNPG-generated
+  names while preserving all internal references. When truncation actually
+  occurs, an 8-hex hash of the complete fullname prevents collisions between
+  long names with a common prefix; names that already fit remain byte-for-byte
+  unchanged. Keep overrides unchanged on an existing release; resource renames
+  can still orphan stateful data.
+- NetworkPolicy now covers the MinIO bucket-init Job and follows custom Pusher
+  ports. Notification Redis inherits the primary password Secret only when it
+  also inherits the primary Redis host.
 
 ### 0.9.x → 0.10.0
 

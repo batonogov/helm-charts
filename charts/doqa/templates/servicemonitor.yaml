@@ -2,7 +2,7 @@
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: {{ include "doqa.fullname" . }}-backend
+  name: {{ include "doqa.resourceName" (dict "ctx" . "suffix" "backend") }}
   {{- with .Values.serviceMonitor.namespace }}
   namespace: {{ . }}
   {{- end }}

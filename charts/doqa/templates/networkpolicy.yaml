@@ -1,5 +1,5 @@
 {{- if .Values.networkPolicy.enabled }}
-{{- $fullName := include "doqa.fullname" . -}}
+{{- $fullName := include "doqa.resourceName" (dict "ctx" . "suffix" "allow-app-to-autotest-parser") | trimSuffix "-allow-app-to-autotest-parser" -}}
 {{- $selectorLabels := include "doqa.selectorLabels" . -}}
 ---
 # Default deny all ingress in the namespace
@@ -137,7 +137,7 @@ spec:
               {{- $selectorLabels | nindent 14 }}
               app.kubernetes.io/component: nginx
       ports:
-        - port: 6001
+        - port: {{ .Values.pusher.port | int }}
           protocol: TCP
 ---
 apiVersion: networking.k8s.io/v1
@@ -175,7 +175,7 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      cnpg.io/cluster: {{ $fullName }}-cnpg
+      cnpg.io/cluster: {{ include "doqa.postgresql.clusterName" . }}
   policyTypes:
     - Ingress
   ingress:
@@ -353,6 +353,10 @@ spec:
             matchLabels:
               {{- $selectorLabels | nindent 14 }}
               app.kubernetes.io/component: llm-bulk-queue
+        - podSelector:
+            matchLabels:
+              {{- $selectorLabels | nindent 14 }}
+              app.kubernetes.io/component: minio-init
       ports:
         - port: 9000
           protocol: TCP
@@ -406,7 +410,7 @@ spec:
               {{- $selectorLabels | nindent 14 }}
               app.kubernetes.io/component: telegram-bot
       ports:
-        - port: 6001
+        - port: {{ .Values.pusher.port | int }}
           protocol: TCP
 ---
 # Allow app workloads -> statistic API

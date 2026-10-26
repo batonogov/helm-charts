@@ -16,6 +16,7 @@ from baseline import download
 ROOT = Path(__file__).resolve().parents[2]
 NAMESPACE = RELEASE = "doqa-smoke"
 VALUES = ROOT / ".github/doqa-kind/values.yaml"
+EXPLICIT_VALUES = ROOT / ".github/doqa-kind/upgrade-explicit-values.yaml"
 WORK = Path(os.environ["DOQA_KIND_WORK"])
 CONTEXT = "kind-" + os.environ["DOQA_KIND_NAME"]
 KUBE = ["kubectl", "--context", CONTEXT, "--request-timeout=60s"]
@@ -157,9 +158,17 @@ def verify(marker):
     print("Verified: PostgreSQL, Laravel cache, MinIO object and nginx object route", flush=True)
 
 
-def install(archive):
+def value_files(scenario):
+    return [VALUES] + ([EXPLICIT_VALUES] if scenario == "upgrade-explicit" else [])
+
+
+def value_args(scenario):
+    return [arg for path in value_files(scenario) for arg in ("-f", str(path))]
+
+
+def install(archive, scenario):
     print("Installing packaged chart: " + archive.name, flush=True)
-    run([*HELM, "install", RELEASE, str(archive), "--create-namespace", "-f", str(VALUES),
+    run([*HELM, "install", RELEASE, str(archive), "--create-namespace", *value_args(scenario),
          "--wait", "--wait-for-jobs", "--timeout", "15m"], timeout=920)
     health()
 
@@ -178,14 +187,15 @@ def main(scenario):
     candidate = archives[0]
     version = candidate.name.removeprefix("doqa-").removesuffix(".tgz")
     marker = uuid.uuid4().hex
-    if scenario == "upgrade":
-        install(download(version, WORK))
+    if scenario in ("upgrade", "upgrade-explicit"):
+        required = "0.10.0" if scenario == "upgrade-explicit" else None
+        install(download(version, WORK, required), scenario)
         create_probe()
         seed(marker)
         verify(marker)
         before = state_snapshot()
         print("Upgrading to packaged candidate: " + candidate.name, flush=True)
-        run([*HELM, "upgrade", RELEASE, str(candidate), "-f", str(VALUES), "--reset-values",
+        run([*HELM, "upgrade", RELEASE, str(candidate), *value_args(scenario), "--reset-values",
              "--wait", "--wait-for-jobs", "--timeout", "15m"], timeout=920)
         health()
         if before != state_snapshot():
@@ -193,7 +203,7 @@ def main(scenario):
         verify(marker)
         print("Upgrade preserved all Secret data, PVC UIDs and effective state prefixes", flush=True)
     else:
-        install(candidate)
+        install(candidate, scenario)
         create_probe()
         seed(marker)
         verify(marker)
@@ -204,6 +214,6 @@ def main(scenario):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2 or sys.argv[1] not in ("fresh", "upgrade"):
-        raise SystemExit("Usage: check.py fresh|upgrade")
+    if len(sys.argv) != 2 or sys.argv[1] not in ("fresh", "upgrade", "upgrade-explicit"):
+        raise SystemExit("Usage: check.py fresh|upgrade|upgrade-explicit")
     main(sys.argv[1])

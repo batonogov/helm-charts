@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "doqa.fullname" . }}-notification
+  name: {{ include "doqa.resourceName" (dict "ctx" . "suffix" "notification") }}
   labels:
     {{- include "doqa.labels" . | nindent 4 }}
     app.kubernetes.io/component: notification
@@ -85,7 +85,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "doqa.fullname" . }}-notification
+  name: {{ include "doqa.resourceName" (dict "ctx" . "suffix" "notification") }}
   labels:
     {{- include "doqa.labels" . | nindent 4 }}
     app.kubernetes.io/component: notification
@@ -95,7 +95,7 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "doqa.fullname" . }}-notification-worker
+  name: {{ include "doqa.resourceName" (dict "ctx" . "suffix" "notification-worker") }}
   labels:
     {{- include "doqa.labels" . | nindent 4 }}
     app.kubernetes.io/component: notification-worker

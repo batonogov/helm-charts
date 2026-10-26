@@ -28,6 +28,12 @@ class BaselineTests(unittest.TestCase):
     def test_same_version_for_repository_only_changes(self):
         self.assertEqual(resolve([release("0.10.0")], "0.10.0")["version"], "0.10.0")
 
+    def test_explicit_upgrade_requires_published_0_10_0(self):
+        releases = [release("0.9.0"), release("0.10.0"), release("0.11.0")]
+        self.assertEqual(resolve(releases, "0.11.0", "0.10.0")["version"], "0.10.0")
+        with self.assertRaises(RuntimeError):
+            resolve([release("0.11.0")], "0.11.0", "0.10.0")
+
     def test_refuses_downgrades_and_missing_baseline(self):
         for releases in ([], [release("0.11.0")]):
             with self.subTest(releases=releases), self.assertRaises(RuntimeError):

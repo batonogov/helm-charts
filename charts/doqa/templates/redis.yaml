@@ -1,9 +1,8 @@
 {{- if .Values.redis.create }}
-{{- $fullName := include "doqa.fullname" . -}}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ $fullName }}-redis
+  name: {{ include "doqa.resourceName" (dict "ctx" . "suffix" "redis") }}
   labels:
     {{- include "doqa.labels" . | nindent 4 }}
     app.kubernetes.io/component: redis
@@ -20,7 +19,7 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ $fullName }}-redis
+  name: {{ include "doqa.resourceName" (dict "ctx" . "suffix" "redis") }}
   labels:
     {{- include "doqa.labels" . | nindent 4 }}
     app.kubernetes.io/component: redis
@@ -90,7 +89,7 @@ spec:
       volumes:
       - name: data
         persistentVolumeClaim:
-          claimName: {{ $fullName }}-redis
+          claimName: {{ include "doqa.resourceName" (dict "ctx" . "suffix" "redis") }}
       {{- range $.Values.extraVolumes }}
       - {{ toYaml . | nindent 8 }}
 {{- end }}
@@ -110,7 +109,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ $fullName }}-redis
+  name: {{ include "doqa.resourceName" (dict "ctx" . "suffix" "redis") }}
   labels:
     {{- include "doqa.labels" . | nindent 4 }}
     app.kubernetes.io/component: redis

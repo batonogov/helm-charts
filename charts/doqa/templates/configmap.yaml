@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "doqa.fullname" . }}-env
+  name: {{ include "doqa.resourceName" (dict "ctx" . "suffix" "env") }}
   labels:
     {{- include "doqa.labels" . | nindent 4 }}
   {{- with .Values.extraAnnotations }}
@@ -65,16 +65,16 @@ data:
   DOQA_BACKEND_URL: {{ .Values.doqaBackendUrl | quote }}
 
   BROADCAST_DRIVER: pusher
-  PUSHER_APP_HOST: {{ printf "%s-websocket" (include "doqa.fullname" .) | quote }}
+  PUSHER_APP_HOST: {{ include "doqa.resourceName" (dict "ctx" . "suffix" "websocket") | quote }}
   PUSHER_APP_ID: {{ .Values.pusher.appId | quote }}
   PUSHER_APP_KEY: {{ .Values.pusher.appKey | quote }}
   PUSHER_APP_PORT: {{ .Values.pusher.port | int | quote }}
   PUSHER_SCHEME: {{ .Values.pusher.scheme | quote }}
 
-  STATISTIC_ENDPOINT: {{ printf "http://%s-statistic:3000/" (include "doqa.fullname" .) | quote }}
-  NOTIFICATION_ENDPOINT: {{ printf "http://%s-notification:3000/" (include "doqa.fullname" .) | quote }}
-  LLM_ENDPOINT: {{ printf "http://%s-llm:3000/" (include "doqa.fullname" .) | quote }}
-  AUTOTEST_PARSER_SERVICE_URL: {{ printf "http://%s-autotest-parser:8000" (include "doqa.fullname" .) | quote }}
+  STATISTIC_ENDPOINT: {{ printf "http://%s:3000/" (include "doqa.resourceName" (dict "ctx" . "suffix" "statistic")) | quote }}
+  NOTIFICATION_ENDPOINT: {{ printf "http://%s:3000/" (include "doqa.resourceName" (dict "ctx" . "suffix" "notification")) | quote }}
+  LLM_ENDPOINT: {{ printf "http://%s:3000/" (include "doqa.resourceName" (dict "ctx" . "suffix" "llm")) | quote }}
+  AUTOTEST_PARSER_SERVICE_URL: {{ printf "http://%s:8000" (include "doqa.resourceName" (dict "ctx" . "suffix" "autotest-parser")) | quote }}
 
   BOT_NAME: {{ .Values.telegramBot.botName | quote }}
 

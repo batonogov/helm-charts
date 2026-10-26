@@ -22,6 +22,12 @@ with SHA256.
   same original override file and the candidate archive, then repeat checks
   and compare the snapshot. Same-version upgrades are covered when only
   repository files changed. A candidate older than the baseline is rejected.
+- **Upgrade-explicit**: install published chart 0.10.0 with
+  `secrets.create=true` and all five generated Secret names explicitly set in
+  `upgrade-explicit-values.yaml`, then upgrade with the same values. This covers
+  release-owned explicit Secret retention in addition to the ordinary dynamic
+  baseline upgrade. The same Secret hashes, PVC UIDs, state prefixes and data
+  sentinels must survive.
 
 The baseline version, asset URL and checksum are saved in diagnostics, making
 the exact tested upgrade path visible. New releases automatically advance the
@@ -43,7 +49,7 @@ it does not imply that every licensed business operation was exercised.
 
 The workflow runs on pull requests and via `workflow_dispatch`. A cheap job
 detects changes to DoQA, this workflow, its fixtures or scripts. Only relevant
-changes start the fresh/upgrade matrix. The final **DoQA integration** check
+changes start the fresh/upgrade/upgrade-explicit matrix. The final **DoQA integration** check
 always runs, so it can be selected as a required branch/ruleset check without
 leaving unrelated PRs pending. Repository administrators must configure that
 requirement separately. This workflow does not change release permissions or
@@ -77,8 +83,8 @@ python3 scripts/doqa-kind/diagnostics.py
 kind delete cluster --name "$DOQA_KIND_NAME"
 ```
 
-Run `upgrade` instead of `fresh` in another new cluster to reproduce the upgrade
-scenario. `GH_TOKEN` is optional locally and only used to avoid GitHub API rate
+Run `upgrade` or `upgrade-explicit` instead of `fresh` in another new cluster to
+reproduce the corresponding upgrade scenario. `GH_TOKEN` is optional locally and only used to avoid GitHub API rate
 limits when resolving published releases. Always run diagnostics and cleanup
 after a failed local test as well.
 

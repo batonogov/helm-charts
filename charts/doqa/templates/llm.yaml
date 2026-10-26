@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "doqa.fullname" . }}-llm
+  name: {{ include "doqa.resourceName" (dict "ctx" . "suffix" "llm") }}
   labels:
     {{- include "doqa.labels" . | nindent 4 }}
     app.kubernetes.io/component: llm
@@ -58,7 +58,7 @@ spec:
         - name: PREFIX_ROOT_PATH
           value: "/"
         - name: STATISTIC_HOST
-          value: {{ printf "http://%s-statistic:3000/" (include "doqa.fullname" .) | quote }}
+          value: {{ printf "http://%s:3000/" (include "doqa.resourceName" (dict "ctx" . "suffix" "statistic")) | quote }}
         - name: STATISTIC_API_KEY
           valueFrom:
             secretKeyRef:
@@ -110,7 +110,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "doqa.fullname" . }}-llm
+  name: {{ include "doqa.resourceName" (dict "ctx" . "suffix" "llm") }}
   labels:
     {{- include "doqa.labels" . | nindent 4 }}
     app.kubernetes.io/component: llm

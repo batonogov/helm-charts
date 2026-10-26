@@ -36,7 +36,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        scenario: [fresh, upgrade]
+        scenario: [fresh, upgrade, upgrade-explicit]
     env:
       DOQA_KIND_NAME: doqa-ci
     steps:

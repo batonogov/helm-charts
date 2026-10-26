@@ -5,7 +5,7 @@
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: {{ include "doqa.fullname" $ }}-{{ $component }}-pdb
+  name: {{ include "doqa.resourceName" (dict "ctx" $ "suffix" (printf "%s-pdb" $component)) }}
   labels:
     {{- include "doqa.labels" $ | nindent 4 }}
     app.kubernetes.io/component: {{ $component }}
