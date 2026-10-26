@@ -24,16 +24,42 @@ Fully qualified app name.
 {{/*
 Resource name with a reserved suffix. The fullname is shortened only as much
 as needed, keeping ordinary names unchanged and the complete name within 63
-characters. Suffix is passed without the leading hyphen.
+characters. A truncated prefix carries a hash of the complete fullname to avoid
+collisions. Suffix is passed without the leading hyphen.
 */}}
 {{- define "doqa.resourceName" -}}
 {{- $suffix := .suffix -}}
 {{- $fullname := include "doqa.fullname" .ctx -}}
 {{- if $suffix -}}
 {{- $prefixLength := sub 63 (add1 (len $suffix)) | int -}}
-{{- printf "%s-%s" ($fullname | trunc $prefixLength | trimSuffix "-") $suffix -}}
+{{- $prefix := $fullname -}}
+{{- if gt (len $fullname) $prefixLength -}}
+{{- $hash := sha256sum $fullname | trunc 8 -}}
+{{- $prefixLength = sub $prefixLength 9 | int -}}
+{{- $prefix = printf "%s-%s" ($fullname | trunc $prefixLength | trimSuffix "-") $hash -}}
+{{- end -}}
+{{- printf "%s-%s" $prefix $suffix -}}
 {{- else -}}
 {{- $fullname -}}
+{{- end -}}
+{{- end }}
+
+{{/*
+Render an explicit Secret only when it is already managed by this release.
+This retains 0.10.0-generated Secrets after their names become explicit values;
+genuinely pre-existing Secrets and offline lookups remain unrendered.
+*/}}
+{{- define "doqa.shouldRenderSecret" -}}
+{{- if not .explicit -}}
+true
+{{- else -}}
+{{- $existing := lookup "v1" "Secret" .ctx.Release.Namespace .name -}}
+{{- if $existing -}}
+{{- $annotations := $existing.metadata.annotations | default dict -}}
+{{- if and (eq (get $annotations "meta.helm.sh/release-name" | default "") .ctx.Release.Name) (eq (get $annotations "meta.helm.sh/release-namespace" | default "") .ctx.Release.Namespace) -}}
+true
+{{- end -}}
+{{- end -}}
 {{- end -}}
 {{- end }}
 

@@ -1,0 +1,8 @@
+# Retain the generated 0.10.0 Secrets after their names become explicit values.
+secrets:
+  create: true
+  app: doqa-smoke-app-secrets
+  apiKeys: doqa-smoke-api-keys
+  pusher: doqa-smoke-pusher-secret
+  rabbitmq: doqa-smoke-rabbitmq-secret
+  minio: doqa-smoke-minio-secrets

@@ -2,12 +2,17 @@
 """DoQA regression checks: require Helm and PyYAML (also used by chart-testing)."""
 
 import base64
+from contextlib import contextmanager
+import hashlib
+from http.server import BaseHTTPRequestHandler, HTTPServer
+import json
 import os
 import re
 import shutil
 from pathlib import Path
 import subprocess
 import tempfile
+import threading
 import unittest
 
 import yaml
@@ -17,16 +22,16 @@ ROOT = Path(__file__).resolve().parent.parent
 CHART = ROOT / "charts/doqa"
 
 
-def render(values=None, kind="Deployment", fullname="review"):
+def render(values=None, kind="Deployment", fullname="review", kubeconfig=None):
     with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml") as extra:
         yaml.safe_dump(values or {}, extra)
         extra.flush()
-        result = subprocess.run(
-            ["helm", "template", "review", str(CHART), "-f",
-             str(CHART / "ci/test-values.yaml"), "-f", extra.name,
-             "--kube-version", "1.32.0", "--set", f"fullnameOverride={fullname}"],
-            capture_output=True, text=True, check=True,
-        )
+        command = ["helm", "template", "review", str(CHART), "-f",
+                   str(CHART / "ci/test-values.yaml"), "-f", extra.name,
+                   "--kube-version", "1.32.0", "--set", f"fullnameOverride={fullname}"]
+        if kubeconfig:
+            command += ["--kubeconfig", kubeconfig, "--dry-run=server", "--disable-openapi-validation"]
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
     documents = [doc for doc in yaml.safe_load_all(result.stdout)
                  if doc and (kind is None or doc["kind"] == kind)]
     if kind is None:
@@ -35,7 +40,84 @@ def render(values=None, kind="Deployment", fullname="review"):
 
 
 def resource_name(fullname, suffix):
-    return fullname[:63 - len(suffix) - 1].rstrip("-") + "-" + suffix
+    limit = 63 - len(suffix) - 1
+    if len(fullname) <= limit:
+        prefix = fullname
+    else:
+        digest = hashlib.sha256(fullname.encode()).hexdigest()[:8]
+        prefix = fullname[:limit - 9].rstrip("-") + "-" + digest
+    return prefix + "-" + suffix
+
+
+class KubernetesHandler(BaseHTTPRequestHandler):
+    def reply(self, code, body):
+        data = json.dumps(body).encode()
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+    def do_GET(self):
+        path = self.path.split("?")[0]
+        parts = path.split("/")
+        if len(parts) == 7 and parts[1:4] == ["api", "v1", "namespaces"] and parts[5] == "secrets":
+            secret = self.server.secrets.get((parts[4], parts[6]))
+            if secret:
+                self.reply(200, secret)
+                return
+        elif path == "/version":
+            self.reply(200, {"major": "1", "minor": "32", "gitVersion": "v1.32.0"})
+            return
+        elif path == "/api":
+            self.reply(200, {"kind": "APIVersions", "apiVersion": "v1", "versions": ["v1"]})
+            return
+        elif path == "/apis":
+            groups = [{"name": group, "versions": [{"groupVersion": group + "/v1", "version": "v1"}],
+                       "preferredVersion": {"groupVersion": group + "/v1", "version": "v1"}}
+                      for group in ("apps", "batch")]
+            self.reply(200, {"kind": "APIGroupList", "apiVersion": "v1", "groups": groups})
+            return
+        elif path in ("/api/v1", "/apis/apps/v1", "/apis/batch/v1"):
+            group_version = path.removeprefix("/apis/").removeprefix("/api/")
+            resources = {
+                "v1": [("secrets", "Secret"), ("serviceaccounts", "ServiceAccount"),
+                       ("configmaps", "ConfigMap"), ("services", "Service"),
+                       ("persistentvolumeclaims", "PersistentVolumeClaim")],
+                "apps/v1": [("deployments", "Deployment")],
+                "batch/v1": [("jobs", "Job")],
+            }[group_version]
+            self.reply(200, {"kind": "APIResourceList", "apiVersion": "v1", "groupVersion": group_version,
+                             "resources": [{"name": name, "singularName": kind.lower(), "namespaced": True,
+                                            "kind": kind, "verbs": ["get"]} for name, kind in resources]})
+            return
+        self.reply(404, {"kind": "Status", "apiVersion": "v1", "metadata": {},
+                         "status": "Failure", "reason": "NotFound", "code": 404})
+
+    def log_message(self, *args):
+        pass
+
+
+@contextmanager
+def kubernetes_api(secrets):
+    server = HTTPServer(("127.0.0.1", 0), KubernetesHandler)
+    server.secrets = secrets
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml") as kubeconfig:
+            yaml.safe_dump({
+                "apiVersion": "v1", "kind": "Config", "current-context": "mock",
+                "clusters": [{"name": "mock", "cluster": {"server": f"http://127.0.0.1:{server.server_port}"}}],
+                "contexts": [{"name": "mock", "context": {"cluster": "mock", "user": "mock"}}],
+                "users": [{"name": "mock", "user": {}}],
+            }, kubeconfig)
+            kubeconfig.flush()
+            yield kubeconfig.name
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
 
 
 def pod(doc):
@@ -247,6 +329,79 @@ class ReliabilityTests(unittest.TestCase):
         backend_env = pod(render({"secrets": explicit})["review-backend"])["containers"][0]["env"]
         app_key = next(env for env in backend_env if env["name"] == "APP_KEY")
         self.assertEqual(app_key["valueFrom"]["secretKeyRef"]["name"], "existing-app")
+
+    def test_explicit_secret_ownership_and_stable_data(self):
+        explicit = {
+            "app": "existing-app", "apiKeys": "existing-api", "pusher": "existing-pusher",
+            "rabbitmq": "existing-rabbitmq", "minio": "existing-minio",
+        }
+        keys = {
+            "existing-app": ("app-key", "jwt-secret", "internal-system-key"),
+            "existing-api": ("statistic-api-key", "notification-api-key", "llm-api-key"),
+            "existing-pusher": ("app-secret",),
+            "existing-rabbitmq": ("password", "erlang-cookie"),
+            "existing-minio": ("access-key", "secret-key"),
+        }
+
+        def secret(name, annotations):
+            data = {}
+            for key in keys[name]:
+                value = "base64:legacy" if key == "app-key" else name + "-" + key
+                data[key] = base64.b64encode(value.encode()).decode()
+            return {"apiVersion": "v1", "kind": "Secret", "type": "Opaque",
+                    "metadata": {"name": name, "namespace": "default", "annotations": annotations,
+                                 "labels": {"app.kubernetes.io/managed-by": "Helm",
+                                            "app.kubernetes.io/instance": "review"}},
+                    "data": data}
+
+        base_values = {
+            "ingress": {"enabled": False},
+            "postgresql": {"cnpg": {"create": False}, "host": "postgresql",
+                           "passwordSecret": {"name": "postgresql-auth"}},
+        }
+        owned_annotations = {"meta.helm.sh/release-name": "review",
+                             "meta.helm.sh/release-namespace": "default"}
+        owned = {("default", name): secret(name, owned_annotations) for name in explicit.values()}
+        with kubernetes_api(owned) as kubeconfig:
+            documents = render({**base_values, "secrets": explicit}, kind="Secret", kubeconfig=kubeconfig)
+        self.assertEqual(set(documents), set(explicit.values()))
+        for name, document in documents.items():
+            expected = {key: "base64:legacy" if key == "app-key" else name + "-" + key
+                        for key in keys[name]}
+            self.assertEqual(document["stringData"], expected)
+
+        annotations = (
+            {},
+            {"meta.helm.sh/release-name": "other", "meta.helm.sh/release-namespace": "default"},
+            {"meta.helm.sh/release-name": "review", "meta.helm.sh/release-namespace": "other"},
+        )
+        for item in annotations:
+            with self.subTest(annotations=item):
+                existing = {("default", "existing-app"): secret("existing-app", item)}
+                with kubernetes_api(existing) as kubeconfig:
+                    documents = render({**base_values, "secrets": {"app": "existing-app"}},
+                                       kind="Secret", kubeconfig=kubeconfig)
+                self.assertNotIn("existing-app", documents)
+                self.assertIn("review-api-keys", documents)
+        with kubernetes_api({}) as kubeconfig:
+            documents = render({**base_values, "secrets": {"app": "existing-app"}},
+                               kind="Secret", kubeconfig=kubeconfig)
+        self.assertNotIn("existing-app", documents)
+
+    def test_truncated_names_do_not_collide(self):
+        first = "a" * 62 + "b"
+        second = "a" * 62 + "c"
+        values = {"networkPolicy": {"enabled": True}}
+        documents = [render(values, kind=None, fullname=name) for name in (first, second)]
+        identities = [{(doc["kind"], doc["metadata"]["name"]) for doc in items}
+                      for items in documents]
+        for items, rendered in zip(identities, documents):
+            self.assertEqual(len(items), len(rendered))
+            for kind, name in items:
+                self.assertLessEqual(len(name), 63, (kind, name))
+        self.assertTrue(identities[0].isdisjoint(identities[1]))
+        self.assertNotEqual(resource_name(first, "backend"), resource_name(second, "backend"))
+        self.assertEqual(resource_name("review", "backend"), "review-backend")
 
     def test_notification_redis_password_inheritance(self):
         common = {

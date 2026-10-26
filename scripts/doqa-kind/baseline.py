@@ -13,12 +13,14 @@ import urllib.request
 API = "https://api.github.com/repos/batonogov/helm-charts/releases"
 
 
-def resolve(releases, candidate):
+def resolve(releases, candidate, required=None):
     stable = []
     for release in releases:
         match = re.fullmatch(r"doqa-(\d+)\.(\d+)\.(\d+)", release["tag_name"])
         if match and not release["draft"] and not release["prerelease"]:
             stable.append((tuple(map(int, match.groups())), release))
+    if required:
+        stable = [entry for entry in stable if entry[0] == tuple(map(int, required.split(".")))]
     if not stable:
         raise RuntimeError("No published stable DoQA baseline exists")
     version, release = max(stable, key=lambda entry: entry[0])
@@ -36,7 +38,7 @@ def resolve(releases, candidate):
             "url": expected_url, "release": release["html_url"]}
 
 
-def download(candidate, directory):
+def download(candidate, directory, required=None):
     headers = {"User-Agent": "helm-charts-kind-ci", "Accept": "application/vnd.github+json"}
     if os.environ.get("GH_TOKEN"):
         headers["Authorization"] = "Bearer " + os.environ["GH_TOKEN"]
@@ -50,7 +52,7 @@ def download(candidate, directory):
         if len(batch) < 100:
             break
         page += 1
-    baseline = resolve(releases, candidate)
+    baseline = resolve(releases, candidate, required)
     with urllib.request.urlopen(baseline["url"], timeout=180) as response:
         data = response.read()
     if hashlib.sha256(data).hexdigest() != baseline["sha256"]:
