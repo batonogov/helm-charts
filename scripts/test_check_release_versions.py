@@ -86,6 +86,20 @@ class ReleasePreflightTests(unittest.TestCase):
         self.assertEqual(preflight.already_released(self.root, before, after),
                          [("charts/demo", "demo-1.0.0")])
 
+    def test_renamed_chart_directory_uses_chart_name_for_tag(self):
+        chart = self.root / "charts/old-name"
+        chart.mkdir(parents=True)
+        (chart / "Chart.yaml").write_text("apiVersion: v2\nname: demo\nversion: 1.0.0\n")
+        (chart / "values.yaml").write_text("replicaCount: 1\n")
+        before = self.commit("initial chart")
+        self.git("tag", "demo-1.0.0")
+        renamed = self.root / "charts/new-name"
+        chart.rename(renamed)
+        (renamed / "values.yaml").write_text("replicaCount: 2\n")
+        after = self.commit("rename chart directory and change values")
+        self.assertEqual(preflight.already_released(self.root, before, after),
+                         [("charts/new-name", "demo-1.0.0")])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -8,9 +8,6 @@ import subprocess
 import sys
 
 
-VERSION_RE = re.compile(r"^version:\s*(['\"]?)([^'\"\s#]+)\1(?:\s*(?:#.*)?)$")
-
-
 def changed_paths(before, after, cwd=None):
     if before and set(before) == {"0"}:
         before = ""
@@ -32,12 +29,13 @@ def changed_chart_dirs(paths):
     return sorted(charts)
 
 
-def chart_version(path):
+def chart_field(path, field):
+    pattern = re.compile(rf"^{re.escape(field)}:\s*(['\"]?)([^'\"\s#]+)\1(?:\s*(?:#.*)?)$")
     for line in path.read_text().splitlines():
-        match = VERSION_RE.match(line)
+        match = pattern.match(line)
         if match:
             return match.group(2)
-    raise RuntimeError(f"cannot read chart version from {path}")
+    raise RuntimeError(f"cannot read chart {field} from {path}")
 
 
 def already_released(root, before, after):
@@ -46,8 +44,8 @@ def already_released(root, before, after):
         chart_yaml = root / chart_dir / "Chart.yaml"
         if not chart_yaml.is_file():
             continue
-        chart = Path(chart_dir).name
-        tag = f"{chart}-{chart_version(chart_yaml)}"
+        chart = chart_field(chart_yaml, "name")
+        tag = f"{chart}-{chart_field(chart_yaml, 'version')}"
         result = subprocess.run(
             ["git", "tag", "--list", tag],
             cwd=root, capture_output=True, text=True, check=True,

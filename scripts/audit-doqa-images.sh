@@ -65,6 +65,7 @@ repositories_in() {
   awk '
     /^[[:space:]]+repository:[[:space:]]*/ {
       sub(/^[[:space:]]*repository:[[:space:]]*/, "")
+      sub(/[[:space:]]+#.*$/, "")
       gsub(/["\047]/, "")
       gsub(/[[:space:]]/, "")
       if (length) print
@@ -107,12 +108,14 @@ tag_for() {
     /^[[:space:]]+repository:[[:space:]]*/ {
       value = $0
       sub(/^[[:space:]]*repository:[[:space:]]*/, "", value)
+      sub(/[[:space:]]+#.*$/, "", value)
       gsub(/[[:space:]"\047]/, "", value)
       found = value == repo
       next
     }
     found && /^[[:space:]]+tag:[[:space:]]*/ {
       sub(/^[[:space:]]*tag:[[:space:]]*/, "")
+      sub(/[[:space:]]+#.*$/, "")
       gsub(/[[:space:]"\047]/, "")
       print
       exit
