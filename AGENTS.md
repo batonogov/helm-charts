@@ -42,7 +42,7 @@ ct lint --config .github/ct.yaml --target-branch main
 
 Do not use bare `helm template ... charts/doqa`: defaults intentionally require `ingress.className`. Use `ci/test-values.yaml`, set an ingress class, or disable the Ingress explicitly. The xray chart likewise needs at least one tunnel/subscription or an `existingConfigSecret`; its test values provide a placeholder.
 
-PR CI runs `ct lint` for changed charts and, when any chart changed, verifies `helm-docs` output across all charts. DoQA also has local regression checks and live kind tests for relevant PRs. The live workflow packages the candidate, tests fresh installation, upgrades from the latest published stable DoQA release, and a separate 0.10.0-to-candidate upgrade with explicit generated Secret names. It checks HTTP, data, Secrets and PVC identities. Read `.github/doqa-kind/README.md` for setup, limits and diagnostics. Licensed end-to-end workflows remain manual.
+PR CI runs `ct lint` for changed charts and, when any chart changed, verifies `helm-docs` output across all charts. DoQA also has local regression checks and live kind tests for relevant PRs. The live workflow packages the candidate, tests fresh installation and upgrades from the latest published stable DoQA release, and checks HTTP, data, Secrets and PVC identities. Read `.github/doqa-kind/README.md` for setup, limits and diagnostics. Licensed end-to-end workflows remain manual.
 
 ## Versioning, generated files, and release flow
 
