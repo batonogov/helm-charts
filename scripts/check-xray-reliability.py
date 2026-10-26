@@ -14,14 +14,14 @@ CHART = ROOT / "charts/xray-health-exporter"
 RELEASE_NAMESPACE = "exporter-system"
 
 
-def render(values=None, kind="Deployment"):
+def render(values=None, kind="Deployment", release_namespace=RELEASE_NAMESPACE):
     with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml") as extra:
         yaml.safe_dump(values or {}, extra)
         extra.flush()
         result = subprocess.run(
             ["helm", "template", "review", str(CHART), "-f",
              str(CHART / "ci/test-values.yaml"), "-f", extra.name,
-             "--namespace", RELEASE_NAMESPACE, "--kube-version", "1.32.0",
+             "--namespace", release_namespace, "--kube-version", "1.32.0",
              "--set", "fullnameOverride=review"],
             capture_output=True, text=True, check=True,
         )
@@ -44,6 +44,28 @@ class ReliabilityTests(unittest.TestCase):
         self.assertEqual(monitor["spec"]["namespaceSelector"], {"matchNames": [RELEASE_NAMESPACE]})
 
         same_namespace = render(monitoring_values(RELEASE_NAMESPACE), kind="ServiceMonitor")["review"]
+        self.assertNotIn("namespaceSelector", same_namespace["spec"])
+
+    def test_yaml_boolean_like_namespaces_remain_strings(self):
+        monitor = render(monitoring_values("true"), kind="ServiceMonitor")["review"]
+        self.assertEqual(monitor["metadata"]["namespace"], "true")
+        self.assertIsInstance(monitor["metadata"]["namespace"], str)
+
+        policy = render(monitoring_values("true"), kind="NetworkPolicy")["review"]
+        namespace = policy["spec"]["ingress"][0]["from"][0]["namespaceSelector"]["matchLabels"][
+            "kubernetes.io/metadata.name"]
+        self.assertEqual(namespace, "true")
+        self.assertIsInstance(namespace, str)
+
+        monitor = render(monitoring_values(), kind="ServiceMonitor", release_namespace="true")["review"]
+        release_namespace = monitor["spec"]["namespaceSelector"]["matchNames"][0]
+        self.assertEqual(release_namespace, "true")
+        self.assertIsInstance(release_namespace, str)
+
+        same_namespace = render(monitoring_values("true"), kind="ServiceMonitor",
+                                release_namespace="true")["review"]
+        self.assertEqual(same_namespace["metadata"]["namespace"], "true")
+        self.assertIsInstance(same_namespace["metadata"]["namespace"], str)
         self.assertNotIn("namespaceSelector", same_namespace["spec"])
 
     def test_default_network_policy_follows_service_monitor_namespace(self):
