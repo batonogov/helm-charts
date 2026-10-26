@@ -2,7 +2,7 @@
 
 Prometheus exporter for Xray-core tunnel health
 
-![Version: 0.4.5](https://img.shields.io/badge/Version-0.4.5-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.7.6](https://img.shields.io/badge/AppVersion-1.7.6-informational?style=flat-square)
+![Version: 0.4.6](https://img.shields.io/badge/Version-0.4.6-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.7.6](https://img.shields.io/badge/AppVersion-1.7.6-informational?style=flat-square)
 
 **Homepage:** <https://github.com/batonogov/xray-health-exporter>
 
@@ -17,6 +17,11 @@ config:
     - name: edge-1
       url: "vless://uuid@host1:443?type=tcp&security=reality&pbk=...&sni=google.com"
 ```
+
+The example is a placeholder: real VLESS URLs and their UUIDs are credentials.
+Like subscription URLs with tokens, they are stored in a plain ConfigMap when
+set through `.Values.config`. For real credentials, provide the complete
+`config.yaml` through `existingConfigSecret` instead.
 
 Then install the chart:
 
@@ -51,8 +56,14 @@ Failover timing matches the upstream defaults: ~5s on graceful leader exit,
 ## Configuration
 
 The exporter is driven by a YAML file. Set `.Values.config` to render a
-ConfigMap, or point `existingConfigSecret` at a Secret you manage out of
-band (recommended when subscription URLs contain tokens).
+ConfigMap, or point `existingConfigSecret` at a Secret you manage out of band.
+Use a Secret for real subscription URLs with tokens and static VLESS URLs:
+both the URLs and their UUIDs are credentials.
+
+When using `existingConfigSecret`, restart the exporter Deployment after
+changing the Secret. The chart mounts `config.yaml` through `subPath`, so the
+mounted file is not updated in running pods; they keep using the old
+configuration until the pods are recreated.
 
 ```yaml
 config:
@@ -119,6 +130,11 @@ default tunnel alerts (`XrayTunnelDown`, `XrayHighLatency`,
 `XrayNoRecentCheck`); override `metrics.prometheusRule.rules` to provide your
 own list.
 
+For a cross-namespace ServiceMonitor, the chart selects Services in the release
+namespace. The default NetworkPolicy then allows Prometheus-labelled pods from
+the ServiceMonitor namespace; explicit `networkPolicy.ingress` rules replace
+this default.
+
 ## Health-check methods (v1.6.0+)
 
 The exporter supports three check methods, configurable globally via
@@ -139,8 +155,8 @@ All three measure latency as TTFB (time to first byte).
 Set `metricsBasicAuth.enabled=true` to protect `/metrics` with HTTP Basic
 Auth. The chart provisions a stable Secret holding both the username and
 password (reused on upgrade so they do not rotate) unless you point
-`metricsBasicAuth.existingSecret` at your own Secret (which must contain both
-the username and password keys, in the ServiceMonitor's namespace).
+`metricsBasicAuth.existingSecret` at your own Secret. The Secret must contain
+the configured username and password keys in the release namespace.
 
 When `metrics.serviceMonitor.enabled=true` is also set, the chart **injects
 matching `basicAuth` credentials into the ServiceMonitor automatically**, so
@@ -148,11 +164,14 @@ Prometheus scrapes succeed without extra configuration. The username and
 password keys are configurable via `metricsBasicAuth.usernameKey` /
 `metricsBasicAuth.passwordKey`.
 
-> **Note:** Prometheus Operator reads the referenced Secret from the
-> ServiceMonitor's namespace. If you move the ServiceMonitor to another
-> namespace via `metrics.serviceMonitor.namespace`, the chart-generated Secret
-> (in the release namespace) won't be reachable — set
-> `metricsBasicAuth.existingSecret` to a Secret in that namespace instead.
+> **Note:** The exporter reads its Secret in the release namespace, while
+> Prometheus Operator reads the referenced Secret in the ServiceMonitor's
+> namespace. For a cross-namespace ServiceMonitor, set
+> `metricsBasicAuth.existingSecret` and provision Secrets with that same name
+> and the same configured keys in both namespaces.
+
+After rotating an external Basic Auth Secret, restart the exporter pods so
+they read the new credentials.
 
 ## Pushing to Pushgateway (v1.6.0+)
 
@@ -162,7 +181,8 @@ complementary to the `/metrics` pull endpoint and only the leader pushes.
 To avoid leaking Pushgateway credentials in the rendered Deployment (and in
 etcd), point `metricsPush.urlSecret.name` at an existing Secret holding the
 full URL (key `url` by default) when the URL embeds `user:pass@` — it takes
-precedence over `metricsPush.url`.
+precedence over `metricsPush.url`. After rotating that Secret, restart the
+exporter pods so they read the new URL.
 
 ## Requirements
 
@@ -177,7 +197,7 @@ Kubernetes: `>=1.32.0-0`
 | config.defaults.backoff_multiplier | float | `2` | Exponential backoff growth factor after failures (must be at least 1.0). |
 | config.defaults.max_backoff | string | `"5m"` | Maximum interval between checks after repeated failures (Go duration). |
 | config.subscriptions | list | `[]` | Subscription URLs that auto-discover tunnels. See upstream README for schema. WARNING: subscription URLs typically embed access tokens — they are rendered into a plain ConfigMap. Use `existingConfigSecret` to source `config.yaml` from a Secret instead. |
-| config.tunnels | list | `[]` | Static tunnels. Each entry needs either `url` (a VLESS share link) or `xray_config_file`. At least one tunnel or one subscription is required (or set `existingConfigSecret`); otherwise the exporter refuses to start. |
+| config.tunnels | list | `[]` | Static tunnels. Each entry needs either `url` (a VLESS share link) or `xray_config_file`. VLESS URLs and their UUIDs are credentials and are rendered into a plain ConfigMap; use `existingConfigSecret` for real credentials. At least one tunnel or one subscription is required (or set `existingConfigSecret`); otherwise the exporter refuses to start. |
 | env.CHECK_METHOD | string | `"http"` | Default health-check method used when a tunnel omits `check_method`. `http` (HTTP GET), `ip` (IP echo via `IP_CHECK_URL`), or `download` (file download via `DOWNLOAD_URL`). |
 | env.DOWNLOAD_MIN_SIZE | string | `"51200"` | Minimum downloaded bytes for the `download` method to be considered successful. |
 | env.DOWNLOAD_TIMEOUT | string | `"60s"` | Timeout for the `download` check method (Go duration, e.g. `60s`, `2m`). |
@@ -212,7 +232,7 @@ Kubernetes: `>=1.32.0-0`
 | metrics.serviceMonitor.relabelings | list | `[]` | Optional relabelings. |
 | metrics.serviceMonitor.scrapeTimeout | string | `"10s"` | Scrape timeout. |
 | metricsBasicAuth.enabled | bool | `false` | Protect /metrics with HTTP Basic Auth. When `true`, the `METRICS_PROTECTED`/`METRICS_USERNAME`/`METRICS_PASSWORD` envs are rendered. |
-| metricsBasicAuth.existingSecret | string | `""` | Use an existing Secret instead of a chart-generated one. Takes precedence over the generated Secret and `secretName`. The Secret must contain both the username and password keys in the ServiceMonitor's namespace. |
+| metricsBasicAuth.existingSecret | string | `""` | Use an existing Secret instead of a chart-generated one. Takes precedence over the generated Secret and `secretName`. The Secret must contain the configured username and password keys in the release namespace. For a cross-namespace ServiceMonitor, provision a Secret with the same name and keys in both the release and ServiceMonitor namespaces. |
 | metricsBasicAuth.passwordKey | string | `""` | Key inside the Secret holding the password (default `password`). |
 | metricsBasicAuth.secretName | string | `""` | Name override for the chart-generated Secret holding the Basic Auth credentials. Defaults to `<release>-basicauth`. Ignored when `existingSecret` is set. |
 | metricsBasicAuth.username | string | `""` | Username. Defaults to upstream's `metricsUser` when empty. |
@@ -225,7 +245,7 @@ Kubernetes: `>=1.32.0-0`
 | nameOverride | string | `""` | Override the chart name (used in resource naming). |
 | networkPolicy.egress | list | `[]` | Extra egress rules. When unset, allows all egress. |
 | networkPolicy.enabled | bool | `false` | Create a NetworkPolicy. By default allows all egress and Prometheus-style ingress to the metrics port. |
-| networkPolicy.ingress | list | `[]` | Extra ingress rules. When unset, the chart allows ingress from any pod with label `app.kubernetes.io/name: prometheus`. |
+| networkPolicy.ingress | list | `[]` | Extra ingress rules. When unset, the chart allows ingress from pods with label `app.kubernetes.io/name: prometheus`. When ServiceMonitor is enabled, the default rule is scoped to its namespace. Explicit rules fully replace the default. |
 | nodeSelector | object | `{}` | nodeSelector for the pod. |
 | podAnnotations | object | `{}` | Annotations applied to every Deployment pod. |
 | podDisruptionBudget.enabled | bool | `false` | Create a PodDisruptionBudget. |
@@ -238,7 +258,7 @@ Kubernetes: `>=1.32.0-0`
 | securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true}` | Container-level security context (read-only rootfs, no privilege escalation). |
 | service.annotations | object | `{}` | Annotations applied to the Service. |
 | service.port | int | `9273` | Service port. |
-| service.type | string | `"ClusterIP"` | Service type. |
+| service.type | string | `"ClusterIP"` | Service type. Supported values are `ClusterIP`, `NodePort`, and `LoadBalancer`. |
 | serviceAccount.annotations | object | `{}` | Annotations applied to the ServiceAccount. |
 | serviceAccount.create | bool | `true` | Create a dedicated ServiceAccount for the Deployment. |
 | serviceAccount.name | string | `""` | ServiceAccount name. Defaults to release fullname when empty. |

@@ -43,7 +43,7 @@ ct lint --config .github/ct.yaml --target-branch main
 
 Do not use bare `helm template ... charts/doqa`: defaults intentionally require `ingress.className`. Use `ci/test-values.yaml`, set an ingress class, or disable the Ingress explicitly. The xray chart likewise needs at least one tunnel/subscription or an `existingConfigSecret`; its test values provide a placeholder.
 
-PR CI runs `ct lint` for changed charts and, when any chart changed, verifies `helm-docs` output across all charts. DoQA also has local regression checks and live kind tests for relevant PRs. The live workflow packages the candidate, tests fresh installation and upgrades from the latest published stable DoQA release, and checks HTTP, data, Secrets and PVC identities. Read `.github/doqa-kind/README.md` for setup, limits and diagnostics. Licensed end-to-end workflows remain manual.
+PR CI runs `ct lint` for changed charts and, when any chart changed, verifies `helm-docs` output across all charts. Both charts have local regression checks; DoQA also has live kind tests for relevant PRs. The live workflow packages the candidate, tests fresh installation and upgrades from the latest published stable DoQA release, and checks HTTP, data, Secrets and PVC identities. Read `.github/doqa-kind/README.md` for setup, limits and diagnostics. Licensed end-to-end workflows remain manual.
 
 The xray live workflow installs with its CI values, performs a real `/health` request, and verifies two-replica leader election. Repository branch protection should require `lint`, `DoQA integration`, and `xray integration`; the integration aggregates succeed without a cluster for unrelated changes.
 
@@ -220,7 +220,7 @@ DoQA is a paid product. The chart deploys the stack and the UI loads, but creati
 ### Configuration and validation
 
 - The exporter refuses to start without at least one `config.tunnels` or `config.subscriptions` entry, unless `existingConfigSecret` supplies `config.yaml`. Use `ci/test-values.yaml` for repository renders.
-- Subscription URLs commonly contain credentials. Do not put real tokens in committed values or the chart-generated ConfigMap; use `existingConfigSecret`.
+- Subscription URLs and static VLESS URLs (including their UUIDs) contain credentials. Do not put real credentials in committed values or the chart-generated ConfigMap; use `existingConfigSecret`.
 - Pushgateway URLs containing credentials belong in `metricsPush.urlSecret`, not plaintext `metricsPush.url`.
 - `replicaCount > 1` force-enables leader election even if `leaderElection.enabled=false`, preventing duplicate tunnel metrics. Keep the Lease RBAC and ServiceAccount behavior in sync when changing replica logic.
 - The upstream image is designed for UID/GID 10001 and the chart deliberately enforces non-root, read-only-root-filesystem defaults. Preserve `/tmp` as an `emptyDir` if the container filesystem remains read-only.

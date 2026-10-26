@@ -17,7 +17,12 @@ spec:
     {{- toYaml .Values.networkPolicy.ingress | nindent 4 }}
     {{- else }}
     - from:
-        - podSelector:
+        - {{- if .Values.metrics.serviceMonitor.enabled }}
+          namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.metrics.serviceMonitor.namespace | default .Release.Namespace | quote }}
+          {{- end }}
+          podSelector:
             matchLabels:
               app.kubernetes.io/name: prometheus
       ports:

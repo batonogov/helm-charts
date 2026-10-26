@@ -109,7 +109,7 @@ metricsBasicAuth:
   enabled: false
   # -- Username. Defaults to upstream's `metricsUser` when empty.
   username: ""
-  # -- Use an existing Secret instead of a chart-generated one. Takes precedence over the generated Secret and `secretName`. The Secret must contain both the username and password keys in the ServiceMonitor's namespace.
+  # -- Use an existing Secret instead of a chart-generated one. Takes precedence over the generated Secret and `secretName`. The Secret must contain the configured username and password keys in the release namespace. For a cross-namespace ServiceMonitor, provision a Secret with the same name and keys in both the release and ServiceMonitor namespaces.
   existingSecret: ""
   # -- Name override for the chart-generated Secret holding the Basic Auth credentials. Defaults to `<release>-basicauth`. Ignored when `existingSecret` is set.
   secretName: ""
@@ -133,7 +133,7 @@ metricsPush:
   instance: ""
 
 service:
-  # -- Service type.
+  # -- Service type. Supported values are `ClusterIP`, `NodePort`, and `LoadBalancer`.
   type: ClusterIP
   # -- Service port.
   port: 9273
@@ -153,7 +153,7 @@ config:
     backoff_multiplier: 2.0
   # -- Subscription URLs that auto-discover tunnels. See upstream README for schema. WARNING: subscription URLs typically embed access tokens — they are rendered into a plain ConfigMap. Use `existingConfigSecret` to source `config.yaml` from a Secret instead.
   subscriptions: []
-  # -- Static tunnels. Each entry needs either `url` (a VLESS share link) or `xray_config_file`. At least one tunnel or one subscription is required (or set `existingConfigSecret`); otherwise the exporter refuses to start.
+  # -- Static tunnels. Each entry needs either `url` (a VLESS share link) or `xray_config_file`. VLESS URLs and their UUIDs are credentials and are rendered into a plain ConfigMap; use `existingConfigSecret` for real credentials. At least one tunnel or one subscription is required (or set `existingConfigSecret`); otherwise the exporter refuses to start.
   tunnels: []
 
 # -- Mount an existing Secret containing `config.yaml` instead of rendering one from `.Values.config`.
@@ -190,7 +190,7 @@ metrics:
 networkPolicy:
   # -- Create a NetworkPolicy. By default allows all egress and Prometheus-style ingress to the metrics port.
   enabled: false
-  # -- Extra ingress rules. When unset, the chart allows ingress from any pod with label `app.kubernetes.io/name: prometheus`.
+  # -- Extra ingress rules. When unset, the chart allows ingress from pods with label `app.kubernetes.io/name: prometheus`. When ServiceMonitor is enabled, the default rule is scoped to its namespace. Explicit rules fully replace the default.
   ingress: []
   # -- Extra egress rules. When unset, allows all egress.
   egress: []
