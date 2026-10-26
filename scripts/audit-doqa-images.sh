@@ -153,10 +153,24 @@ check_repositories() {
       status=1
     fi
   done
+  for repo in $INFRASTRUCTURE_REPOSITORIES; do
+    if ! contains "$actual" "$repo"; then
+      echo "error $values: missing infrastructure image repository $repo" >&2
+      status=1
+    fi
+  done
 }
 
 tag_for() {
   awk -F '\t' -v repo="$2" '$1 == repo { print $2; exit }' "$1"
+}
+
+valid_image_config() {
+  jq -e -s '
+    length == 1
+    and (.[0] | type == "object")
+    and (.[0].config | type == "object")
+  ' "$1" >/dev/null
 }
 
 WORK_DIR="$(mktemp -d)"
@@ -182,6 +196,11 @@ for repo in $REPOSITORIES; do
   printf 'diff  %s: %s -> %s\n' "$repo" "$old_tag" "$new_tag"
   if crane config "$REGISTRY/$repo:$old_tag" >"$WORK_DIR/old.json" 2>/dev/null \
     && crane config "$REGISTRY/$repo:$new_tag" >"$WORK_DIR/new.json" 2>/dev/null; then
+    if ! valid_image_config "$WORK_DIR/old.json" || ! valid_image_config "$WORK_DIR/new.json"; then
+      echo "      invalid image config JSON (expected one object with an object .config)"
+      status=1
+      continue
+    fi
     jq -r '.config.Env[]?' "$WORK_DIR/old.json" | sort >"$WORK_DIR/old.txt"
     jq -r '.config.Env[]?' "$WORK_DIR/new.json" | sort >"$WORK_DIR/new.txt"
     env_diff="$(diff "$WORK_DIR/old.txt" "$WORK_DIR/new.txt" || true)"

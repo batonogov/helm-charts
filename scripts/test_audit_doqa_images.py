@@ -17,6 +17,21 @@ REPOSITORIES = (
     "doqa/doqa-llm",
     "doqa/doqa-telegram-bot",
 )
+INFRASTRUCTURE_REPOSITORIES = (
+    "docker.io/redis",
+    "docker.io/rabbitmq",
+    "quay.io/minio/minio",
+    "quay.io/minio/mc",
+    "service/soketi",
+    "service/nginx",
+)
+
+
+def infrastructure_values(exclude=()):
+    return "".join(
+        f"infrastructure{index}:\n  image:\n    repository: {repo}\n    tag: latest\n"
+        for index, repo in enumerate(INFRASTRUCTURE_REPOSITORIES) if repo not in exclude
+    )
 
 
 class AuditDoqaImagesTests(unittest.TestCase):
@@ -30,11 +45,11 @@ class AuditDoqaImagesTests(unittest.TestCase):
                 f"component{index}:\n  image:\n    repository: {repo} # vendor\n"
                 f"    tag: 1.0.0-box # pin\n"
                 for index, repo in enumerate(REPOSITORIES)
-            ))
+            ) + infrastructure_values())
             new_values.write_text("".join(
                 f"component{index}:\n  image:\n    repository: {repo}\n    tag: 1.0.0-box\n"
                 for index, repo in enumerate(REPOSITORIES)
-            ))
+            ) + infrastructure_values())
             bin_dir = root / "bin"
             bin_dir.mkdir()
             crane_calls = root / "crane-calls"
@@ -70,7 +85,7 @@ class AuditDoqaImagesTests(unittest.TestCase):
                     f"component{index}:\n  image:\n    repository: {repo}\n    tag: 1.0.0-box\n"
                     for index, repo in enumerate(REPOSITORIES[1:], start=1)
                 )
-                path.write_text(text)
+                path.write_text(text + infrastructure_values())
             bin_dir = root / "bin"
             bin_dir.mkdir()
             crane_calls = root / "crane-calls"
@@ -115,6 +130,55 @@ class AuditDoqaImagesTests(unittest.TestCase):
             )
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("tag not found or invalid", result.stderr)
+
+    def test_successful_empty_crane_output_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            script = Path(__file__).with_name("audit-doqa-images.sh")
+            old_values = root / "old.yaml"
+            new_values = root / "new.yaml"
+            for path, backend_tag in ((old_values, "1.0.0-box"), (new_values, "2.0.0-box")):
+                path.write_text("".join(
+                    f"component{index}:\n  image:\n    repository: {repo}\n"
+                    f"    tag: {backend_tag if index == 0 else '1.0.0-box'}\n"
+                    for index, repo in enumerate(REPOSITORIES)
+                ) + infrastructure_values())
+            bin_dir = root / "bin"
+            bin_dir.mkdir()
+            crane = bin_dir / "crane"
+            crane.write_text("#!/bin/sh\nexit 0\n")
+            crane.chmod(0o755)
+            env = dict(os.environ, PATH=f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
+            result = subprocess.run(
+                [str(script), str(old_values), str(new_values)],
+                capture_output=True, text=True, env=env, check=False,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("invalid image config JSON", result.stdout)
+            self.assertNotIn("RESULT: no image-contract differences", result.stdout)
+
+    def test_empty_infrastructure_image_is_missing_and_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            script = Path(__file__).with_name("audit-doqa-images.sh")
+            values = root / "values.yaml"
+            values.write_text("".join(
+                f"component{index}:\n  image:\n    repository: {repo}\n    tag: 1.0.0-box\n"
+                for index, repo in enumerate(REPOSITORIES)
+            ) + infrastructure_values(exclude=("docker.io/redis",)) + "redis:\n  image: {}\n")
+            bin_dir = root / "bin"
+            bin_dir.mkdir()
+            for executable in ("crane", "jq"):
+                path = bin_dir / executable
+                path.write_text("#!/bin/sh\nexit 99\n")
+                path.chmod(0o755)
+            env = dict(os.environ, PATH=f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
+            result = subprocess.run(
+                [str(script), str(values), str(values)],
+                capture_output=True, text=True, env=env, check=False,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("missing infrastructure image repository docker.io/redis", result.stderr)
 
 
 if __name__ == "__main__":
