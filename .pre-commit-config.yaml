@@ -49,3 +49,10 @@ repos:
         additional_dependencies: [PyYAML==6.0.3]
         pass_filenames: false
         files: ^(charts/doqa/|scripts/check-doqa-reliability\.py$)
+      - id: xray-reliability
+        name: xray-health-exporter reliability checks
+        entry: python3 scripts/check-xray-reliability.py
+        language: python
+        additional_dependencies: [PyYAML==6.0.3]
+        pass_filenames: false
+        files: ^(charts/xray-health-exporter/|scripts/check-xray-reliability\.py$)

@@ -300,8 +300,8 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["ClusterIP", "NodePort", "LoadBalancer", "ExternalName"],
-          "description": "Service type."
+          "enum": ["ClusterIP", "NodePort", "LoadBalancer"],
+          "description": "Service type. Supported values are ClusterIP, NodePort, and LoadBalancer."
         },
         "port": {
           "type": "integer",
@@ -379,7 +379,7 @@
         },
         "tunnels": {
           "type": "array",
-          "description": "Static tunnels. Each entry needs either url (a VLESS share link) or xray_config_file.",
+          "description": "Static tunnels. Each entry needs either url (a VLESS share link) or xray_config_file. VLESS URLs and their UUIDs are credentials and are rendered into a plain ConfigMap; use existingConfigSecret for real credentials.",
           "items": {
             "type": "object"
           }
@@ -404,7 +404,7 @@
         },
         "existingSecret": {
           "type": "string",
-          "description": "Use an existing Secret instead of a chart-generated one. Must contain both username and password keys in the ServiceMonitor's namespace."
+          "description": "Use an existing Secret instead of a chart-generated one. Must contain the configured username and password keys in the release namespace. For a cross-namespace ServiceMonitor, provision a Secret with the same name and keys in both the release and ServiceMonitor namespaces."
         },
         "secretName": {
           "type": "string",
@@ -537,7 +537,7 @@
         },
         "ingress": {
           "type": "array",
-          "description": "Extra ingress rules. When unset, allows ingress from any pod with label app.kubernetes.io/name: prometheus.",
+          "description": "Extra ingress rules. When unset, allows ingress from pods with label app.kubernetes.io/name: prometheus. When ServiceMonitor is enabled, the default rule is scoped to its namespace. Explicit rules fully replace the default.",
           "items": {
             "type": "object"
           }

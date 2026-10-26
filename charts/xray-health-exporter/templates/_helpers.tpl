@@ -112,16 +112,16 @@ username is concrete in the generated Secret and ServiceMonitor.
 
 {{/*
 Fail fast when Basic Auth + ServiceMonitor are enabled but the chart-generated
-Secret lives in a namespace the ServiceMonitor cannot read. The Prometheus
-Operator requires the referenced Secret in the same namespace as the
-ServiceMonitor; the chart creates the Secret in the release namespace. When the
-ServiceMonitor targets a different namespace, the user must supply a Secret
-there via `metricsBasicAuth.existingSecret`.
+Secret lives in a namespace the ServiceMonitor cannot read. The exporter reads
+its Secret in the release namespace, while Prometheus Operator reads the
+referenced Secret in the ServiceMonitor namespace. For a cross-namespace
+ServiceMonitor, the user must provision an identically named Secret with the
+same username and password keys in both namespaces.
 */}}
 {{- define "xray-health-exporter.validateBasicAuthServiceMonitor" -}}
 {{- $smNs := .Values.metrics.serviceMonitor.namespace | default .Release.Namespace -}}
 {{- if and .Values.metricsBasicAuth.enabled .Values.metrics.serviceMonitor.enabled (ne $smNs .Release.Namespace) (not .Values.metricsBasicAuth.existingSecret) -}}
-{{- fail (printf "xray-health-exporter: metricsBasicAuth is enabled and the ServiceMonitor targets namespace %q, but the chart-generated Basic Auth Secret lives in the release namespace %q and Prometheus Operator only reads Secrets from the ServiceMonitor's namespace. Set metricsBasicAuth.existingSecret to a Secret in namespace %q (containing both the username and password keys), or move the ServiceMonitor back to the release namespace via metrics.serviceMonitor.namespace." $smNs .Release.Namespace $smNs) -}}
+{{- fail (printf "xray-health-exporter: metricsBasicAuth is enabled and the ServiceMonitor targets namespace %q, but the chart-generated Basic Auth Secret exists only in the release namespace %q. Set metricsBasicAuth.existingSecret and provision Secrets with that same name and the configured username/password keys in both namespaces %q and %q: the exporter reads the release-namespace Secret and Prometheus Operator reads the ServiceMonitor-namespace Secret. Alternatively, move the ServiceMonitor back to the release namespace via metrics.serviceMonitor.namespace." $smNs .Release.Namespace .Release.Namespace $smNs) -}}
 {{- end -}}
 {{- end }}
 

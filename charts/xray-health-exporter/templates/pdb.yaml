@@ -9,7 +9,7 @@ spec:
   selector:
     matchLabels:
       {{- include "xray-health-exporter.selectorLabels" . | nindent 6 }}
-  {{- if .Values.podDisruptionBudget.maxUnavailable }}
+  {{- if ne .Values.podDisruptionBudget.maxUnavailable nil }}
   maxUnavailable: {{ .Values.podDisruptionBudget.maxUnavailable }}
   {{- else }}
   minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}

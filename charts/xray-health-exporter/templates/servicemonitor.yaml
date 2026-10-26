@@ -15,6 +15,12 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
+  {{- $serviceMonitorNamespace := .Values.metrics.serviceMonitor.namespace | default .Release.Namespace }}
+  {{- if ne $serviceMonitorNamespace .Release.Namespace }}
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "xray-health-exporter.selectorLabels" . | nindent 6 }}
