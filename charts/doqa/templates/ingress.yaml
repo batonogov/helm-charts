@@ -15,7 +15,7 @@ spec:
   tls:
     - hosts:
         - {{ .Values.appUrl | quote }}
-      secretName: {{ default (printf "%s-tls" (include "doqa.fullname" .)) .Values.ingress.tls.secretName }}
+      secretName: {{ default (include "doqa.resourceName" (dict "ctx" . "suffix" "tls")) .Values.ingress.tls.secretName }}
   {{- end }}
   rules:
     - host: {{ .Values.appUrl | quote }}
@@ -25,7 +25,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: {{ include "doqa.fullname" . }}-nginx
+                name: {{ include "doqa.resourceName" (dict "ctx" . "suffix" "nginx") }}
                 port:
                   number: 80
 {{- end }}

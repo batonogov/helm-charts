@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "doqa.fullname" . }}-queue
+  name: {{ include "doqa.resourceName" (dict "ctx" . "suffix" "queue") }}
   labels:
     {{- include "doqa.labels" . | nindent 4 }}
     app.kubernetes.io/component: queue

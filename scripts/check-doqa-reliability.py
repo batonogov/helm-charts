@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """DoQA regression checks: require Helm and PyYAML (also used by chart-testing)."""
 
+import base64
 import os
+import re
 import shutil
 from pathlib import Path
 import subprocess
@@ -15,19 +17,25 @@ ROOT = Path(__file__).resolve().parent.parent
 CHART = ROOT / "charts/doqa"
 
 
-def render(values=None, kind="Deployment"):
+def render(values=None, kind="Deployment", fullname="review"):
     with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml") as extra:
         yaml.safe_dump(values or {}, extra)
         extra.flush()
         result = subprocess.run(
             ["helm", "template", "review", str(CHART), "-f",
              str(CHART / "ci/test-values.yaml"), "-f", extra.name,
-             "--kube-version", "1.32.0", "--set", "fullnameOverride=review"],
+             "--kube-version", "1.32.0", "--set", f"fullnameOverride={fullname}"],
             capture_output=True, text=True, check=True,
         )
-    return {doc["metadata"]["name"]: doc
-            for doc in yaml.safe_load_all(result.stdout)
-            if doc and doc["kind"] == kind}
+    documents = [doc for doc in yaml.safe_load_all(result.stdout)
+                 if doc and (kind is None or doc["kind"] == kind)]
+    if kind is None:
+        return documents
+    return {doc["metadata"]["name"]: doc for doc in documents}
+
+
+def resource_name(fullname, suffix):
+    return fullname[:63 - len(suffix) - 1].rstrip("-") + "-" + suffix
 
 
 def pod(doc):
@@ -218,6 +226,155 @@ class ReliabilityTests(unittest.TestCase):
             result = subprocess.run(["/bin/sh", *command[1:]], env=env, capture_output=True, timeout=5)
             self.assertEqual(result.returncode, 13)
             self.assertEqual(len(calls.read_text().splitlines()), 1)
+
+    def test_fresh_app_key_decodes_to_32_bytes(self):
+        app_key = render(kind="Secret")["review-app-secrets"]["stringData"]["app-key"]
+        self.assertTrue(app_key.startswith("base64:"))
+        decoded = base64.b64decode(app_key.removeprefix("base64:"), validate=True)
+        self.assertEqual(len(decoded), 32)
+
+    def test_explicit_and_generated_secrets_can_be_mixed(self):
+        explicit = {
+            "app": "existing-app", "apiKeys": "existing-api", "pusher": "existing-pusher",
+            "rabbitmq": "existing-rabbitmq", "minio": "existing-minio",
+        }
+        generated = render({"secrets": explicit}, kind="Secret")
+        self.assertEqual(generated, {})
+
+        generated = render({"secrets": {"app": "existing-app", "rabbitmq": "existing-rabbitmq"}},
+                           kind="Secret")
+        self.assertEqual(set(generated), {"review-api-keys", "review-pusher-secret", "review-minio-secrets"})
+        backend_env = pod(render({"secrets": explicit})["review-backend"])["containers"][0]["env"]
+        app_key = next(env for env in backend_env if env["name"] == "APP_KEY")
+        self.assertEqual(app_key["valueFrom"]["secretKeyRef"]["name"], "existing-app")
+
+    def test_notification_redis_password_inheritance(self):
+        common = {
+            "create": False, "host": "shared-redis",
+            "passwordSecret": {"name": "shared-redis-auth", "key": "shared-key"},
+        }
+        inherited = pod(render({"redis": common})["review-notification"])["containers"][0]["env"]
+        password = next(env for env in inherited if env["name"] == "REDIS_PASSWORD")
+        self.assertEqual(password["valueFrom"]["secretKeyRef"],
+                         {"name": "shared-redis-auth", "key": "shared-key"})
+
+        separate = {"redis": {**common, "notification": {"host": "separate-redis"}}}
+        env = pod(render(separate)["review-notification"])["containers"][0]["env"]
+        password = next(item for item in env if item["name"] == "REDIS_PASSWORD")
+        self.assertEqual(password, {"name": "REDIS_PASSWORD", "value": ""})
+
+    def test_network_policy_minio_init_and_custom_pusher_port(self):
+        policies = render({"networkPolicy": {"enabled": True}, "pusher": {"port": 7601}},
+                          kind="NetworkPolicy")
+        minio_policy = policies["review-allow-backend-to-minio"]["spec"]["ingress"][0]
+        components = [rule["podSelector"]["matchLabels"]["app.kubernetes.io/component"]
+                      for rule in minio_policy["from"]]
+        self.assertIn("minio-init", components)
+        self.assertEqual(minio_policy["ports"], [{"port": 9000, "protocol": "TCP"}])
+        for name in ("review-allow-nginx-to-websocket", "review-allow-app-to-websocket"):
+            with self.subTest(policy=name):
+                self.assertEqual(policies[name]["spec"]["ingress"][0]["ports"],
+                                 [{"port": 7601, "protocol": "TCP"}])
+
+    def test_minio_tls_verification_setting(self):
+        for value, expected in ((None, "on"), (True, "on"), (False, "off")):
+            with self.subTest(value=value):
+                values = {} if value is None else {"minio": {"tlsVerify": value}}
+                config = render(values, kind="ConfigMap")["review-nginx"]["data"]["default.conf"]
+                self.assertIn("proxy_ssl_server_name               on;", config)
+                self.assertIn(f"proxy_ssl_verify                    {expected};", config)
+
+    def test_long_names_and_cross_references(self):
+        fullname = "a" * 63
+        values = {
+            "networkPolicy": {"enabled": True}, "autoscaling": {"enabled": True},
+            "podDisruptionBudget": {"enabled": True}, "serviceMonitor": {"enabled": True},
+            "serviceAccount": {"create": True},
+            "telegramBot": {"enabled": True, "tokenSecret": "telegram"},
+        }
+        documents = render(values, kind=None, fullname=fullname)
+        by_kind = {}
+        for doc in documents:
+            name = doc["metadata"]["name"]
+            self.assertLessEqual(len(name), 63, (doc["kind"], name))
+            self.assertRegex(name, re.compile(r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"))
+            by_kind.setdefault(doc["kind"], {})[name] = doc
+
+        components = ("backend", "queue", "autotests-worker", "llm-bulk-queue", "cron",
+                      "frontend", "autotest-parser", "statistic", "llm", "notification",
+                      "notification-worker", "telegram-bot", "websocket", "nginx", "redis",
+                      "rabbitmq", "minio")
+        expected_deployments = {resource_name(fullname, component) for component in components}
+        self.assertEqual(set(by_kind["Deployment"]), expected_deployments)
+        service_components = ("backend", "frontend", "autotest-parser", "statistic", "llm",
+                              "notification", "websocket", "nginx", "redis", "rabbitmq", "minio")
+        self.assertEqual(set(by_kind["Service"]),
+                         {resource_name(fullname, component) for component in service_components})
+        self.assertEqual(set(by_kind["ConfigMap"]),
+                         {resource_name(fullname, "env"), resource_name(fullname, "nginx")})
+
+        cluster = resource_name(fullname, "cnpg-app").removesuffix("-app")
+        self.assertEqual(set(by_kind["Cluster"]), {cluster})
+        self.assertLessEqual(len(cluster + "-app"), 63)
+        config = by_kind["ConfigMap"][resource_name(fullname, "env")]["data"]
+        self.assertEqual(config["DB_HOST"], cluster + "-rw")
+        self.assertEqual(config["REDIS_HOST"], resource_name(fullname, "redis"))
+        self.assertEqual(config["RABBITMQ_HOST"], resource_name(fullname, "rabbitmq"))
+        self.assertEqual(config["MINIO_ENDPOINT"],
+                         f"http://{resource_name(fullname, 'minio')}:9000")
+        self.assertEqual(config["PUSHER_APP_HOST"], resource_name(fullname, "websocket"))
+        for key, component, port in (("STATISTIC_ENDPOINT", "statistic", 3000),
+                                     ("NOTIFICATION_ENDPOINT", "notification", 3000),
+                                     ("LLM_ENDPOINT", "llm", 3000),
+                                     ("AUTOTEST_PARSER_SERVICE_URL", "autotest-parser", 8000)):
+            self.assertEqual(config[key], f"http://{resource_name(fullname, component)}:{port}" +
+                             ("/" if key != "AUTOTEST_PARSER_SERVICE_URL" else ""))
+
+        ingress = by_kind["Ingress"][fullname]
+        self.assertEqual(ingress["spec"]["rules"][0]["http"]["paths"][0]["backend"]["service"]["name"],
+                         resource_name(fullname, "nginx"))
+        self.assertEqual(ingress["spec"]["tls"][0]["secretName"], resource_name(fullname, "tls"))
+        nginx = by_kind["ConfigMap"][resource_name(fullname, "nginx")]["data"]["default.conf"]
+        for component, port in (("frontend", 8080), ("backend", 8080), ("autotest-parser", 8000)):
+            self.assertIn(f"proxy_pass                          http://{resource_name(fullname, component)}:{port};",
+                          nginx)
+        self.assertIn(f"http://{resource_name(fullname, 'websocket')}:6001/app/web-socket", nginx)
+
+        job_name = resource_name(fullname, "minio-bucket-init")
+        self.assertEqual(set(by_kind["Job"]), {job_name})
+        self.assertIn(f"http://{resource_name(fullname, 'minio')}:9000",
+                      pod(by_kind["Job"][job_name])["containers"][0]["command"][-1])
+        postgresql_policy = next(policy for policy in by_kind["NetworkPolicy"].values()
+                                 if "cnpg.io/cluster" in policy["spec"]["podSelector"]["matchLabels"])
+        self.assertEqual(postgresql_policy["spec"]["podSelector"]["matchLabels"]["cnpg.io/cluster"],
+                         cluster)
+
+        allowed_secrets = set(by_kind["Secret"]) | {cluster + "-app", "telegram"}
+        for kind in ("Deployment", "Job"):
+            for doc in by_kind[kind].values():
+                spec = pod(doc)
+                self.assertEqual(spec["serviceAccountName"], fullname)
+                for container in spec["containers"] + spec.get("initContainers", []):
+                    for env in container.get("env", []):
+                        ref = env.get("valueFrom", {}).get("secretKeyRef")
+                        if ref:
+                            self.assertIn(ref["name"], allowed_secrets)
+                    for env_from in container.get("envFrom", []):
+                        if "configMapRef" in env_from:
+                            self.assertIn(env_from["configMapRef"]["name"], by_kind["ConfigMap"])
+                for volume in spec.get("volumes", []):
+                    if "configMap" in volume:
+                        self.assertIn(volume["configMap"]["name"], by_kind["ConfigMap"])
+                    if "persistentVolumeClaim" in volume:
+                        self.assertIn(volume["persistentVolumeClaim"]["claimName"],
+                                      by_kind["PersistentVolumeClaim"])
+
+        for hpa in by_kind["HorizontalPodAutoscaler"].values():
+            self.assertIn(hpa["spec"]["scaleTargetRef"]["name"], expected_deployments)
+        self.assertEqual(set(by_kind["PodDisruptionBudget"]),
+                         {resource_name(fullname, component + "-pdb")
+                          for component in ("backend", "frontend", "queue")})
+        self.assertIn(resource_name(fullname, "backend"), by_kind["ServiceMonitor"])
 
     def test_invalid_parameters_are_rejected(self):
         for values in [{"backend": {"cachePrefix": None}},

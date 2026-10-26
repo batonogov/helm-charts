@@ -160,31 +160,31 @@
     },
     "secrets": {
       "type": "object",
-      "description": "Chart-managed or pre-existing Secret names.",
+      "description": "Chart-managed or pre-existing Secret names. Explicit app/apiKeys/pusher/rabbitmq/minio entries are used even when create=true and can be mixed with generated Secrets.",
       "properties": {
         "create": {
           "type": "boolean",
-          "description": "Generate chart-managed secrets with stable random values."
+          "description": "Generate chart-managed Secrets with stable random values, except for entries explicitly set to pre-existing Secret names."
         },
         "app": {
           "type": "string",
-          "description": "Existing secret with app-key, jwt-secret, and internal-system-key keys."
+          "description": "Existing secret with app-key, jwt-secret, and internal-system-key keys. When set, this Secret is not generated."
         },
         "apiKeys": {
           "type": "string",
-          "description": "Existing secret with statistic-api-key, notification-api-key, and llm-api-key keys."
+          "description": "Existing secret with statistic-api-key, notification-api-key, and llm-api-key keys. When set, this Secret is not generated."
         },
         "pusher": {
           "type": "string",
-          "description": "Existing secret with app-secret key."
+          "description": "Existing secret with app-secret key. When set, this Secret is not generated."
         },
         "rabbitmq": {
           "type": "string",
-          "description": "Existing secret with password and erlang-cookie keys."
+          "description": "Existing secret with password and erlang-cookie keys. When set, this Secret is not generated."
         },
         "minio": {
           "type": "string",
-          "description": "Existing secret with access-key and secret-key keys."
+          "description": "Existing secret with access-key and secret-key keys. When set, this Secret is not generated."
         },
         "mail": {
           "type": "string",
@@ -291,7 +291,7 @@
         },
         "notification": {
           "type": "object",
-          "description": "Notification service Redis settings.",
+          "description": "Notification service Redis settings. An empty notification password Secret inherits redis.passwordSecret only when notification.host is also empty; a separate host does not inherit the primary password.",
           "properties": {
             "host": {
               "type": "string",
@@ -424,6 +424,10 @@
         "endpoint": {
           "type": "string",
           "description": "External MinIO/S3 endpoint used when create=false."
+        },
+        "tlsVerify": {
+          "type": "boolean",
+          "description": "Verify the upstream TLS certificate when nginx proxies to an HTTPS MinIO/S3 endpoint. Disable only for a self-signed endpoint that cannot use a trusted certificate."
         },
         "bucket": {
           "type": "string",

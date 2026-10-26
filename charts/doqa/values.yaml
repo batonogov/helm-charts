@@ -72,8 +72,10 @@ image:
   pullSecrets: []
 
 # Chart-managed secrets. When create=true the chart auto-generates secret values
-# (stable across upgrades via `lookup`). When false, secret names below must reference
-# pre-existing secrets in the namespace.
+# (stable across upgrades via `lookup`), except for entries explicitly set below.
+# Explicit app/apiKeys/pusher/rabbitmq/minio names always reference pre-existing
+# Secrets and can be mixed with generated ones. When create=false, all applicable
+# names must reference pre-existing Secrets in the namespace.
 secrets:
   # -- Generate chart-managed secrets with random values
   create: true
@@ -166,7 +168,7 @@ redis:
     # -- Notification logical DB (vendor uses string "doqa")
     db: "doqa"
     passwordSecret:
-      # -- Notification Redis password secret
+      # -- Notification Redis password secret. When empty and notification.host is also empty, inherits redis.passwordSecret; a separate host does not inherit it
       name: ""
       # -- Key inside the password secret
       key: password
@@ -267,6 +269,8 @@ minio:
   tolerations: []
   # -- External MinIO/S3 endpoint (used only when create=false). For in-tree MinIO chart computes internal URL automatically
   endpoint: ""
+  # -- Verify the upstream TLS certificate when nginx proxies to an HTTPS MinIO/S3 endpoint. Disable only for a self-signed endpoint that cannot use a trusted certificate
+  tlsVerify: true
   # -- Bucket name
   bucket: doqa
   # -- Region

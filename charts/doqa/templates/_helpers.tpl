@@ -21,6 +21,22 @@ Fully qualified app name.
 {{- end }}
 {{- end }}
 
+{{/*
+Resource name with a reserved suffix. The fullname is shortened only as much
+as needed, keeping ordinary names unchanged and the complete name within 63
+characters. Suffix is passed without the leading hyphen.
+*/}}
+{{- define "doqa.resourceName" -}}
+{{- $suffix := .suffix -}}
+{{- $fullname := include "doqa.fullname" .ctx -}}
+{{- if $suffix -}}
+{{- $prefixLength := sub 63 (add1 (len $suffix)) | int -}}
+{{- printf "%s-%s" ($fullname | trunc $prefixLength | trimSuffix "-") $suffix -}}
+{{- else -}}
+{{- $fullname -}}
+{{- end -}}
+{{- end }}
+
 {{- define "doqa.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
@@ -125,12 +141,17 @@ securityContext:
 
 {{/* ===== Host resolution helpers ===== */}}
 
+{{/* Reserve space for CNPG's generated -app Secret and -rw Service. */}}
+{{- define "doqa.postgresql.clusterName" -}}
+{{- include "doqa.resourceName" (dict "ctx" . "suffix" "cnpg-app") | trimSuffix "-app" -}}
+{{- end -}}
+
 {{/*
 PostgreSQL host. CNPG creates a `<cluster>-rw` Service.
 */}}
 {{- define "doqa.postgresql.host" -}}
 {{- if .Values.postgresql.cnpg.create -}}
-{{- printf "%s-cnpg-rw" (include "doqa.fullname" .) -}}
+{{- printf "%s-rw" (include "doqa.postgresql.clusterName" .) -}}
 {{- else -}}
 {{- required "postgresql.host is required when postgresql.cnpg.create=false" .Values.postgresql.host -}}
 {{- end -}}
@@ -142,7 +163,7 @@ CNPG auto-creates `<cluster>-app` secret with username/password.
 */}}
 {{- define "doqa.postgresql.passwordSecretName" -}}
 {{- if .Values.postgresql.cnpg.create -}}
-{{- printf "%s-cnpg-app" (include "doqa.fullname" .) -}}
+{{- printf "%s-app" (include "doqa.postgresql.clusterName" .) -}}
 {{- else -}}
 {{- required "postgresql.passwordSecret.name is required when postgresql.cnpg.create=false" .Values.postgresql.passwordSecret.name -}}
 {{- end -}}
@@ -161,7 +182,7 @@ Redis host (in-tree Service vs external).
 */}}
 {{- define "doqa.redis.host" -}}
 {{- if .Values.redis.create -}}
-{{- printf "%s-redis" (include "doqa.fullname" .) -}}
+{{- include "doqa.resourceName" (dict "ctx" . "suffix" "redis") -}}
 {{- else -}}
 {{- required "redis.host is required when redis.create=false" .Values.redis.host -}}
 {{- end -}}
@@ -173,7 +194,7 @@ For in-tree mode reuses the same Redis instance with different logical DB key pr
 */}}
 {{- define "doqa.redis.notification.host" -}}
 {{- if .Values.redis.create -}}
-{{- printf "%s-redis" (include "doqa.fullname" .) -}}
+{{- include "doqa.resourceName" (dict "ctx" . "suffix" "redis") -}}
 {{- else -}}
 {{- default .Values.redis.host .Values.redis.notification.host -}}
 {{- end -}}
@@ -184,7 +205,7 @@ RabbitMQ host (in-tree Service vs external).
 */}}
 {{- define "doqa.rabbitmq.host" -}}
 {{- if .Values.rabbitmq.create -}}
-{{- printf "%s-rabbitmq" (include "doqa.fullname" .) -}}
+{{- include "doqa.resourceName" (dict "ctx" . "suffix" "rabbitmq") -}}
 {{- else -}}
 {{- required "rabbitmq.host is required when rabbitmq.create=false" .Values.rabbitmq.host -}}
 {{- end -}}
@@ -195,7 +216,7 @@ MinIO endpoint (URL with scheme). In-tree MinIO uses cluster-local Service:9000.
 */}}
 {{- define "doqa.minio.endpoint" -}}
 {{- if .Values.minio.create -}}
-{{- printf "http://%s-minio:9000" (include "doqa.fullname" .) -}}
+{{- printf "http://%s:9000" (include "doqa.resourceName" (dict "ctx" . "suffix" "minio")) -}}
 {{- else -}}
 {{- required "minio.endpoint is required when minio.create=false" .Values.minio.endpoint -}}
 {{- end -}}
@@ -216,7 +237,7 @@ Resolution rules per secret:
 {{- else if not .Values.secrets.create -}}
 {{- required "secrets.app must be set when secrets.create=false (existing Secret with keys app-key, jwt-secret, internal-system-key)" "" -}}
 {{- else -}}
-{{- printf "%s-app-secrets" (include "doqa.fullname" .) -}}
+{{- include "doqa.resourceName" (dict "ctx" . "suffix" "app-secrets") -}}
 {{- end -}}
 {{- end -}}
 
@@ -226,7 +247,7 @@ Resolution rules per secret:
 {{- else if not .Values.secrets.create -}}
 {{- required "secrets.apiKeys must be set when secrets.create=false (existing Secret with keys statistic-api-key, notification-api-key, llm-api-key)" "" -}}
 {{- else -}}
-{{- printf "%s-api-keys" (include "doqa.fullname" .) -}}
+{{- include "doqa.resourceName" (dict "ctx" . "suffix" "api-keys") -}}
 {{- end -}}
 {{- end -}}
 
@@ -236,7 +257,7 @@ Resolution rules per secret:
 {{- else if not .Values.secrets.create -}}
 {{- required "secrets.pusher must be set when secrets.create=false (existing Secret with key app-secret)" "" -}}
 {{- else -}}
-{{- printf "%s-pusher-secret" (include "doqa.fullname" .) -}}
+{{- include "doqa.resourceName" (dict "ctx" . "suffix" "pusher-secret") -}}
 {{- end -}}
 {{- end -}}
 
@@ -251,7 +272,7 @@ password, so the user must provide the secret name.
 {{- else if or (not .Values.secrets.create) (not .Values.rabbitmq.create) -}}
 {{- required "secrets.rabbitmq must be set when rabbitmq.create=false or secrets.create=false (existing Secret with keys password, erlang-cookie)" "" -}}
 {{- else -}}
-{{- printf "%s-rabbitmq-secret" (include "doqa.fullname" .) -}}
+{{- include "doqa.resourceName" (dict "ctx" . "suffix" "rabbitmq-secret") -}}
 {{- end -}}
 {{- end -}}
 
@@ -265,7 +286,7 @@ external object store.
 {{- else if or (not .Values.secrets.create) (not .Values.minio.create) -}}
 {{- required "secrets.minio must be set when minio.create=false or secrets.create=false (existing Secret with keys access-key, secret-key)" "" -}}
 {{- else -}}
-{{- printf "%s-minio-secrets" (include "doqa.fullname" .) -}}
+{{- include "doqa.resourceName" (dict "ctx" . "suffix" "minio-secrets") -}}
 {{- end -}}
 {{- end -}}
 
@@ -276,28 +297,32 @@ Mail secret — chart never auto-generates this. Returns "" if not set.
 {{- .Values.secrets.mail | default "" -}}
 {{- end -}}
 
+{{/* Existing APP_KEY values, including legacy 24-byte keys, are never rotated. */}}
+{{- define "doqa.stableAppKey" -}}
+{{- $existing := lookup "v1" "Secret" .ctx.Release.Namespace .name -}}
+{{- if and $existing (index $existing.data "app-key") -}}
+{{- index $existing.data "app-key" | b64dec -}}
+{{- else -}}
+{{- printf "base64:%s" (randBytes 32) -}}
+{{- end -}}
+{{- end -}}
+
 {{/* ===== Stable random secret value (lookup-aware) =====
-Reads existing key from already-deployed secret if present, otherwise generates randAlphaNum 32.
-Usage: {{ include "doqa.stableSecret" (dict "ctx" . "name" "<release>-app-secrets" "key" "app-key" "len" 32 "prefix" "base64:") }}
+Reads an existing key from an already-deployed Secret, otherwise generates randAlphaNum of the requested length.
 */}}
 {{- define "doqa.stableSecret" -}}
 {{- $existing := lookup "v1" "Secret" .ctx.Release.Namespace .name -}}
-{{- $val := "" -}}
 {{- if and $existing (index $existing.data .key) -}}
-{{- $val = index $existing.data .key | b64dec -}}
-{{- if and .prefix (hasPrefix .prefix $val) -}}
-{{- $val = trimPrefix .prefix $val -}}
-{{- end -}}
+{{- index $existing.data .key | b64dec -}}
 {{- else -}}
-{{- $val = randAlphaNum (.len | int) -}}
+{{- randAlphaNum (.len | int) -}}
 {{- end -}}
-{{- if .prefix -}}{{ .prefix }}{{- end -}}{{ $val }}
 {{- end -}}
 
 {{/* ===== ConfigMap envFrom for backend/queue/cron ===== */}}
 {{- define "doqa.backendEnvFrom" -}}
 - configMapRef:
-    name: {{ include "doqa.fullname" . }}-env
+    name: {{ include "doqa.resourceName" (dict "ctx" . "suffix" "env") }}
 {{- end }}
 
 {{/*

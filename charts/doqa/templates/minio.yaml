@@ -1,9 +1,8 @@
 {{- if .Values.minio.create }}
-{{- $fullName := include "doqa.fullname" . -}}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ $fullName }}-minio
+  name: {{ include "doqa.resourceName" (dict "ctx" . "suffix" "minio") }}
   labels:
     {{- include "doqa.labels" . | nindent 4 }}
     app.kubernetes.io/component: minio
@@ -20,7 +19,7 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ $fullName }}-minio
+  name: {{ include "doqa.resourceName" (dict "ctx" . "suffix" "minio") }}
   labels:
     {{- include "doqa.labels" . | nindent 4 }}
     app.kubernetes.io/component: minio
@@ -98,7 +97,7 @@ spec:
       volumes:
       - name: data
         persistentVolumeClaim:
-          claimName: {{ $fullName }}-minio
+          claimName: {{ include "doqa.resourceName" (dict "ctx" . "suffix" "minio") }}
       {{- range $.Values.extraVolumes }}
       - {{ toYaml . | nindent 8 }}
 {{- end }}
@@ -118,7 +117,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ $fullName }}-minio
+  name: {{ include "doqa.resourceName" (dict "ctx" . "suffix" "minio") }}
   labels:
     {{- include "doqa.labels" . | nindent 4 }}
     app.kubernetes.io/component: minio
@@ -138,7 +137,7 @@ spec:
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ $fullName }}-minio-bucket-init
+  name: {{ include "doqa.resourceName" (dict "ctx" . "suffix" "minio-bucket-init") }}
   labels:
     {{- include "doqa.labels" . | nindent 4 }}
     app.kubernetes.io/component: minio-init
@@ -200,7 +199,7 @@ spec:
           fi
           # Explicit signing saves the alias without probing an unready server.
           # A local configuration error is fatal; reachability/auth retry below.
-          "$MC_BIN" alias set --api S3v4 doqa "http://{{ $fullName }}-minio:9000" "$KEY" "$SECRET" >/dev/null
+          "$MC_BIN" alias set --api S3v4 doqa "http://{{ include "doqa.resourceName" (dict "ctx" . "suffix" "minio") }}:9000" "$KEY" "$SECRET" >/dev/null
           MC_PROBE_ERR=""
           while :; do
             if MC_PROBE_ERR="$("$MC_BIN" ls doqa 2>&1 >/dev/null)"; then

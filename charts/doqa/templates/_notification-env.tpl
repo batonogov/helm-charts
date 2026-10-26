@@ -14,7 +14,7 @@ Shared env block for notification API, worker, and telegram-bot — matches the 
 - name: PUSHER_PORT
   value: {{ .Values.pusher.port | int | quote }}
 - name: PUSHER_APP_HOST
-  value: {{ printf "%s-websocket" (include "doqa.fullname" .) | quote }}
+  value: {{ include "doqa.resourceName" (dict "ctx" . "suffix" "websocket") | quote }}
 - name: PUSHER_APP_ID
   value: {{ .Values.pusher.appId | quote }}
 - name: PUSHER_APP_KEY
@@ -66,6 +66,12 @@ Shared env block for notification API, worker, and telegram-bot — matches the 
     secretKeyRef:
       name: {{ .Values.redis.notification.passwordSecret.name }}
       key: {{ .Values.redis.notification.passwordSecret.key }}
+{{- else if and (not .Values.redis.notification.host) .Values.redis.passwordSecret.name }}
+- name: REDIS_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Values.redis.passwordSecret.name }}
+      key: {{ .Values.redis.passwordSecret.key }}
 {{- else }}
 - name: REDIS_PASSWORD
   value: ""

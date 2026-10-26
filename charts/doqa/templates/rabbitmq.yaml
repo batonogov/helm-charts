@@ -1,9 +1,8 @@
 {{- if .Values.rabbitmq.create }}
-{{- $fullName := include "doqa.fullname" . -}}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ $fullName }}-rabbitmq
+  name: {{ include "doqa.resourceName" (dict "ctx" . "suffix" "rabbitmq") }}
   labels:
     {{- include "doqa.labels" . | nindent 4 }}
     app.kubernetes.io/component: rabbitmq
@@ -20,7 +19,7 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ $fullName }}-rabbitmq
+  name: {{ include "doqa.resourceName" (dict "ctx" . "suffix" "rabbitmq") }}
   labels:
     {{- include "doqa.labels" . | nindent 4 }}
     app.kubernetes.io/component: rabbitmq
@@ -55,7 +54,7 @@ spec:
       # broker starts as a different node that cannot see the previous data,
       # making the PVC useless. Mirrors the vendor 4.2.1 `hostname:` fix;
       # do not change after install.
-      hostname: {{ $fullName }}-rabbitmq
+      hostname: {{ include "doqa.resourceName" (dict "ctx" . "suffix" "rabbitmq") }}
       {{- include "doqa.podSecurityContext" (dict "component" .Values.rabbitmq "root" .) | nindent 6 }}
       containers:
       - name: rabbitmq
@@ -103,7 +102,7 @@ spec:
       volumes:
       - name: data
         persistentVolumeClaim:
-          claimName: {{ $fullName }}-rabbitmq
+          claimName: {{ include "doqa.resourceName" (dict "ctx" . "suffix" "rabbitmq") }}
       {{- range $.Values.extraVolumes }}
       - {{ toYaml . | nindent 8 }}
 {{- end }}
@@ -123,7 +122,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ $fullName }}-rabbitmq
+  name: {{ include "doqa.resourceName" (dict "ctx" . "suffix" "rabbitmq") }}
   labels:
     {{- include "doqa.labels" . | nindent 4 }}
     app.kubernetes.io/component: rabbitmq

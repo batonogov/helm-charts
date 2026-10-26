@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "doqa.fullname" . }}-websocket
+  name: {{ include "doqa.resourceName" (dict "ctx" . "suffix" "websocket") }}
   labels:
     {{- include "doqa.labels" . | nindent 4 }}
     app.kubernetes.io/component: websocket
@@ -93,7 +93,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "doqa.fullname" . }}-websocket
+  name: {{ include "doqa.resourceName" (dict "ctx" . "suffix" "websocket") }}
   labels:
     {{- include "doqa.labels" . | nindent 4 }}
     app.kubernetes.io/component: websocket
