@@ -23,9 +23,9 @@
 # registry.control.doqa.app serves application images anonymously, so no
 # credentials are needed.
 #
-# Exit status: 0 if no image-contract differences were found across the
-# changed tags, 1 if any Env/Entrypoint/Cmd/User/WorkingDir difference
-# (or a fetch failure) was reported.
+# Exit status: 0 if repository/tag validation passed and no image-contract
+# differences were found across changed tags, 1 for an invalid values inventory,
+# a missing tag, an image-contract difference, or a fetch failure.
 set -eu
 
 require() {
@@ -51,13 +51,72 @@ doqa/doqa-notify
 doqa/doqa-llm
 doqa/doqa-telegram-bot
 "
+INFRASTRUCTURE_REPOSITORIES="
+docker.io/redis
+docker.io/rabbitmq
+quay.io/minio/minio
+quay.io/minio/mc
+service/soketi
+service/nginx
+"
+
+# Print every explicitly configured image repository, normalized to one per line.
+repositories_in() {
+  awk '
+    /^[[:space:]]+repository:[[:space:]]*/ {
+      sub(/^[[:space:]]*repository:[[:space:]]*/, "")
+      gsub(/["\047]/, "")
+      gsub(/[[:space:]]/, "")
+      if (length) print
+    }
+  ' "$1" | sort -u
+}
+
+contains() {
+  case "
+$1
+" in
+    *"
+$2
+"*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+check_repositories() {
+  values="$1"
+  actual="$(repositories_in "$values")"
+  for repo in $actual; do
+    if ! contains "$REPOSITORIES" "$repo" && ! contains "$INFRASTRUCTURE_REPOSITORIES" "$repo"; then
+      echo "error $values: unknown image repository $repo" >&2
+      status=1
+    fi
+  done
+  for repo in $REPOSITORIES; do
+    if ! contains "$actual" "$repo"; then
+      echo "error $values: missing DoQA application image repository $repo" >&2
+      status=1
+    fi
+  done
+}
 
 # Print the tag value of the image block whose repository: line equals $2.
 # values.yaml groups repository: and tag: under each component's image: block.
 tag_for() {
   awk -v repo="$2" '
-    $0 ~ "repository:[[:space:]]+" repo "([[:space:]]|$)" { found = 1; next }
-    found && /tag:/ { sub(/.*tag:[[:space:]]*/, ""); gsub(/[[:space:]]/, ""); print; exit }
+    /^[[:space:]]+repository:[[:space:]]*/ {
+      value = $0
+      sub(/^[[:space:]]*repository:[[:space:]]*/, "", value)
+      gsub(/[[:space:]"\047]/, "", value)
+      found = value == repo
+      next
+    }
+    found && /^[[:space:]]+tag:[[:space:]]*/ {
+      sub(/^[[:space:]]*tag:[[:space:]]*/, "")
+      gsub(/[[:space:]"\047]/, "")
+      print
+      exit
+    }
   ' "$1"
 }
 
@@ -65,11 +124,14 @@ WORK_DIR="$(mktemp -d)"
 trap 'rm -rf "$WORK_DIR"' EXIT
 
 status=0
+check_repositories "$OLD_VALUES"
+check_repositories "$NEW_VALUES"
 for repo in $REPOSITORIES; do
   old_tag="$(tag_for "$OLD_VALUES" "$repo")"
   new_tag="$(tag_for "$NEW_VALUES" "$repo")"
   if [ -z "$old_tag" ] || [ -z "$new_tag" ]; then
-    echo "skip  $repo (tag not found in one of the values files)"
+    echo "error $repo (tag not found in one of the values files)" >&2
+    status=1
     continue
   fi
   if [ "$old_tag" = "$new_tag" ]; then
@@ -116,6 +178,6 @@ echo
 if [ "$status" -eq 0 ]; then
   echo "RESULT: no image-contract differences (env/cmd/entrypoint/user/workdir) across changed tags."
 else
-  echo "RESULT: differences listed above — review before bumping appVersion."
+  echo "RESULT: audit failed or differences listed above — review before bumping appVersion."
 fi
 exit "$status"

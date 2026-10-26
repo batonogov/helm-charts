@@ -1,0 +1,185 @@
+name: xray-kind
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: xray-kind-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-24.04
+    outputs:
+      run: ${{ steps.detect.outputs.run }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: detect
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+          GITHUB_OUTPUT: ${{ github.output }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import subprocess
+
+          required = os.environ["EVENT_NAME"] == "workflow_dispatch"
+          if not required:
+              paths = subprocess.check_output(
+                  ["git", "diff", "--no-renames", "--name-only", "-z",
+                   os.environ["BASE_SHA"], "HEAD"], text=True,
+              ).split("\0")
+              required = any(path.startswith("charts/xray-health-exporter/")
+                             or path == ".github/workflows/xray-kind.yaml" for path in paths)
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write("run=" + str(required).lower() + "\n")
+          print("xray integration required:", required)
+          PY
+
+  smoke:
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      KIND_VERSION: v0.33.0
+      KUBERNETES_VERSION: v1.34.11
+      KIND_NODE_IMAGE: kindest/node:v1.34.11@sha256:44e222ee2132dab25ff87301682f89eb82c7880ea3a1bf543bfe9708fd08d67d
+      XRAY_KIND_NAME: xray-ci
+    steps:
+      - name: Isolate test environment
+        run: |
+          work="$RUNNER_TEMP/xray-kind"
+          mkdir -p "$work/bin"
+          {
+            echo "XRAY_KIND_WORK=$work"
+            echo "KUBECONFIG=$work/kubeconfig"
+          } >> "$GITHUB_ENV"
+          echo "$work/bin" >> "$GITHUB_PATH"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v3.22.1
+
+      - name: Set up disposable kind cluster
+        run: |
+          set -euo pipefail
+          download() { curl --fail --location --retry 3 --connect-timeout 20 --max-time 180 "$1" -o "$2"; }
+          verify() {
+            python3 - "$1" "$2" <<'PY'
+          import hashlib
+          import pathlib
+          import sys
+
+          actual = hashlib.sha256(pathlib.Path(sys.argv[1]).read_bytes()).hexdigest()
+          if actual != sys.argv[2].split()[0]:
+              raise SystemExit(f"Checksum mismatch for {sys.argv[1]}")
+          PY
+          }
+          kind_url="https://github.com/kubernetes-sigs/kind/releases/download/$KIND_VERSION/kind-linux-amd64"
+          download "$kind_url" "$XRAY_KIND_WORK/bin/kind"
+          download "$kind_url.sha256sum" "$XRAY_KIND_WORK/kind.sha256sum"
+          verify "$XRAY_KIND_WORK/bin/kind" "$(cat "$XRAY_KIND_WORK/kind.sha256sum")"
+          kubectl_url="https://dl.k8s.io/release/$KUBERNETES_VERSION/bin/linux/amd64/kubectl"
+          download "$kubectl_url" "$XRAY_KIND_WORK/bin/kubectl"
+          download "$kubectl_url.sha256" "$XRAY_KIND_WORK/kubectl.sha256"
+          verify "$XRAY_KIND_WORK/bin/kubectl" "$(cat "$XRAY_KIND_WORK/kubectl.sha256")"
+          chmod +x "$XRAY_KIND_WORK/bin/kind" "$XRAY_KIND_WORK/bin/kubectl"
+          kind create cluster --name "$XRAY_KIND_NAME" --image "$KIND_NODE_IMAGE" --kubeconfig "$KUBECONFIG" --wait 180s
+
+      - name: Install chart and verify HTTP health
+        run: |
+          set -euo pipefail
+          helm install xray-smoke charts/xray-health-exporter \
+            --namespace xray-smoke --create-namespace \
+            --set fullnameOverride=xray-smoke \
+            -f charts/xray-health-exporter/ci/test-values.yaml \
+            --wait --timeout 300s
+          kubectl -n xray-smoke rollout status deployment/xray-smoke --timeout=300s
+          kubectl -n xray-smoke port-forward service/xray-smoke 19273:9273 \
+            >"$XRAY_KIND_WORK/port-forward.log" 2>&1 &
+          port_forward_pid=$!
+          trap 'kill "$port_forward_pid" 2>/dev/null || true; wait "$port_forward_pid" 2>/dev/null || true' EXIT
+          healthy=false
+          for _ in $(seq 1 30); do
+            if curl --fail --silent --show-error --max-time 5 http://127.0.0.1:19273/health >/dev/null; then
+              healthy=true
+              break
+            fi
+            sleep 2
+          done
+          if [ "$healthy" != true ]; then
+            cat "$XRAY_KIND_WORK/port-forward.log" >&2
+            exit 1
+          fi
+
+      - name: Verify two-replica leader election
+        run: |
+          set -euo pipefail
+          helm upgrade xray-smoke charts/xray-health-exporter \
+            --namespace xray-smoke \
+            --set fullnameOverride=xray-smoke \
+            --set replicaCount=2 \
+            --set leaderElection.enabled=false \
+            -f charts/xray-health-exporter/ci/test-values.yaml \
+            --wait --timeout 300s
+          kubectl -n xray-smoke rollout status deployment/xray-smoke --timeout=300s
+          selector=app.kubernetes.io/instance=xray-smoke
+          kubectl -n xray-smoke wait --for=condition=ready pod -l "$selector" --timeout=300s
+          pod_count="$(kubectl -n xray-smoke get pods -l "$selector" -o name | wc -l | tr -d ' ')"
+          if [ "$pod_count" != 2 ]; then
+            echo "Expected exactly two exporter pods, found $pod_count" >&2
+            exit 1
+          fi
+          holder=""
+          for _ in $(seq 1 30); do
+            holder="$(kubectl -n xray-smoke get lease xray-smoke -o jsonpath='{.spec.holderIdentity}' 2>/dev/null || true)"
+            if [ -n "$holder" ]; then
+              break
+            fi
+            sleep 2
+          done
+          if [ -z "$holder" ]; then
+            echo "Leader-election Lease has no holder" >&2
+            exit 1
+          fi
+          kubectl -n xray-smoke get pods -l "$selector" -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' \
+            | grep -Fx -- "$holder"
+
+      - name: Collect diagnostics
+        if: always()
+        run: |
+          kubectl -n xray-smoke get pods,services,leases -o wide || true
+          kubectl -n xray-smoke describe deployment/xray-smoke || true
+
+      - name: Delete disposable cluster
+        if: always()
+        run: |
+          if command -v kind >/dev/null; then
+            kind delete cluster --name "$XRAY_KIND_NAME"
+          fi
+
+  result:
+    name: xray integration
+    needs: [changes, smoke]
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - env:
+          DETECTION: ${{ needs.changes.result }}
+          SMOKE: ${{ needs.smoke.result }}
+          REQUIRED: ${{ needs.changes.outputs.run }}
+        run: |
+          [[ "$DETECTION" == success && ( ( "$REQUIRED" == true && "$SMOKE" == success ) || ( "$REQUIRED" == false && "$SMOKE" == skipped ) ) ]]

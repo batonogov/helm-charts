@@ -15,7 +15,8 @@ Repository automation:
 
 - `.github/workflows/lint-test.yaml` — PR chart detection, `ct lint`, and generated README verification.
 - `.github/workflows/doqa-kind.yaml` — disposable kind/CNPG fresh-install and published-release upgrade tests; fixtures and scope are in `.github/doqa-kind/`.
-- `.github/workflows/release.yaml` — serialized chart publication from `main`.
+- `.github/workflows/xray-kind.yaml` — disposable kind installation, real HTTP `/health` smoke, and two-replica leader-election verification for relevant xray-health-exporter changes.
+- `.github/workflows/release.yaml` — serialized chart publication from `main`, gated by repository validation and changed-chart release-version preflight.
 - `.github/ct.yaml` — chart-testing policy, including version-increment enforcement.
 - `.pre-commit-config.yaml` and `scripts/` — local formatting, docs, lint, and render checks.
 - `renovate.json` — xray-health-exporter GHCR updates; `.github/dependabot.yml` — GitHub Actions updates.
@@ -42,14 +43,15 @@ ct lint --config .github/ct.yaml --target-branch main
 
 Do not use bare `helm template ... charts/doqa`: defaults intentionally require `ingress.className`. Use `ci/test-values.yaml`, set an ingress class, or disable the Ingress explicitly. The xray chart likewise needs at least one tunnel/subscription or an `existingConfigSecret`; its test values provide a placeholder.
 
-PR CI runs `ct lint` for changed charts and, when any chart changed, verifies `helm-docs` output across all charts. DoQA also has local regression checks and live kind tests for relevant PRs. The live workflow packages the candidate, tests fresh installation and upgrades from the latest published stable DoQA release, and checks HTTP, data, Secrets and PVC identities. Read `.github/doqa-kind/README.md` for setup, limits and diagnostics. Licensed end-to-end workflows remain manual.
+PR CI runs `ct lint` for changed charts and, when any chart changed, verifies `helm-docs` output across all charts. DoQA also has local regression checks and live kind tests for relevant PRs. The live workflow packages the candidate, tests fresh installation and upgrades from the latest published stable DoQA release, and checks HTTP, data, Secrets and PVC identities. Read `.github/doqa-kind/README.md` for setup, limits and diagnostics. The xray live workflow installs with its CI values, performs a real `/health` request, and verifies two-replica leader election. Licensed end-to-end workflows remain manual. Repository branch protection should require `lint`, `DoQA integration`, and `xray integration`; the integration aggregates succeed without a cluster for unrelated changes.
 
 ## Versioning, generated files, and release flow
 
 - Bump `version:` in a chart's `Chart.yaml` for every change under that chart directory detected by `ct list-changed` (currently including `ci/test-values.yaml`). `ct lint` enforces `check-version-increment: true`. Do not bump chart versions for repository-only files such as this one.
 - Keep `values.yaml`, its helm-docs comments, and `values.schema.json` synchronized. Edit narrative documentation in `README.md.gotmpl`, then regenerate `README.md`; do not hand-edit generated value tables.
 - `appVersion` tracks the upstream application. It is not a substitute for the chart version and, for DoQA, does not control the independently pinned component images.
-- A push to `main` runs `chart-releaser-action` with `skip_existing: true` and `mark_as_latest: true`. New chart versions become releases tagged `<chart>-<version>`, and the action updates `gh-pages/index.yaml`; already-published versions are skipped.
+- A push to `main` first runs the same docs/lint/template and DoQA regression checks. `scripts/check-release-versions.py` then compares `github.event.before..after`: if any chart directory changed in that push and its current `<chart>-<version>` tag already exists, publication fails rather than becoming a green no-op. Unchanged and repository-only pushes pass.
+- After validation, `chart-releaser-action` runs with `skip_existing: true` and `mark_as_latest: true`. New chart versions become releases tagged `<chart>-<version>`, and the action updates `gh-pages/index.yaml`; already-published versions of unchanged charts are skipped.
 
 ## Chart authoring conventions
 

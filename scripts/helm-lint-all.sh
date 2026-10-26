@@ -8,6 +8,15 @@ fi
 
 for chart in charts/*; do
   if [ -f "$chart/Chart.yaml" ]; then
-    helm lint "$chart"
+    linted=false
+    for profile_values in "$chart"/ci/*-values.yaml; do
+      if [ -f "$profile_values" ]; then
+        helm lint "$chart" -f "$profile_values"
+        linted=true
+      fi
+    done
+    if [ "$linted" = false ]; then
+      helm lint "$chart"
+    fi
   fi
 done

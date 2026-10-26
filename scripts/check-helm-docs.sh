@@ -13,3 +13,10 @@ if ! git diff --quiet -- 'charts/**/README.md'; then
   git diff -- 'charts/**/README.md'
   exit 1
 fi
+
+untracked_readmes="$(git ls-files --others --exclude-standard -- 'charts/**/README.md')"
+if [ -n "$untracked_readmes" ]; then
+  echo "helm-docs created untracked chart README.md files. Review and stage them:" >&2
+  printf '%s\n' "$untracked_readmes" >&2
+  exit 1
+fi
