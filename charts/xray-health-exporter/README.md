@@ -2,7 +2,7 @@
 
 Prometheus exporter for Xray-core tunnel health
 
-![Version: 0.4.6](https://img.shields.io/badge/Version-0.4.6-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.7.6](https://img.shields.io/badge/AppVersion-1.7.6-informational?style=flat-square)
+![Version: 0.4.7](https://img.shields.io/badge/Version-0.4.7-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.8.0](https://img.shields.io/badge/AppVersion-1.8.0-informational?style=flat-square)
 
 **Homepage:** <https://github.com/batonogov/xray-health-exporter>
 
@@ -87,6 +87,23 @@ including current TLS and REALITY parameters.
 
 See the [upstream configuration reference](https://github.com/batonogov/xray-health-exporter/blob/main/docs/configuration.md)
 for the complete schema, VLESS URL compatibility, and validation rules.
+
+### Upgrading to v1.8.0
+
+Static share links and text/Base64 subscriptions now support VLESS, VMess,
+Trojan, and Shadowsocks. Subscriptions also accept native Xray JSON and the
+supported subset of Clash proxy lists. Optional subscription fields include
+`name`, `timeout`, `format` (`auto`, `text`, `xray`, `clash`), `user_agent`, and
+`headers`. Keep authentication headers and subscription tokens in
+`existingConfigSecret`, since chart-managed configuration uses a ConfigMap.
+
+Review subscription contents before upgrading: unsupported entries now reject
+the entire response instead of being skipped. A source with no accepted cache
+blocks startup when its initial fetch fails; failed refreshes retain the last
+accepted list in memory, which does not survive restarts. Assign unique,
+nonsecret source names to keep metric identities stable when reordering sources.
+All check intervals, request timeouts, and `max_backoff` must be strictly
+positive; invalid values now reject startup or configuration reload.
 
 ### Native Xray JSON configurations
 
@@ -197,7 +214,7 @@ Kubernetes: `>=1.32.0-0`
 | config.defaults.backoff_multiplier | float | `2` | Exponential backoff growth factor after failures (must be at least 1.0). |
 | config.defaults.max_backoff | string | `"5m"` | Maximum interval between checks after repeated failures (Go duration). |
 | config.subscriptions | list | `[]` | Subscription URLs that auto-discover tunnels. See upstream README for schema. WARNING: subscription URLs typically embed access tokens — they are rendered into a plain ConfigMap. Use `existingConfigSecret` to source `config.yaml` from a Secret instead. |
-| config.tunnels | list | `[]` | Static tunnels. Each entry needs either `url` (a VLESS share link) or `xray_config_file`. VLESS URLs and their UUIDs are credentials and are rendered into a plain ConfigMap; use `existingConfigSecret` for real credentials. At least one tunnel or one subscription is required (or set `existingConfigSecret`); otherwise the exporter refuses to start. |
+| config.tunnels | list | `[]` | Static tunnels. Each entry needs either `url` (a VLESS, VMess, Trojan, or Shadowsocks share link) or `xray_config_file`. Share URLs contain credentials and are rendered into a plain ConfigMap; use `existingConfigSecret` for real credentials. At least one tunnel or one subscription is required (or set `existingConfigSecret`); otherwise the exporter refuses to start. |
 | env.CHECK_METHOD | string | `"http"` | Default health-check method used when a tunnel omits `check_method`. `http` (HTTP GET), `ip` (IP echo via `IP_CHECK_URL`), or `download` (file download via `DOWNLOAD_URL`). |
 | env.DOWNLOAD_MIN_SIZE | string | `"51200"` | Minimum downloaded bytes for the `download` method to be considered successful. |
 | env.DOWNLOAD_TIMEOUT | string | `"60s"` | Timeout for the `download` check method (Go duration, e.g. `60s`, `2m`). |

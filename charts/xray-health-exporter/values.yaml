@@ -153,7 +153,7 @@ config:
     backoff_multiplier: 2.0
   # -- Subscription URLs that auto-discover tunnels. See upstream README for schema. WARNING: subscription URLs typically embed access tokens — they are rendered into a plain ConfigMap. Use `existingConfigSecret` to source `config.yaml` from a Secret instead.
   subscriptions: []
-  # -- Static tunnels. Each entry needs either `url` (a VLESS share link) or `xray_config_file`. VLESS URLs and their UUIDs are credentials and are rendered into a plain ConfigMap; use `existingConfigSecret` for real credentials. At least one tunnel or one subscription is required (or set `existingConfigSecret`); otherwise the exporter refuses to start.
+  # -- Static tunnels. Each entry needs either `url` (a VLESS, VMess, Trojan, or Shadowsocks share link) or `xray_config_file`. Share URLs contain credentials and are rendered into a plain ConfigMap; use `existingConfigSecret` for real credentials. At least one tunnel or one subscription is required (or set `existingConfigSecret`); otherwise the exporter refuses to start.
   tunnels: []
 
 # -- Mount an existing Secret containing `config.yaml` instead of rendering one from `.Values.config`.

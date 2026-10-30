@@ -90,6 +90,23 @@ including current TLS and REALITY parameters.
 See the [upstream configuration reference](https://github.com/batonogov/xray-health-exporter/blob/main/docs/configuration.md)
 for the complete schema, VLESS URL compatibility, and validation rules.
 
+### Upgrading to v1.8.0
+
+Static share links and text/Base64 subscriptions now support VLESS, VMess,
+Trojan, and Shadowsocks. Subscriptions also accept native Xray JSON and the
+supported subset of Clash proxy lists. Optional subscription fields include
+`name`, `timeout`, `format` (`auto`, `text`, `xray`, `clash`), `user_agent`, and
+`headers`. Keep authentication headers and subscription tokens in
+`existingConfigSecret`, since chart-managed configuration uses a ConfigMap.
+
+Review subscription contents before upgrading: unsupported entries now reject
+the entire response instead of being skipped. A source with no accepted cache
+blocks startup when its initial fetch fails; failed refreshes retain the last
+accepted list in memory, which does not survive restarts. Assign unique,
+nonsecret source names to keep metric identities stable when reordering sources.
+All check intervals, request timeouts, and `max_backoff` must be strictly
+positive; invalid values now reject startup or configuration reload.
+
 ### Native Xray JSON configurations
 
 An entry using `xray_config_file` must reference a file mounted into the
