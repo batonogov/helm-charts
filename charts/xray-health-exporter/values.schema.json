@@ -379,7 +379,7 @@
         },
         "tunnels": {
           "type": "array",
-          "description": "Static tunnels. Each entry needs either url (a VLESS share link) or xray_config_file. VLESS URLs and their UUIDs are credentials and are rendered into a plain ConfigMap; use existingConfigSecret for real credentials.",
+          "description": "Static tunnels. Each entry needs either url (a VLESS, VMess, Trojan, or Shadowsocks share link) or xray_config_file. Share URLs contain credentials and are rendered into a plain ConfigMap; use existingConfigSecret for real credentials.",
           "items": {
             "type": "object"
           }

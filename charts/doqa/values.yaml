@@ -332,7 +332,7 @@ backend:
     # -- Backend image repository (relative to image.registry)
     repository: doqa/doqa-backend
     # -- Backend image tag
-    tag: 4.3.6-box
+    tag: 4.3.8-box
   # -- Backend replica count
   replicas: 2
   # -- Disable only the migration init container; the vendor image CMD may run migrations independently
