@@ -59,8 +59,8 @@ Failover timing matches the upstream defaults: ~5s on graceful leader exit,
 
 The exporter is driven by a YAML file. Set `.Values.config` to render a
 ConfigMap, or point `existingConfigSecret` at a Secret you manage out of band.
-Use a Secret for real subscription URLs with tokens and static VLESS URLs:
-both the URLs and their UUIDs are credentials.
+Use a Secret for subscription tokens, authentication headers, and static
+share links containing credentials.
 
 When using `existingConfigSecret`, restart the exporter Deployment after
 changing the Secret. The chart mounts `config.yaml` through `subPath`, so the
@@ -83,29 +83,18 @@ config:
       url: "vless://uuid@host1:443?type=xhttp&security=reality&pbk=...&sni=example.com&fp=chrome&path=%2Fapi&mode=stream-up"
 ```
 
-VLESS share links are passed to the exporter unchanged. Upstream v1.7.0
-supports RAW/TCP, XHTTP, gRPC, WebSocket, HTTPUpgrade, and mKCP transports,
-including current TLS and REALITY parameters.
-
-See the [upstream configuration reference](https://github.com/batonogov/xray-health-exporter/blob/main/docs/configuration.md)
-for the complete schema, VLESS URL compatibility, and validation rules.
+Static share links support VLESS, VMess, Trojan, and Shadowsocks. Subscriptions
+accept text/Base64 links, native Xray JSON, and a supported subset of Clash
+proxy lists. See the [upstream configuration reference](https://github.com/batonogov/xray-health-exporter/blob/v1.8.0/docs/configuration.md)
+for supported formats, transports, subscription fields, and validation rules.
 
 ### Upgrading to v1.8.0
 
-Static share links and text/Base64 subscriptions now support VLESS, VMess,
-Trojan, and Shadowsocks. Subscriptions also accept native Xray JSON and the
-supported subset of Clash proxy lists. Optional subscription fields include
-`name`, `timeout`, `format` (`auto`, `text`, `xray`, `clash`), `user_agent`, and
-`headers`. Keep authentication headers and subscription tokens in
-`existingConfigSecret`, since chart-managed configuration uses a ConfigMap.
-
-Review subscription contents before upgrading: unsupported entries now reject
-the entire response instead of being skipped. A source with no accepted cache
-blocks startup when its initial fetch fails; failed refreshes retain the last
-accepted list in memory, which does not survive restarts. Assign unique,
-nonsecret source names to keep metric identities stable when reordering sources.
-All check intervals, request timeouts, and `max_backoff` must be strictly
-positive; invalid values now reject startup or configuration reload.
+Check existing subscription contents: unsupported entries now reject the entire
+response instead of being skipped. An initial fetch failure prevents startup;
+failed refreshes retain the last accepted list in memory until restart.
+Check intervals, request timeouts, and `max_backoff` must be strictly positive;
+invalid values reject startup or configuration reload.
 
 ### Native Xray JSON configurations
 
