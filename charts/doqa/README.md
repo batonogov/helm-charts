@@ -412,11 +412,6 @@ This chart targets DoQA 4.1.0+. There is no automatic migration path from
 between 3.7 and 4.0. Plan a stepwise migration if you are coming from a
 3.x install.
 
-### 0.11.0 → 0.11.1
-
-Updates DoQA Box to 4.3.7 and the backend image to `4.3.8-box`.
-The vendor Compose files, environment contract and nginx routes are unchanged.
-
 ### 0.10.x → 0.11.0
 
 Upgrade with the same override file; vendor application and dependency image pins
