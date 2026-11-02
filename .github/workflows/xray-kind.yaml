@@ -38,7 +38,9 @@ jobs:
                    os.environ["BASE_SHA"], "HEAD"], text=True,
               ).split("\0")
               required = any(path.startswith("charts/xray-health-exporter/")
-                             or path == ".github/workflows/xray-kind.yaml" for path in paths)
+                             or path in (".github/workflows/xray-kind.yaml",
+                                           "scripts/check-xray-pods.py",
+                                           "scripts/test_check_xray_pods.py") for path in paths)
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
               output.write("run=" + str(required).lower() + "\n")
           print("xray integration required:", required)
@@ -74,6 +76,9 @@ jobs:
       - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
         with:
           version: v3.22.1
+
+      - name: Test rollout pod readiness checks
+        run: python3 scripts/test_check_xray_pods.py
 
       - name: Set up disposable kind cluster
         run: |
@@ -141,10 +146,19 @@ jobs:
             --wait --timeout 300s
           kubectl -n xray-smoke rollout status deployment/xray-smoke --timeout=300s
           selector=app.kubernetes.io/instance=xray-smoke
-          kubectl -n xray-smoke wait --for=condition=ready pod -l "$selector" --timeout=300s
-          pod_count="$(kubectl -n xray-smoke get pods -l "$selector" -o name | wc -l | tr -d ' ')"
-          if [ "$pod_count" != 2 ]; then
-            echo "Expected exactly two exporter pods, found $pod_count" >&2
+          # Re-list pods: a selector-based kubectl wait can retain a terminating
+          # old pod that disappears without ever becoming Ready again.
+          ready=false
+          for _ in $(seq 1 150); do
+            if kubectl -n xray-smoke get pods -l "$selector" -o json \
+                | python3 scripts/check-xray-pods.py; then
+              ready=true
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" != true ]; then
+            echo "Expected exactly two ready, non-terminating exporter pods" >&2
             exit 1
           fi
           holder=""
