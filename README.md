@@ -76,6 +76,10 @@ pre-commit run --all-files
 
 Configure the repository's required pull-request checks as `lint`, `DoQA integration`, and `xray integration`. The two integration aggregates always report a result, including for unrelated changes.
 
+## Chart updates
+
+The project skill [`update-helm-charts`](.agents/skills/update-helm-charts/SKILL.md) covers the full lifecycle: upstream discovery, compatibility audit, updates, iterative review and fixes, a PR with green CI, merge, and verification of the published release and Helm index. In Empryo, load it from `/skills` and request the full update cycle. It follows `AGENTS.md`; shared actions require explicit authorization, and branch protection is never bypassed.
+
 ## Contributing
 
 Open a pull request against `main`. Bump the `version:` in `Chart.yaml` of any chart with release-affecting changes — CI enforces this for templates, values, chart metadata, packaged files, and generated chart README changes. `chart-releaser-action` only publishes versions that haven't been released yet.
