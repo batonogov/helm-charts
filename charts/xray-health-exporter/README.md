@@ -2,7 +2,7 @@
 
 Prometheus exporter for Xray-core tunnel health
 
-![Version: 0.4.8](https://img.shields.io/badge/Version-0.4.8-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.8.1](https://img.shields.io/badge/AppVersion-1.8.1-informational?style=flat-square)
+![Version: 0.4.9](https://img.shields.io/badge/Version-0.4.9-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.8.2](https://img.shields.io/badge/AppVersion-1.8.2-informational?style=flat-square)
 
 **Homepage:** <https://github.com/batonogov/xray-health-exporter>
 
@@ -83,7 +83,7 @@ config:
 
 Static share links support VLESS, VMess, Trojan, and Shadowsocks. Subscriptions
 accept text/Base64 links, native Xray JSON, and a supported subset of Clash
-proxy lists. See the [upstream configuration reference](https://github.com/batonogov/xray-health-exporter/blob/v1.8.1/docs/configuration.md)
+proxy lists. See the [upstream configuration reference](https://github.com/batonogov/xray-health-exporter/blob/v1.8.2/docs/configuration.md)
 for supported formats, transports, subscription fields, and validation rules.
 
 ### Upgrading to v1.8.0
