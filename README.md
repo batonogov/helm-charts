@@ -78,7 +78,7 @@ Configure the repository's required pull-request checks as `lint`, `DoQA integra
 
 ## Chart updates
 
-The project skill [`update-helm-charts`](.agents/skills/update-helm-charts/SKILL.md) covers the full lifecycle: upstream discovery, compatibility audit, updates, iterative review and fixes, a PR with green CI, merge, and verification of the published release and Helm index. In Empryo, load it from `/skills` and request the full update cycle. It follows `AGENTS.md`; shared actions require explicit authorization, and branch protection is never bypassed.
+The project skill [`update-helm-charts`](.agents/skills/update-helm-charts/SKILL.md) covers the full lifecycle: upstream discovery, compatibility audit, updates, iterative review and fixes, a PR with green CI, merge, and verification of the published release and Helm index. In Empryo, load it from `/skills` and request the full update cycle. It follows `AGENTS.md` and automates commits, push, PR updates, merge, and publication verification without per-stage confirmation prompts, subject to active tool approval gates. Required checks, reviews, and branch protection are never bypassed.
 
 ## Contributing
 
