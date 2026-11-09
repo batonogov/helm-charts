@@ -76,6 +76,63 @@ pre-commit run --all-files
 
 Configure the repository's required pull-request checks as `lint`, `DoQA integration`, and `xray integration`. The two integration aggregates always report a result, including for unrelated changes.
 
+## Signed releases
+
+New releases are signed with an OpenPGP key. The release workflow requires the
+following repository Actions settings before it can publish (including the first
+push after this workflow change is merged):
+
+| Type | Name | Value |
+|---|---|---|
+| Secret | `GPG_PRIVATE_KEY` | ASCII-armored private signing key |
+| Secret | `GPG_PASSPHRASE` | Nonempty passphrase protecting that key |
+| Variable | `GPG_KEY_NAME` | Exact key user ID, such as `Chart Releases <releases@example.com>` |
+| Variable | `GPG_KEY_FINGERPRINT` | Full 40-character primary key fingerprint, without spaces |
+
+Generate a dedicated RSA signing key using `gpg --full-generate-key` (RSA 4096,
+signing capability, a strong passphrase, and an appropriate expiration date).
+Inspect its fingerprint with `gpg --list-secret-keys --keyid-format long`.
+Export the private key directly into GitHub Secrets from a trusted machine:
+
+```bash
+# Replace FINGERPRINT with the full fingerprint of the release key.
+gpg --armor --export-secret-keys FINGERPRINT |
+  gh secret set GPG_PRIVATE_KEY --repo batonogov/helm-charts
+gh secret set GPG_PASSPHRASE --repo batonogov/helm-charts
+gh variable set GPG_KEY_NAME --repo batonogov/helm-charts --body 'Chart Releases <releases@example.com>'
+gh variable set GPG_KEY_FINGERPRINT --repo batonogov/helm-charts --body FINGERPRINT
+gpg --armor --export FINGERPRINT > helm-signing-key.asc
+```
+
+Publish `helm-signing-key.asc` at a stable HTTPS URL and announce the fingerprint
+through a trusted channel before the first signed release. Retain old public keys
+when rotating keys so users can verify historical packages. Never commit the
+private key or passphrase. The workflow stops if settings are missing, the selected
+key is unavailable, or a signed test package fails verification; it does not fall
+back to unsigned publication. Temporary private material is removed even on failure.
+
+Chart Releaser uploads `<chart>-<version>.tgz.prov` alongside each new `.tgz` in
+GitHub Releases. Artifact Hub detects the provenance file during indexing and
+shows **Signed** for that version. Existing releases are not modified; a chart's
+next new version will receive a signature. This repository-only change does not
+bump chart versions. The **Signed** badge indicates signature availability, not a
+security audit or verification of the container images.
+
+Users can download the published public key, check its fingerprint against the
+announced value, and verify a signed chart:
+
+```bash
+gpg --show-keys --with-fingerprint helm-signing-key.asc
+gpg --dearmor < helm-signing-key.asc > helm-signing-key.gpg
+helm pull batonogov/doqa --version VERSION --verify --keyring ./helm-signing-key.gpg
+# Or add --verify --keyring ./helm-signing-key.gpg to helm install.
+```
+
+See [Helm provenance](https://helm.sh/docs/v3/topics/provenance/) and
+[Artifact Hub's signing-key annotation](https://artifacthub.io/docs/topics/annotations/helm/).
+Once the public-key URL and fingerprint are established, chart metadata can also
+include `artifacthub.io/signKey` to expose them in Artifact Hub.
+
 ## Chart updates
 
 The project skill [`update-helm-charts`](.agents/skills/update-helm-charts/SKILL.md) covers the full lifecycle: upstream discovery, compatibility audit, updates, iterative review and fixes, a PR with green CI, merge, and verification of the published release and Helm index. In Empryo, load it from `/skills` and request the full update cycle. It follows `AGENTS.md` and automates commits, push, PR updates, merge, and publication verification without per-stage confirmation prompts, subject to active tool approval gates. Required checks, reviews, and branch protection are never bypassed.
