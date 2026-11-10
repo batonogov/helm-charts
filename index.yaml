@@ -1,6 +1,35 @@
 apiVersion: v1
 entries:
   doqa:
+  - annotations:
+      artifacthub.io/signKey: |
+        fingerprint: 5D7C22FEAC4A227FF0158B13BBBB36147927A19E
+        url: https://raw.githubusercontent.com/batonogov/helm-charts/main/keys/helm-signing-key.asc
+    apiVersion: v2
+    appVersion: 4.3.7-box
+    created: "2026-11-10T10:59:59.838512528Z"
+    description: DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
+    digest: 3f4a176203c1dfcd73b456233828e308b2ac32d9c8a432e32175392de92b0fc8
+    home: https://doqa.app
+    icon: https://batonogov.github.io/helm-charts/assets/doqa-icon.png
+    keywords:
+    - doqa
+    - tcms
+    - testing
+    - test-management
+    - qa
+    kubeVersion: '>=1.32.0-0'
+    maintainers:
+    - name: batonogov
+      url: https://github.com/batonogov
+    name: doqa
+    sources:
+    - https://github.com/batonogov/helm-charts
+    - https://docs.doqa.app
+    type: application
+    urls:
+    - https://github.com/batonogov/helm-charts/releases/download/doqa-0.11.2/doqa-0.11.2.tgz
+    version: 0.11.2
   - apiVersion: v2
     appVersion: 4.3.7-box
     created: "2026-10-30T10:56:23.229048318Z"
@@ -702,6 +731,34 @@ entries:
     - https://github.com/batonogov/helm-charts/releases/download/doqa-0.1.0/doqa-0.1.0.tgz
     version: 0.1.0
   xray-health-exporter:
+  - annotations:
+      artifacthub.io/signKey: |
+        fingerprint: 5D7C22FEAC4A227FF0158B13BBBB36147927A19E
+        url: https://raw.githubusercontent.com/batonogov/helm-charts/main/keys/helm-signing-key.asc
+    apiVersion: v2
+    appVersion: 1.8.2
+    created: "2026-11-10T11:00:00.051790421Z"
+    description: Prometheus exporter for Xray-core tunnel health
+    digest: 750c810cc03654b4d17e00fc6093c46ce84c1ace753f922226f55ba4f71cdcfa
+    home: https://github.com/batonogov/xray-health-exporter
+    keywords:
+    - xray
+    - prometheus
+    - exporter
+    - monitoring
+    - vless
+    kubeVersion: '>=1.32.0-0'
+    maintainers:
+    - name: batonogov
+      url: https://github.com/batonogov
+    name: xray-health-exporter
+    sources:
+    - https://github.com/batonogov/helm-charts
+    - https://github.com/batonogov/xray-health-exporter
+    type: application
+    urls:
+    - https://github.com/batonogov/helm-charts/releases/download/xray-health-exporter-0.4.10/xray-health-exporter-0.4.10.tgz
+    version: 0.4.10
   - apiVersion: v2
     appVersion: 1.8.2
     created: "2026-11-04T12:06:33.84959878Z"
@@ -1278,4 +1335,4 @@ entries:
     urls:
     - https://github.com/batonogov/helm-charts/releases/download/xray-health-exporter-0.1.0/xray-health-exporter-0.1.0.tgz
     version: 0.1.0
-generated: "2026-11-04T12:06:33.849906092Z"
+generated: "2026-11-10T11:00:00.05208533Z"
