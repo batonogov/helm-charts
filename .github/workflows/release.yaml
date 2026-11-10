@@ -100,6 +100,14 @@ jobs:
         with:
           version: v3.22.1
 
+      - name: Prepare and verify chart signing key
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          GPG_KEY_NAME: ${{ vars.GPG_KEY_NAME }}
+          GPG_KEY_FINGERPRINT: ${{ vars.GPG_KEY_FINGERPRINT }}
+        run: bash scripts/prepare-chart-signing.sh
+
       - uses: helm/chart-releaser-action@92c6b97fa9f664492a2592e0d1d80bc6bf378957 # v1.9.0
         with:
           charts_dir: charts
@@ -109,3 +117,7 @@ jobs:
           skip_existing: true
         env:
           CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Remove signing material
+        if: always()
+        run: rm -rf -- "$RUNNER_TEMP/chart-signing"
