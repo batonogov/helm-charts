@@ -2,7 +2,7 @@ apiVersion: v2
 name: xray-health-exporter
 description: Prometheus exporter for Xray-core tunnel health
 type: application
-version: 0.4.9
+version: 0.4.10
 # renovate: datasource=docker depName=ghcr.io/batonogov/xray-health-exporter extractVersion=^v(?<version>.*)$ versioning=semver
 appVersion: "1.8.2"
 kubeVersion: ">=1.32.0-0"
@@ -19,3 +19,7 @@ keywords:
 maintainers:
   - name: batonogov
     url: https://github.com/batonogov
+annotations:
+  artifacthub.io/signKey: |
+    fingerprint: 5D7C22FEAC4A227FF0158B13BBBB36147927A19E
+    url: https://raw.githubusercontent.com/batonogov/helm-charts/main/keys/helm-signing-key.asc
