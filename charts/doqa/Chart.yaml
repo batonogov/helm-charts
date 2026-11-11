@@ -2,7 +2,7 @@ apiVersion: v2
 name: doqa
 description: DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
 type: application
-version: 0.11.2
+version: 0.11.3
 appVersion: "4.3.8-box"
 kubeVersion: ">=1.32.0-0"
 home: https://doqa.app
@@ -19,3 +19,7 @@ maintainers:
   - name: batonogov
     url: https://github.com/batonogov
 icon: https://batonogov.github.io/helm-charts/assets/doqa-icon.png
+annotations:
+  artifacthub.io/signKey: |
+    fingerprint: 5D7C22FEAC4A227FF0158B13BBBB36147927A19E
+    url: https://raw.githubusercontent.com/batonogov/helm-charts/main/keys/helm-signing-key.asc

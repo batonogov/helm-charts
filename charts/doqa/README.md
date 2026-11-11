@@ -2,7 +2,7 @@
 
 DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
 
-![Version: 0.11.2](https://img.shields.io/badge/Version-0.11.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.3.8-box](https://img.shields.io/badge/AppVersion-4.3.8--box-informational?style=flat-square)
+![Version: 0.11.3](https://img.shields.io/badge/Version-0.11.3-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.3.8-box](https://img.shields.io/badge/AppVersion-4.3.8--box-informational?style=flat-square)
 
 **Homepage:** <https://doqa.app>
 
@@ -43,7 +43,7 @@ anonymously — no `imagePullSecrets` are required by default.
 
 | Area | Status | Notes |
 |---|---|---|
-| DoQA Box | Supported | Component versions are pinned in `values.yaml`; verified against the vendor archive `configs_4_3_8.zip` |
+| DoQA Box | Supported | Component versions are pinned in `values.yaml`; verified against the vendor archive `configs_4_3_7.zip` |
 | Kubernetes | Supported | `1.32+`, as declared by `Chart.yaml`; manifests use stable Kubernetes APIs |
 | Helm | Tested | Helm `3.22.1` in CI and Helm 4 locally; Helm `3.13+` is supported |
 | Node platform | Supported | `linux/amd64`; the current vendor images are single-platform amd64 images |
@@ -197,7 +197,7 @@ Kubernetes: `>=1.32.0-0`
 | frontend.affinity | object | `{}` |  |
 | frontend.containerSecurityContext | object | `{"capabilities":{"add":["CHOWN","DAC_OVERRIDE","SETUID","SETGID"]}}` | Capabilities required to start nginx in the component image; privilege escalation remains disabled. |
 | frontend.image.repository | string | `"doqa/doqa-frontend"` | Frontend image repository (relative to image.registry) |
-| frontend.image.tag | string | `"4.3.4-box"` | Frontend image tag |
+| frontend.image.tag | string | `"4.3.5-box"` | Frontend image tag |
 | frontend.nodeSelector | object | `{}` |  |
 | frontend.replicas | int | `2` | Frontend replica count |
 | frontend.resources | object | `{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}}` | Resource requests and limits |

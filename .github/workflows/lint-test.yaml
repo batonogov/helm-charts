@@ -14,6 +14,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  chart-signing:
+    name: Chart signing
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v3.22.1
+
+      - name: Test chart signing with a disposable key
+        run: bash scripts/test-chart-signing.sh
+
   lint:
     runs-on: ubuntu-latest
     timeout-minutes: 20
