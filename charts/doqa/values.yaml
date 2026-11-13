@@ -560,7 +560,7 @@ llm:
     # -- LLM image repository
     repository: doqa/doqa-llm
     # -- LLM image tag
-    tag: 4.3.0-box
+    tag: 4.3.1-box
   # -- Replica count
   replicas: 1
   # -- Resource requests and limits
