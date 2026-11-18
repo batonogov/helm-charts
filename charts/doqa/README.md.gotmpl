@@ -96,6 +96,13 @@ swapped to external services with `<component>.create=false`:
 | RabbitMQ | In-tree Deployment + PVC | `rabbitmq.create=false` + `rabbitmq.host` |
 | MinIO | In-tree Deployment + PVC + bucket-init Job | `minio.create=false` + `minio.endpoint` |
 
+The vendor Compose file runs separate primary and notification Redis services.
+The chart shares one Redis instance and uses the notification service’s Redis
+command for both workloads. It mounts a PVC at `/data` but starts its shared Redis instance with
+AOF and automatic RDB snapshots disabled. Data written to Redis after startup
+can therefore be lost on restart even when the PVC survives.
+
+
 ## Secrets
 
 By default the chart **generates** application secrets (`secrets.create=true`)
