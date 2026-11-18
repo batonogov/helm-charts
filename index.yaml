@@ -824,6 +824,34 @@ entries:
         url: https://raw.githubusercontent.com/batonogov/helm-charts/main/keys/helm-signing-key.asc
     apiVersion: v2
     appVersion: 1.8.2
+    created: "2026-11-18T11:25:18.467188526Z"
+    description: Prometheus exporter for Xray-core tunnel health
+    digest: 4540955d823134ab10867a706ec71b701dbcd88a2c7cdaf0285cd70bacbe59d0
+    home: https://github.com/batonogov/xray-health-exporter
+    keywords:
+    - xray
+    - prometheus
+    - exporter
+    - monitoring
+    - vless
+    kubeVersion: '>=1.32.0-0'
+    maintainers:
+    - name: batonogov
+      url: https://github.com/batonogov
+    name: xray-health-exporter
+    sources:
+    - https://github.com/batonogov/helm-charts
+    - https://github.com/batonogov/xray-health-exporter
+    type: application
+    urls:
+    - https://github.com/batonogov/helm-charts/releases/download/xray-health-exporter-0.4.11/xray-health-exporter-0.4.11.tgz
+    version: 0.4.11
+  - annotations:
+      artifacthub.io/signKey: |
+        fingerprint: 5D7C22FEAC4A227FF0158B13BBBB36147927A19E
+        url: https://raw.githubusercontent.com/batonogov/helm-charts/main/keys/helm-signing-key.asc
+    apiVersion: v2
+    appVersion: 1.8.2
     created: "2026-11-10T11:00:00.051790421Z"
     description: Prometheus exporter for Xray-core tunnel health
     digest: 750c810cc03654b4d17e00fc6093c46ce84c1ace753f922226f55ba4f71cdcfa
@@ -1422,4 +1450,4 @@ entries:
     urls:
     - https://github.com/batonogov/helm-charts/releases/download/xray-health-exporter-0.1.0/xray-health-exporter-0.1.0.tgz
     version: 0.1.0
-generated: "2026-11-18T11:23:50.386298882Z"
+generated: "2026-11-18T11:25:18.467580033Z"
