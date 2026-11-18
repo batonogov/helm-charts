@@ -16,9 +16,9 @@ image:
   # -- Image pull secrets (list of `{name: <secret>}`).
   pullSecrets: []
 
-# -- Annotations applied to every Deployment pod.
+# -- Annotations applied to every Deployment pod. The chart owns `checksum/config` when it generates the ConfigMap.
 podAnnotations: {}
-# -- Extra labels applied to every Deployment pod.
+# -- Extra labels applied to every Deployment pod. The chart reserves the name and instance selector labels.
 podLabels: {}
 
 # -- Pod-level security context (non-root, matches upstream UID 10001).
