@@ -7,6 +7,35 @@ entries:
         url: https://raw.githubusercontent.com/batonogov/helm-charts/main/keys/helm-signing-key.asc
     apiVersion: v2
     appVersion: 4.3.11-box
+    created: "2026-11-20T02:31:35.080350364Z"
+    description: DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
+    digest: 274b15642f1c24193e27d9f37450510a7c7fd85ce94257fad43e3ef198a6676b
+    home: https://doqa.app
+    icon: https://batonogov.github.io/helm-charts/assets/doqa-icon.png
+    keywords:
+    - doqa
+    - tcms
+    - testing
+    - test-management
+    - qa
+    kubeVersion: '>=1.32.0-0'
+    maintainers:
+    - name: batonogov
+      url: https://github.com/batonogov
+    name: doqa
+    sources:
+    - https://github.com/batonogov/helm-charts
+    - https://docs.doqa.app
+    type: application
+    urls:
+    - https://github.com/batonogov/helm-charts/releases/download/doqa-0.11.6/doqa-0.11.6.tgz
+    version: 0.11.6
+  - annotations:
+      artifacthub.io/signKey: |
+        fingerprint: 5D7C22FEAC4A227FF0158B13BBBB36147927A19E
+        url: https://raw.githubusercontent.com/batonogov/helm-charts/main/keys/helm-signing-key.asc
+    apiVersion: v2
+    appVersion: 4.3.11-box
     created: "2026-11-18T11:23:50.386084217Z"
     description: DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
     digest: 9f3b8a353a1f09c2968f4f7b15a764e10aa9ffc197ac8c169922695669738bd2
@@ -1450,4 +1479,4 @@ entries:
     urls:
     - https://github.com/batonogov/helm-charts/releases/download/xray-health-exporter-0.1.0/xray-health-exporter-0.1.0.tgz
     version: 0.1.0
-generated: "2026-11-18T11:25:18.467580033Z"
+generated: "2026-11-20T02:31:35.080521517Z"
