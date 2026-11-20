@@ -38,6 +38,20 @@ def monitoring_values(namespace="monitoring"):
 
 
 class ReliabilityTests(unittest.TestCase):
+    def test_chart_owned_pod_metadata(self):
+        values = {
+            "podLabels": {"app.kubernetes.io/name": "override", "app.kubernetes.io/instance": "override", "team": "ops"},
+            "podAnnotations": {"checksum/config": "manual", "owner": "ops"},
+        }
+        spec = render(values)["review"]["spec"]
+        metadata = spec["template"]["metadata"]
+        self.assertEqual(metadata["labels"], {**spec["selector"]["matchLabels"], "team": "ops"})
+        self.assertEqual(metadata["annotations"]["owner"], "ops")
+        self.assertEqual(metadata["annotations"]["checksum/config"],
+                         render()["review"]["spec"]["template"]["metadata"]["annotations"]["checksum/config"])
+        values["existingConfigSecret"] = "external"
+        self.assertEqual(render(values)["review"]["spec"]["template"]["metadata"]["annotations"], values["podAnnotations"])
+
     def test_cross_namespace_service_monitor_selects_release_namespace(self):
         monitor = render(monitoring_values(), kind="ServiceMonitor")["review"]
         self.assertEqual(monitor["metadata"]["namespace"], "monitoring")
