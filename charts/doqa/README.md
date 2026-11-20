@@ -2,7 +2,7 @@
 
 DoQA Test Case Management System (TCMS) self-hosted on Kubernetes
 
-![Version: 0.11.5](https://img.shields.io/badge/Version-0.11.5-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.3.11-box](https://img.shields.io/badge/AppVersion-4.3.11--box-informational?style=flat-square)
+![Version: 0.11.6](https://img.shields.io/badge/Version-0.11.6-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 4.3.11-box](https://img.shields.io/badge/AppVersion-4.3.11--box-informational?style=flat-square)
 
 **Homepage:** <https://doqa.app>
 
@@ -93,6 +93,12 @@ swapped to external services with `<component>.create=false`:
 | Redis | In-tree Deployment + PVC | `redis.create=false` + `redis.host` |
 | RabbitMQ | In-tree Deployment + PVC | `rabbitmq.create=false` + `rabbitmq.host` |
 | MinIO | In-tree Deployment + PVC + bucket-init Job | `minio.create=false` + `minio.endpoint` |
+
+The vendor Compose file runs separate primary and notification Redis services.
+The chart shares one Redis instance and uses the notification service’s Redis
+command for both workloads. It mounts a PVC at `/data` but starts its shared Redis instance with
+AOF and automatic RDB snapshots disabled. Data written to Redis after startup
+can therefore be lost on restart even when the PVC survives.
 
 ## Secrets
 
