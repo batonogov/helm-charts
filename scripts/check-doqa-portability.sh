@@ -35,7 +35,7 @@ external_render=$(helm template test-doqa-external "$chart" \
   -f "$chart/ci/external-values.yaml")
 
 assert_contains "$external_render" \
-  'image: "registry.example.com/doqa-mirror/service/nginx:1.23.3-alpine"' \
+  'image: "registry.example.com/doqa-mirror/service/nginx:1.30.7-alpine"' \
   "fully qualified nginx mirror repository was changed"
 assert_contains "$external_render" \
   'image: "registry.example.com/doqa-mirror/service/soketi:16-alpine"' \
